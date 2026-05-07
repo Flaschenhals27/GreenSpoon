@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
-import '../../features/pantry/presentation/pantry_screen.dart';
+import '../../features/main_shell.dart';
 import '../supabase/supabase_service.dart';
 
 /// Listenable, das go_router neu evaluiert, sobald Supabase einen
@@ -47,7 +47,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (_, __) => const PantryScreen(),
+        builder: (_, __) => const MainShell(),
       ),
       GoRoute(
         path: '/login',
