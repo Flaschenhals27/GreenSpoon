@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/gs_colors.dart';
 import 'pantry/presentation/pantry_screen.dart';
 import 'recipes/presentation/recipes_screen.dart';
+import 'profile/presentation/profile_screen.dart';
 
 /// Die Haupt-Hülle der App: Bottom-Tab-Bar mit zwei Tabs (Vorrat, Rezepte).
 class MainShell extends StatefulWidget {
@@ -18,6 +19,7 @@ class _MainShellState extends State<MainShell> {
   static const _screens = [
     PantryScreen(),
     RecipesScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -46,6 +48,11 @@ class _MainShellState extends State<MainShell> {
             selectedIcon:
                 Icon(Icons.restaurant_menu, color: GSColors.primary),
             label: 'Rezepte',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: GSColors.primary),
+            label: 'Profil',
           ),
         ],
       ),

@@ -186,15 +186,17 @@ class _PantryItemCard extends ConsumerWidget {
         child: const Icon(Icons.delete_outline, color: GSColors.paper),
       ),
       confirmDismiss: (_) async {
-        // Erst löschen, dann Stream invalidieren — der nächste Stream-Tick
-        // entfernt das Item aus der Liste, Flutter merkt das und nimmt das
-        // Dismissible sauber raus.
+        final reason = await showDialog<String>(
+          context: context,
+          builder: (_) => const _RemoveReasonDialog(),
+        );
+        if (reason == null) return false;
         try {
-          await ref.read(pantryRepositoryProvider).delete(item.id);
-          ref.invalidate(pantryStreamProvider);
-          return true; // Wisch wird "bestätigt", Widget verschwindet
+          await ref
+              .read(pantryRepositoryProvider)
+              .archive(item.id, status: reason);
+          return true;
         } catch (e) {
-          // Bei Fehler nicht wegwischen
           return false;
         }
       },
@@ -405,6 +407,127 @@ class _EmptyState extends StatelessWidget {
               'Tippe auf „Hinzufügen", um dein erstes\nLebensmittel anzulegen.',
               textAlign: TextAlign.center,
               style: GSTypography.body(color: subtleColor, size: 13.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RemoveReasonDialog extends StatelessWidget {
+  const _RemoveReasonDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? GSColors.paper : GSColors.forest;
+    final subtleColor = isDark
+        ? GSColors.paper.withValues(alpha: 0.55)
+        : GSColors.forest.withValues(alpha: 0.55);
+
+    return Dialog(
+      backgroundColor: isDark ? GSColors.cardDark : GSColors.cardLight,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Was ist passiert?',
+              style: GSTypography.headline(color: textColor, size: 20),
+            ),
+            const SizedBox(height: 14),
+            _ReasonButton(
+              icon: '🍳',
+              label: 'Verwertet',
+              sub: 'Gegessen oder gekocht',
+              color: GSColors.primary,
+              onTap: () => Navigator.of(context).pop('consumed'),
+            ),
+            const SizedBox(height: 8),
+            _ReasonButton(
+              icon: '⏳',
+              label: 'Abgelaufen',
+              sub: 'Leider nicht mehr genießbar',
+              color: GSColors.expiryUrgent,
+              onTap: () => Navigator.of(context).pop('expired'),
+            ),
+            const SizedBox(height: 8),
+            _ReasonButton(
+              icon: '🗑',
+              label: 'Einfach entfernen',
+              sub: 'Aus der Liste nehmen',
+              color: subtleColor,
+              onTap: () => Navigator.of(context).pop('discarded'),
+            ),
+            const SizedBox(height: 14),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Abbrechen', style: TextStyle(color: subtleColor)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReasonButton extends StatelessWidget {
+  const _ReasonButton({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.color,
+    required this.onTap,
+  });
+  final String icon;
+  final String label;
+  final String sub;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? GSColors.paper : GSColors.forest;
+    final subtleColor = isDark
+        ? GSColors.paper.withValues(alpha: 0.55)
+        : GSColors.forest.withValues(alpha: 0.55);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GSTypography.body(
+                      color: textColor,
+                      size: 14.5,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    sub,
+                    style: GSTypography.body(color: subtleColor, size: 12),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
