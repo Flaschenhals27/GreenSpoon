@@ -7,35 +7,25 @@ class MhdMatch {
   final String rawText;
 }
 
-/// Parsed deutsche MHD-Aufdrucke aus OCR-Rohtext.
-///
-/// Tolerant gegenüber typischen OCR-Fehlern:
-///   - Verwechslungen (l/I/| → 1, O/D → 0, B → 8, Z → 2, S → 5)
-///   - Trennzeichen-Varianten (. , : ; - / \ Leerzeichen)
-///   - überflüssige Leerzeichen rund um die Ziffern
-///
-/// Erkannte Formate:
-///   12.05.2026   12.05.26   12.5.26
-///   2026-05-12   (ISO)
-///   12.05        (kurz, nimmt nächstes plausibles Jahr)
 class MhdParser {
   MhdParser._();
 
-  /// Wendet OCR-Korrekturen auf den Rohtext an.
-  /// Buchstaben, die häufig als Ziffern fehlgelesen werden, werden
-  /// nur ersetzt, wenn sie zwischen Ziffern oder Datums-Trennzeichen
-  /// stehen — sonst zerstört man echten Text.
+  /// OCR-Korrekturen: Punkt-Matrix-Verwechslungen, Trenner-Varianten,
+  /// nur Inline-Whitespace zusammenziehen (Newlines NIE anfassen!).
   static String _normalizeOcr(String input) {
     var s = input;
 
-    // Verschiedene "punktähnliche" Trenner (Bullet, Mid-Dot, Apostroph)
-    // zu echtem Punkt vereinheitlichen.
+    // Punkt-ähnliche Trenner zu echtem Punkt
     s = s.replaceAll(RegExp(r"[·•'`´]"), '.');
 
-    // Whitespace um Trennzeichen weg: "12 . 05 . 2026" → "12.05.2026"
-    s = s.replaceAll(RegExp(r'[ \t]*([.,:;\-/\\])[ \t]*'), r'$1');  
-    // Lücken zwischen Ziffern, die offensichtlich ein Datum sind, mit Punkt
-    // füllen: "29 05 2026" → "29.05.2026"
+    // Inline-Whitespace (Space/Tab) um Trennzeichen entfernen.
+    // KEIN \s, das würde Newlines fressen.
+    s = s.replaceAllMapped(
+      RegExp(r'[ \t]*([.,:;\-/\\])[ \t]*'),
+      (m) => m[1]!,
+    );
+
+    // Lücken zwischen Ziffern → Punkt (auch hier nur Space/Tab, keine Newlines)
     s = s.replaceAllMapped(
       RegExp(r'\b(\d{1,2})[ \t]+(\d{1,2})[ \t]+(20\d{2})\b'),
       (m) => '${m[1]}.${m[2]}.${m[3]}',
@@ -51,7 +41,7 @@ class MhdParser {
       (m) => '${m[1]}.${m[2]}',
     );
 
-    // Buchstaben → Ziffern, nur in Ziffern-Kontext
+    // Buchstaben → Ziffern, nur in Ziffern-/Trenner-Kontext
     s = s.replaceAllMapped(
       RegExp(r'(?<=\d)[lI|](?=\d|[.\-/])|(?<=[.\-/])[lI|](?=\d)'),
       (_) => '1',
@@ -84,19 +74,14 @@ class MhdParser {
     return s;
   }
 
-  static final _patterns = <RegExp>[
-    // ISO 2026-05-12 (auch mit Punkt/Slash)
-    RegExp(r'\b(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})\b'),
-    // 12.05.2026
-    RegExp(r'\b(\d{1,2})[.\-/](\d{1,2})[.\-/](20\d{2})\b'),
-    // 12.05.26
-    RegExp(r'\b(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})\b'),
-    // 12.05 (kurz)
-    RegExp(r'\b(\d{1,2})[.\-/](\d{1,2})\b(?!\d)'),
-  ];
+  static final _patternIso = RegExp(r'(?<![\d])(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})(?![\d])');
+  static final _patternFull = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](20\d{2})(?![\d])');
+  static final _patternShortYear = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})(?![\d])');
+  static final _patternDayMonth = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})(?![\d.\-/])');
 
   static List<MhdMatch> parseAll(String text) {
-    final cleaned = _normalizeOcr(text);    
+    final cleaned = _normalizeOcr(text);
+    print('--- NORMALIZED ---\n$cleaned\n--- END ---');
     final matches = <MhdMatch>[];
     final seenDates = <DateTime>{};
 
@@ -108,7 +93,7 @@ class MhdParser {
     }
 
     // 1) ISO yyyy-mm-dd
-    for (final m in _patterns[0].allMatches(cleaned)) {
+    for (final m in _patternIso.allMatches(cleaned)) {
       final y = int.tryParse(m.group(1)!) ?? 0;
       final mo = int.tryParse(m.group(2)!) ?? 0;
       final d = int.tryParse(m.group(3)!) ?? 0;
@@ -117,7 +102,7 @@ class MhdParser {
     }
 
     // 2) dd.mm.yyyy
-    for (final m in _patterns[1].allMatches(cleaned)) {
+    for (final m in _patternFull.allMatches(cleaned)) {
       final d = int.tryParse(m.group(1)!) ?? 0;
       final mo = int.tryParse(m.group(2)!) ?? 0;
       final y = int.tryParse(m.group(3)!) ?? 0;
@@ -126,7 +111,7 @@ class MhdParser {
     }
 
     // 3) dd.mm.yy
-    for (final m in _patterns[2].allMatches(cleaned)) {
+    for (final m in _patternShortYear.allMatches(cleaned)) {
       final d = int.tryParse(m.group(1)!) ?? 0;
       final mo = int.tryParse(m.group(2)!) ?? 0;
       final yy = int.tryParse(m.group(3)!) ?? 0;
@@ -135,16 +120,14 @@ class MhdParser {
       if (date != null) addIfValid(date, m.group(0)!);
     }
 
-    // 4) dd.mm (kurz)
-    // 4) dd.mm (kurz) — nur, wenn KEIN vollständiges Datum mit Jahr im Text
-//    gefunden wurde. Sonst gibt's Falschalarme bei Codes wie "L30.08".
-    final hasFullDate =
-        _patterns[0].hasMatch(cleaned) ||
-        _patterns[1].hasMatch(cleaned) ||
-        _patterns[2].hasMatch(cleaned);
+    // 4) dd.mm (kurz) — nur wenn KEIN vollständiges Datum gefunden wurde,
+    // sonst gibt's Falschalarme bei Codes wie "L30.08".
+    final hasFullDate = _patternIso.hasMatch(cleaned) ||
+        _patternFull.hasMatch(cleaned) ||
+        _patternShortYear.hasMatch(cleaned);
 
-    if (!hasFullDate) {
-      for (final m in _patterns[3].allMatches(cleaned)) {
+    /*if (!hasFullDate) {
+      for (final m in _patternDayMonth.allMatches(cleaned)) {
         final d = int.tryParse(m.group(1)!) ?? 0;
         final mo = int.tryParse(m.group(2)!) ?? 0;
         final now = DateTime.now();
@@ -155,7 +138,7 @@ class MhdParser {
         }
         if (date != null) addIfValid(date, m.group(0)!);
       }
-    }
+    }*/ // --- IGNORE --- (zu viele Fehlalarme)
 
     final now = DateTime.now();
     matches.sort((a, b) {
