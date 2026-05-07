@@ -1,0 +1,29 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.lock
+.idea/
+.vscode/
+
+# iOS / Android (generierte Dateien)
+ios/Pods/
+ios/Podfile.lock
+ios/.symlinks/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+
+# Secrets
+.env
+*.keystore
+key.properties
+
+# Misc
+.DS_Store

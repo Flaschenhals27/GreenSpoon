@@ -1,0 +1,59 @@
+name: green_spoon
+description: "Green Spoon — Vorrat scannen, klug kochen."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Routing
+  go_router: ^14.2.7
+
+  # Backend
+  supabase_flutter: ^2.5.11
+
+  # Env / Config
+  flutter_dotenv: ^5.1.0
+
+  # Secure storage (für Session-Tokens, falls Supabase es nicht selbst macht)
+  flutter_secure_storage: ^9.2.2
+
+  # Utilities
+  intl: ^0.20.2
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+  # Fonts (Fraunces für Headlines, Inter für UI)
+  google_fonts: ^6.2.1
+
+  mobile_scanner: ^5.2.3
+  camera: ^0.11.0+2
+  http: ^1.2.2
+  permission_handler: ^11.3.1
+  google_mlkit_text_recognition: ^0.13.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+
+  # Fonts werden später aus Google Fonts geladen — wir verwenden google_fonts nicht direkt,
+  # sondern definieren die Schriften systemnah. Falls offline-Fähigkeit gewünscht ist,
+  # können Fraunces+Inter nachträglich als TTF unter assets/fonts/ eingebunden werden.

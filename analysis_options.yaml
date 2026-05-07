@@ -1,0 +1,13 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - .dart_tool/**
+
+linter:
+  rules:
+    # Sinnvolle zusätzliche Regeln
+    avoid_print: true
+    prefer_single_quotes: true
+    require_trailing_commas: true

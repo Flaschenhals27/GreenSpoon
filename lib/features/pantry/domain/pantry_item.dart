@@ -1,0 +1,69 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
+class PantryItem {
+  const PantryItem({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.category,
+    required this.emoji,
+    this.brand,
+    this.quantity,
+    this.barcode,
+    this.expiresAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String name;
+  final String? brand;
+  final String? quantity;
+  final String category;
+  final String? barcode;
+  final String emoji;
+  final DateTime? expiresAt;
+  final DateTime createdAt;
+
+  /// Tage bis Ablauf (negative Werte = bereits abgelaufen, null = kein MHD).
+  int? get daysUntilExpiry {
+    if (expiresAt == null) return null;
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final expDate =
+        DateTime(expiresAt!.year, expiresAt!.month, expiresAt!.day);
+    return expDate.difference(todayDate).inDays;
+  }
+
+  factory PantryItem.fromJson(Map<String, dynamic> json) {
+    return PantryItem(
+      id: json['id'] as String,
+      userId: json['user_id'] as String,
+      name: json['name'] as String,
+      brand: json['brand'] as String?,
+      quantity: json['quantity'] as String?,
+      category: json['category'] as String? ?? 'Sonstiges',
+      barcode: json['barcode'] as String?,
+      emoji: json['emoji'] as String? ?? '📦',
+      expiresAt: json['expires_at'] != null
+          ? DateTime.parse(json['expires_at'] as String)
+          : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+
+  /// JSON für INSERT (ohne `id`/`created_at` — die setzt Postgres).
+  Map<String, dynamic> toInsertJson() {
+    return {
+      'user_id': userId,
+      'name': name,
+      'brand': brand,
+      'quantity': quantity,
+      'category': category,
+      'barcode': barcode,
+      'emoji': emoji,
+      'expires_at': expiresAt?.toIso8601String().split('T').first,
+    };
+  }
+}
