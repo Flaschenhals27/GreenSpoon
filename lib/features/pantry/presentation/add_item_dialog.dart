@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/gs_date_sheet.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
@@ -44,13 +45,9 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _expiresAt ?? now.add(const Duration(days: 7)),
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
-      locale: const Locale('de'),
+    final picked = await showGSDateSheet(
+      context,
+      initial: _expiresAt,
     );
     if (picked != null) setState(() => _expiresAt = picked);
   }

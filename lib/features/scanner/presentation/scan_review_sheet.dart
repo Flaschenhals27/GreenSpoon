@@ -6,6 +6,7 @@ import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../domain/scanned_product.dart';
+import '../../../core/widgets/gs_date_sheet.dart';
 
 const _categories = [
   'Gemüse',
@@ -58,15 +59,33 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _expiresAt ?? now.add(const Duration(days: 7)),
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
-      locale: const Locale('de'),
+    final smartDefault = _expiresAt ?? _smartDefaultForCategory();
+    final picked = await showGSDateSheet(
+      context,
+      initial: smartDefault,
     );
     if (picked != null) setState(() => _expiresAt = picked);
+  }
+
+  DateTime _smartDefaultForCategory() {
+    final now = DateTime.now();
+    switch (_category) {
+      case 'Milchprodukte':
+      case 'Fleisch & Fisch':
+        return now.add(const Duration(days: 7));
+      case 'Obst':
+      case 'Gemüse':
+        return now.add(const Duration(days: 5));
+      case 'Brot & Backwaren':
+        return now.add(const Duration(days: 4));
+      case 'Tiefkühl':
+        return now.add(const Duration(days: 365));
+      case 'Pasta & Reis':
+      case 'Getränke':
+        return now.add(const Duration(days: 365));
+      default:
+        return now.add(const Duration(days: 30));
+    }
   }
 
   Future<void> _scanMhd() async {
@@ -100,7 +119,6 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
             emoji: _emoji,
             expiresAt: _expiresAt,
           );
-      ref.invalidate(pantryStreamProvider); // ← neu
       if (mounted) Navigator.of(context).pop();
     }catch (e) {
       if (mounted) {

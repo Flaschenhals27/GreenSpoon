@@ -138,6 +138,7 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
     for (final p in list) {
       grouped.putIfAbsent(p.category, () => []).add(p);
     }
+    grouped.removeWhere((_, items) => items.isEmpty);
 
     final widgets = <Widget>[];
     grouped.forEach((cat, group) {
@@ -184,8 +185,18 @@ class _PantryItemCard extends ConsumerWidget {
         ),
         child: const Icon(Icons.delete_outline, color: GSColors.paper),
       ),
-      onDismissed: (_) {
-        ref.read(pantryRepositoryProvider).delete(item.id);
+      confirmDismiss: (_) async {
+        // Erst löschen, dann Stream invalidieren — der nächste Stream-Tick
+        // entfernt das Item aus der Liste, Flutter merkt das und nimmt das
+        // Dismissible sauber raus.
+        try {
+          await ref.read(pantryRepositoryProvider).delete(item.id);
+          ref.invalidate(pantryStreamProvider);
+          return true; // Wisch wird "bestätigt", Widget verschwindet
+        } catch (e) {
+          // Bei Fehler nicht wegwischen
+          return false;
+        }
       },
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),

@@ -7,6 +7,16 @@ class MhdMatch {
   final String rawText;
 }
 
+@immutable
+class MhdHint {
+  const MhdHint({this.day, this.month, this.year});
+  final int? day;
+  final int? month;
+  final int? year;
+
+  bool get hasAny => day != null || month != null || year != null;
+}
+
 class MhdParser {
   MhdParser._();
 
@@ -168,5 +178,27 @@ class MhdParser {
     final yesterday = DateTime(now.year, now.month, now.day - 1);
     final maxFuture = DateTime(now.year + 6, now.month, now.day);
     return date.isAfter(yesterday) && date.isBefore(maxFuture);
+  }
+
+  /// Sucht im OCR-Text nach Teilerkennungen für die Vorbelegung des
+/// Datepickers, falls kein vollständiges Datum erkannt wurde.
+/// Liefert Tag und/oder Monat, falls plausibel.
+  static MhdHint findHint(String text) {
+    final cleaned = _normalizeOcr(text);
+
+    // Tag/Monat ohne Jahr (z.B. "12.05" — aber nur wenn isoliert,
+    // nicht als Teil von "L30.08")
+    final dm = RegExp(r'(?<![\d\w])(\d{1,2})[.\-/](\d{1,2})(?![\d.\-/])');
+    for (final m in dm.allMatches(cleaned)) {
+      final d = int.tryParse(m.group(1)!) ?? 0;
+      final mo = int.tryParse(m.group(2)!) ?? 0;
+      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) {
+        return MhdHint(day: d, month: mo);
+      }
+    }
+
+    // Nur ein einzelner ein- oder zweistelliger Wert in einer Zeile —
+    // sehr unsicher, deshalb nicht raten. Eher: nichts liefern.
+    return const MhdHint();
   }
 }
