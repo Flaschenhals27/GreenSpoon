@@ -26,6 +26,18 @@ class SupabaseService {
         authFlowType: AuthFlowType.pkce,
       ),
     );
+
+    final client = Supabase.instance.client;
+    if (client.auth.currentSession != null) {
+      // Session vorhanden, aber evtl. abgelaufen. Refresh erzwingen.
+      try {
+        await client.auth.refreshSession();
+      } catch (_) {
+        // Refresh fehlgeschlagen (z.B. Refresh-Token auch abgelaufen).
+        // Sauber ausloggen, Auth-Guard im Router schickt zum Login.
+        await client.auth.signOut();
+      }
+    }
   }
 
   /// Bequemer Zugriff auf den Client.

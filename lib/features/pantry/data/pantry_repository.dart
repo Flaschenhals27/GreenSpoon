@@ -18,15 +18,14 @@ class PantryRepository {
     }
 
     return _client
-      .from(_table)
-      .stream(primaryKey: ['id'])
-      .eq('user_id', userId)
-      .map((rows) {
-    // Filtern auf der Client-Seite, weil .stream() nur EIN .eq akzeptiert
-    final items = rows
-        .where((r) => (r['status'] ?? 'active') == 'active')
-        .map(PantryItem.fromJson)
-        .toList();
+        .from(_table)
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .map((rows) {
+      final items = rows
+          .where((r) => (r['status'] ?? 'active') == 'active')
+          .map(PantryItem.fromJson)
+          .toList();
       items.sort((a, b) {
         if (a.expiresAt == null && b.expiresAt == null) return 0;
         if (a.expiresAt == null) return 1;
@@ -34,6 +33,15 @@ class PantryRepository {
         return a.expiresAt!.compareTo(b.expiresAt!);
       });
       return items;
+    }).handleError((error) async {
+      // Token-Probleme: einmalig versuchen zu refreshen, dann signOut
+      if (error.toString().toLowerCase().contains('jwt')) {
+        try {
+          await _client.auth.refreshSession();
+        } catch (_) {
+          await _client.auth.signOut();
+        }
+      }
     });
   }
 

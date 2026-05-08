@@ -7,11 +7,111 @@ import '../../../core/widgets/gs_app_bar.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../providers/profile_providers.dart';
 
-class ProfileScreen extends ConsumerWidget {
+import '../../notifications/notification_service.dart';
+import '../../pantry/providers/pantry_providers.dart';
+import '../../notifications/notification_settings.dart';
+import '../../notifications/notification_scheduler.dart';
+
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _notifEnabled = false;
+  int _notifHour = 8;
+  int _notifMinute = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifSettings();
+  }
+
+  Future<void> _loadNotifSettings() async {
+    final enabled = await NotificationSettings.isEnabled();
+    final t = await NotificationSettings.getTime();
+    if (mounted) {
+      setState(() {
+        _notifEnabled = enabled;
+        _notifHour = t.hour;
+        _notifMinute = t.minute;
+      });
+    }
+  }
+
+  String _formatTime(int hour, int minute) {
+    final h = hour.toString().padLeft(2, '0');
+    final m = minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _onToggle(bool value) async {
+    if (value) {
+      final granted = await NotificationService.instance.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text(
+              'Bitte erlaube Benachrichtigungen in den Einstellungen.',
+            )),
+          );
+        }
+        return;
+      }
+      await NotificationSettings.setEnabled(true);
+      await NotificationScheduler.schedule(
+        hour: _notifHour,
+        minute: _notifMinute,
+      );
+      if (mounted) {
+        setState(() => _notifEnabled = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
+          )),
+        );
+      }
+    } else {
+      await NotificationSettings.setEnabled(false);
+      await NotificationScheduler.cancel();
+      if (mounted) {
+        setState(() => _notifEnabled = false);
+      }
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _notifHour, minute: _notifMinute),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      await NotificationSettings.setTime(
+        hour: picked.hour,
+        minute: picked.minute,
+      );
+      await NotificationScheduler.schedule(
+        hour: picked.hour,
+        minute: picked.minute,
+      );
+      if (mounted) {
+        setState(() {
+          _notifHour = picked.hour;
+          _notifMinute = picked.minute;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? GSColors.paper : GSColors.forest;
     final subtleColor = isDark
@@ -133,7 +233,138 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
+            // BENACHRICHTIGUNGEN
+            // BENACHRICHTIGUNGEN
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              child: Text(
+                'BENACHRICHTIGUNGEN',
+                style: GSTypography.label(color: subtleColor),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? GSColors.cardDark : GSColors.cardLight,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : GSColors.forest)
+                        .withValues(alpha: 0.04),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Toggle
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_outlined,
+                              color: GSColors.primary, size: 22),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tägliche Erinnerung',
+                                  style: GSTypography.body(
+                                    color: textColor,
+                                    size: 14.5,
+                                    weight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  _notifEnabled
+                                      ? 'Aktiv um ${_formatTime(_notifHour, _notifMinute)}'
+                                      : 'Aus',
+                                  style: GSTypography.body(
+                                      color: subtleColor, size: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _notifEnabled,
+                            activeThumbColor: GSColors.primary,
+                            onChanged: _onToggle,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Uhrzeit, nur sichtbar wenn aktiviert
+                    if (_notifEnabled) ...[
+                      Container(
+                        height: 1,
+                        color: (isDark ? Colors.white : GSColors.forest)
+                            .withValues(alpha: 0.04),
+                      ),
+                      InkWell(
+                        onTap: _pickTime,
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule,
+                                  color: GSColors.primary, size: 22),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  'Uhrzeit',
+                                  style: GSTypography.body(
+                                      color: textColor, size: 14.5),
+                                ),
+                              ),
+                              Text(
+                                _formatTime(_notifHour, _notifMinute),
+                                style: GSTypography.body(
+                                  color: textColor,
+                                  size: 14,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: subtleColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    // Test-Button (nur wenn aktiviert)
+                    if (_notifEnabled) ...[
+                      Container(
+                        height: 1,
+                        color: (isDark ? Colors.white : GSColors.forest)
+                            .withValues(alpha: 0.04),
+                      ),
+                      InkWell(
+                        onTap: () => _testNotification(context, ref),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.notifications_active_outlined,
+                                  color: GSColors.primary, size: 22),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  'Test senden',
+                                  style: GSTypography.body(
+                                      color: textColor, size: 14.5),
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: subtleColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
             // Logout
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -149,7 +380,7 @@ class ProfileScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(18),
-                  onTap: () => _confirmLogout(context, ref),
+                  onTap: () => _confirmLogout(context, ref), 
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
@@ -176,7 +407,7 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'Green Spoon · Version 0.5',
+                'Green Spoon · Version 0.508 (Beta)',
                 style: GSTypography.italicCaption(color: subtleColor),
               ),
             ),
@@ -216,7 +447,55 @@ class ProfileScreen extends ConsumerWidget {
       await ref.read(authRepositoryProvider).signOut();
     }
   }
+
+  Future<void> _testNotification(BuildContext context, WidgetRef ref) async {
+  // Permission anfragen (Android 13+)
+  final granted =
+      await NotificationService.instance.requestPermission();
+  if (!granted) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'Bitte erlaube Benachrichtigungen in den Einstellungen.',
+        )),
+      );
+    }
+    return;
+  }
+
+  // Aktuelle ablaufende Items aus Riverpod-Provider holen
+  final expiring = ref.read(expiringSoonProvider);
+
+  if (expiring.isEmpty) {
+    // Mock-Daten, damit man die Notification trotzdem testen kann
+    await NotificationService.instance.showExpiryNotification(
+      expiringCount: 2,
+      itemNames: ['Skyr Vanille', 'Tomaten'],
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'Test-Benachrichtigung gesendet (Beispiel-Daten)',
+        )),
+      );
+    }
+  } else {
+    await NotificationService.instance.showExpiryNotification(
+      expiringCount: expiring.length,
+      itemNames: expiring.map((e) => e.name).toList(),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          '${expiring.length} ablaufendes Item${expiring.length == 1 ? "" : "s"} → Notification gesendet',
+        )),
+      );
+    }
+  }
 }
+}
+
+
 
 class _StatRow extends StatelessWidget {
   const _StatRow({required this.label, required this.value});
