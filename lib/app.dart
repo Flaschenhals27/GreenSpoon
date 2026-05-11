@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/settings/theme_providers.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/gs_theme.dart';
@@ -17,7 +18,7 @@ class GreenSpoonApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: GSTheme.light(),
       darkTheme: GSTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(themeModeProvider).value ?? ThemeMode.system,
       routerConfig: router,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

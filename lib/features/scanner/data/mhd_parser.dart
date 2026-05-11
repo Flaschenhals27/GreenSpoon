@@ -91,7 +91,6 @@ class MhdParser {
 
   static List<MhdMatch> parseAll(String text) {
     final cleaned = _normalizeOcr(text);
-    print('--- NORMALIZED ---\n$cleaned\n--- END ---');
     final matches = <MhdMatch>[];
     final seenDates = <DateTime>{};
 

@@ -12,6 +12,9 @@ import '../../pantry/providers/pantry_providers.dart';
 import '../../notifications/notification_settings.dart';
 import '../../notifications/notification_scheduler.dart';
 
+import 'package:flutter/material.dart' show ThemeMode;
+import '../../settings/theme_providers.dart';
+
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -235,6 +238,75 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             // BENACHRICHTIGUNGEN
             // BENACHRICHTIGUNGEN
+            // DARSTELLUNG
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              child: Text(
+                'DARSTELLUNG',
+                style: GSTypography.label(color: subtleColor),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? GSColors.cardDark : GSColors.cardLight,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : GSColors.forest)
+                        .withValues(alpha: 0.04),
+                  ),
+                ),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final current =
+                        ref.watch(themeModeProvider).value ?? ThemeMode.system;
+                    return Column(
+                      children: [
+                        _ThemeOption(
+                          mode: ThemeMode.system,
+                          current: current,
+                          icon: Icons.brightness_auto,
+                          label: 'System',
+                          sub: 'Folgt der Geräte-Einstellung',
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
+                          isDark: isDark,
+                          textColor: textColor,
+                          subtleColor: subtleColor,
+                          isFirst: true,
+                        ),
+                        _ThemeOption(
+                          mode: ThemeMode.light,
+                          current: current,
+                          icon: Icons.light_mode_outlined,
+                          label: 'Hell',
+                          sub: 'Warmes Beige',
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
+                          isDark: isDark,
+                          textColor: textColor,
+                          subtleColor: subtleColor,
+                        ),
+                        _ThemeOption(
+                          mode: ThemeMode.dark,
+                          current: current,
+                          icon: Icons.dark_mode_outlined,
+                          label: 'Dunkel',
+                          sub: 'Tiefes Tannengrün',
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
+                          isDark: isDark,
+                          textColor: textColor,
+                          subtleColor: subtleColor,
+                          isLast: true,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: Text(
@@ -493,6 +565,89 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 }
+}
+
+class _ThemeOption extends StatelessWidget {
+  const _ThemeOption({
+    required this.mode,
+    required this.current,
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.onSelect,
+    required this.isDark,
+    required this.textColor,
+    required this.subtleColor,
+    this.isFirst = false,
+    this.isLast = false,
+  });
+
+  final ThemeMode mode;
+  final ThemeMode current;
+  final IconData icon;
+  final String label;
+  final String sub;
+  final ValueChanged<ThemeMode> onSelect;
+  final bool isDark;
+  final Color textColor;
+  final Color subtleColor;
+  final bool isFirst;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = mode == current;
+    return Column(
+      children: [
+        if (!isFirst)
+          Container(
+            height: 1,
+            color: (isDark ? Colors.white : GSColors.forest)
+                .withValues(alpha: 0.04),
+          ),
+        InkWell(
+          onTap: () => onSelect(mode),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: selected ? GSColors.primary : subtleColor,
+                  size: 22,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: GSTypography.body(
+                          color: textColor,
+                          size: 14.5,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        sub,
+                        style: GSTypography.body(
+                            color: subtleColor, size: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (selected)
+                  const Icon(Icons.check_circle,
+                      color: GSColors.primary, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 

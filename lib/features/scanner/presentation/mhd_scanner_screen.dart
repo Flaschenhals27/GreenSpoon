@@ -134,20 +134,6 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
       final result = await _recognizer.processImage(input);
       final found = MhdParser.parseAll(result.text);
 
-      // DEBUG — wenn OCR was Substantielles liest, zeig's an
-      if (result.text.trim().isNotEmpty) {
-        // ignore: avoid_print
-        print('===== OCR =====');
-        // ignore: avoid_print
-        print(result.text);
-        // ignore: avoid_print
-        print('Found: ${found.length} matches');
-        for (final m in found) {
-          // ignore: avoid_print
-          print('  → ${m.date} (raw: "${m.rawText}")');
-        }
-      }
-
       if (found.isNotEmpty && mounted) {
         final seenAt = DateTime.now();
         var changed = false;
