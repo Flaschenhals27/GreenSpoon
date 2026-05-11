@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
-import '../../../core/widgets/gs_app_bar.dart';
 import '../domain/recipe.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
@@ -12,54 +11,96 @@ class RecipeDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
 
     return Scaffold(
+      backgroundColor: isDark ? GSColors.bgAppDark : GSColors.bgApp,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: const EdgeInsets.only(bottom: 40),
           children: [
-            GSAppBar(
-              subtitle: recipe.meal,
-              title: recipe.title,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            if (recipe.blurb.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Text(
-                  recipe.blurb,
-                  style: GSTypography.italicCaption(color: subtleColor)
-                      .copyWith(fontSize: 14),
-                ),
+            // Top-Bar mit Back
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              child: Row(
+                children: [
+                  Material(
+                    color: surfaceColor,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: lineColor),
+                        ),
+                        child: Icon(Icons.chevron_left,
+                            color: inkColor, size: 22),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    recipe.meal.toUpperCase(),
+                    style: GSTypography.label(color: muteColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    recipe.title,
+                    style: GSTypography.headline(color: inkColor, size: 32),
+                  ),
+                  if (recipe.blurb.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      recipe.blurb,
+                      style: GSTypography.body(
+                        color: muteColor,
+                        size: 15,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
             // Meta-Zeile
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
               child: Row(
                 children: [
                   _Meta(
                     icon: Icons.schedule,
                     label: '${recipe.timeMin} Min',
-                    color: textColor,
-                    sub: subtleColor,
+                    color: inkColor,
+                    sub: muteColor,
                   ),
                   const SizedBox(width: 24),
                   _Meta(
                     icon: Icons.tune,
                     label: recipe.difficulty,
-                    color: textColor,
-                    sub: subtleColor,
+                    color: inkColor,
+                    sub: muteColor,
                   ),
                   const SizedBox(width: 24),
                   _Meta(
                     icon: Icons.people_outline,
                     label: '${recipe.servings} Pers.',
-                    color: textColor,
-                    sub: subtleColor,
+                    color: inkColor,
+                    sub: muteColor,
                   ),
                 ],
               ),
@@ -67,7 +108,7 @@ class RecipeDetailScreen extends StatelessWidget {
             // Tags
             if (recipe.tags.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -82,10 +123,12 @@ class RecipeDetailScreen extends StatelessWidget {
                         ),
                         child: Text(
                           t,
-                          style: const TextStyle(
-                            color: GSColors.primary,
+                          style: TextStyle(
+                            color: isDark
+                                ? GSColors.primaryMid
+                                : GSColors.primary,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -99,9 +142,6 @@ class RecipeDetailScreen extends StatelessWidget {
                 items: recipe.uses,
                 bullet: '✓',
                 bulletColor: GSColors.primary,
-                textColor: textColor,
-                subtleColor: subtleColor,
-                isDark: isDark,
               ),
             // Zutaten, die fehlen
             if (recipe.missing.isNotEmpty)
@@ -109,29 +149,26 @@ class RecipeDetailScreen extends StatelessWidget {
                 title: 'Du brauchst noch',
                 items: recipe.missing,
                 bullet: '+',
-                bulletColor: GSColors.expirySoon,
-                textColor: textColor,
-                subtleColor: subtleColor,
-                isDark: isDark,
+                bulletColor: GSColors.accent,
               ),
             // Schritte
             if (recipe.steps.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
                 child: Text(
                   'ZUBEREITUNG',
-                  style: GSTypography.label(color: subtleColor),
+                  style: GSTypography.label(color: muteColor),
                 ),
               ),
               for (var i = 0; i < recipe.steps.length; i++)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 28,
-                        height: 28,
+                        width: 30,
+                        height: 30,
                         decoration: BoxDecoration(
                           color: GSColors.primary.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
@@ -139,8 +176,10 @@ class RecipeDetailScreen extends StatelessWidget {
                         alignment: Alignment.center,
                         child: Text(
                           '${i + 1}',
-                          style: const TextStyle(
-                            color: GSColors.primary,
+                          style: TextStyle(
+                            color: isDark
+                                ? GSColors.primaryMid
+                                : GSColors.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -149,13 +188,13 @@ class RecipeDetailScreen extends StatelessWidget {
                       const SizedBox(width: 14),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.only(top: 5),
                           child: Text(
                             recipe.steps[i],
                             style: GSTypography.body(
-                              color: textColor,
+                              color: inkColor,
                               size: 14,
-                              height: 1.5,
+                              height: 1.55,
                             ),
                           ),
                         ),
@@ -194,7 +233,7 @@ class _Meta extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             )),
       ],
     );
@@ -207,42 +246,39 @@ class _IngredientBlock extends StatelessWidget {
     required this.items,
     required this.bullet,
     required this.bulletColor,
-    required this.textColor,
-    required this.subtleColor,
-    required this.isDark,
   });
 
   final String title;
   final List<String> items;
   final String bullet;
   final Color bulletColor;
-  final Color textColor;
-  final Color subtleColor;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? GSColors.cardDark : GSColors.cardLight,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: (isDark ? Colors.white : GSColors.forest)
-                .withValues(alpha: 0.04),
-          ),
+          border: Border.all(color: lineColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title.toUpperCase(),
-                style: GSTypography.label(color: subtleColor)),
-            const SizedBox(height: 10),
+                style: GSTypography.label(color: muteColor)),
+            const SizedBox(height: 12),
             for (final i in items)
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -253,6 +289,7 @@ class _IngredientBlock extends StatelessWidget {
                         style: TextStyle(
                           color: bulletColor,
                           fontWeight: FontWeight.w700,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -260,8 +297,8 @@ class _IngredientBlock extends StatelessWidget {
                       child: Text(
                         i,
                         style: GSTypography.body(
-                          color: textColor,
-                          size: 13.5,
+                          color: inkColor,
+                          size: 14,
                         ),
                       ),
                     ),

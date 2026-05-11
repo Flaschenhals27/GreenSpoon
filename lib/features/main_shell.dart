@@ -64,9 +64,28 @@ class _MainShellState extends ConsumerState<MainShell>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(-0.6, -0.8),
+            radius: 1.4,
+            colors: isDark
+                ? [
+                    const Color(0xFF1E2A24),
+                    const Color(0xFF14201A),
+                  ]
+                : [
+                    const Color(0xFFEBE1CD),
+                    const Color(0xFFF5EDE0),
+                  ],
+          ),
+        ),
+        child: IndexedStack(
+          index: _index,
+          children: _screens,
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -74,7 +93,9 @@ class _MainShellState extends ConsumerState<MainShell>
           mainShellTabNotifier.value = i;
           setState(() => _index = i);
         },
-        backgroundColor: isDark ? GSColors.cardDark : GSColors.cardLight,
+        backgroundColor: isDark
+            ? GSColors.surfaceDark.withValues(alpha: 0.95)
+            : GSColors.surface.withValues(alpha: 0.95),
         indicatorColor: GSColors.primary.withValues(alpha: 0.15),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [

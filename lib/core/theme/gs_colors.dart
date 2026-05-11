@@ -1,50 +1,125 @@
 import 'package:flutter/material.dart';
 
-/// Farbpalette für Green Spoon — abgeleitet aus dem Design-Entwurf
-/// (warme Naturtöne, Beige-Hintergrund, Salbeigrün als Akzent).
+/// Farbpalette für Green Spoon — Redesign v2.
+/// Warme Naturtöne, tiefes Waldgrün als Akzent, Terracotta als Warnung,
+/// Honey-Gold als Sekundär-Akzent.
 class GSColors {
   GSColors._();
 
   // ─── Primärfarben ──────────────────────────────────────────
-  /// Salbeigrün — Hauptakzent (Buttons, aktive Tabs).
-  static const Color primary = Color(0xFF5C8C56);
+  /// Tiefes Waldgrün — Hauptakzent für Buttons, aktive Elemente.
+  static const Color primary = Color(0xFF2D5A3F);
 
-  /// Helleres Salbeigrün — für Highlights im Dark Mode.
-  static const Color primaryLight = Color(0xFFA8C5A0);
+  /// Dunkleres Waldgrün — für Hover/Pressed-States.
+  static const Color primaryDeep = Color(0xFF1F3E2C);
 
-  /// Tiefes Tannengrün — Headlines auf hellem Hintergrund.
-  static const Color forest = Color(0xFF1F2A24);
+  /// Helles Grünweiß — für Highlights auf primary-Hintergründen.
+  static const Color primarySoft = Color(0xFFCFDCD0);
 
-  // ─── Hintergründe (Light) ──────────────────────────────────
-  /// Cremiges Beige — App-Hintergrund hell.
-  static const Color cream = Color(0xFFF8F4EA);
+  /// Mittel-Grün — für sekundäre Akzente.
+  static const Color primaryMid = Color(0xFF7FA78A);
 
-  /// Wärmeres Beige für Akzentflächen (Chip-Backgrounds, Icon-Tiles).
-  static const Color sand = Color(0xFFF4EFE3);
+  // ─── Akzentfarben ──────────────────────────────────────────
+  /// Terracotta-Orange — für Warnungen (läuft ab).
+  static const Color accent = Color(0xFFD36A3C);
 
-  /// Card-Weiß im Light Mode.
-  static const Color cardLight = Color(0xFFFFFFFF);
+  /// Helles Terracotta — für Warning-Backgrounds.
+  static const Color accentSoft = Color(0xFFF3DCC8);
 
-  // ─── Hintergründe (Dark) ───────────────────────────────────
-  /// Dunkles Waldgrün — App-Hintergrund dark.
-  static const Color forestDeep = Color(0xFF1A2520);
+  /// Tiefes Terracotta — für Text auf accentSoft.
+  static const Color accentDeep = Color(0xFF8A3C1B);
+
+  /// Honey-Gold — für mittlere Status (z.B. Warn-Gelb).
+  static const Color honey = Color(0xFFC89544);
+
+  /// Helles Honey — für Honey-Backgrounds.
+  static const Color honeySoft = Color(0xFFF1E2BB);
+
+  // ─── Hintergründe & Surfaces (Light) ───────────────────────
+  /// Haupt-App-Hintergrund: warmes Cream.
+  static const Color bgApp = Color(0xFFF5EDE0);
+
+  /// Helles Cream — für hervorgehobene Flächen.
+  static const Color cream = Color(0xFFFAF3E3);
+
+  /// Card-Hintergrund — sehr hell.
+  static const Color surface = Color(0xFFFBF6EB);
+
+  /// Sekundäre Surface — etwas dunkler, für sub-Karten.
+  static const Color surface2 = Color(0xFFEBE1CD);
+
+  /// Subtile Trennlinien (Light).
+  static const Color line = Color(0x141A2B22); // rgba(26,43,34,0.08)
+
+  // ─── Text (Light) ──────────────────────────────────────────
+  /// Haupttextfarbe.
+  static const Color ink = Color(0xFF1A2B22);
+
+  /// Weichere Textfarbe.
+  static const Color inkSoft = Color(0xFF4D5E54);
+
+  /// Gedämpfter Text (Hints, Sekundär).
+  static const Color inkMute = Color(0xFF8C988E);
+
+  // ─── Dark Mode ─────────────────────────────────────────────
+  /// Haupt-App-Hintergrund Dark: tiefes Tannengrün.
+  static const Color bgAppDark = Color(0xFF14201A);
 
   /// Card-Hintergrund Dark.
-  static const Color cardDark = Color(0xFF26302B);
+  static const Color surfaceDark = Color(0xFF1E2A24);
 
-  /// Off-White für Text auf dunklem Hintergrund.
-  static const Color paper = Color(0xFFF0EBE0);
+  /// Sekundäre Surface Dark.
+  static const Color surface2Dark = Color(0xFF263430);
 
-  // ─── Status / Ablauf ───────────────────────────────────────
-  /// Rot — läuft heute/morgen ab.
-  static const Color expiryUrgent = Color(0xFFC5483A);
+  /// Trennlinien Dark.
+  static const Color lineDark = Color(0x14FAF3E3);
 
-  /// Orange — läuft in 2-3 Tagen ab.
-  static const Color expirySoon = Color(0xFFD98F3D);
+  /// Haupttextfarbe Dark.
+  static const Color inkDark = Color(0xFFF5EDE0);
 
-  /// Grün (für Light Mode) — frisch.
-  static const Color expiryFresh = Color(0xFF5C8C56);
+  /// Weichere Textfarbe Dark.
+  static const Color inkSoftDark = Color(0xFFB8C2BB);
 
-  /// Helles Grün (für Dark Mode) — frisch.
-  static const Color expiryFreshDark = Color(0xFFA8C5A0);
+  /// Gedämpfter Text Dark.
+  static const Color inkMuteDark = Color(0xFF7E8B83);
+
+  // ─── Legacy-Aliase (für sanften Übergang) ──────────────────
+  // Diese werden im Code noch referenziert. Nach und nach durch neue
+  // Tokens ersetzen. Verweisen jetzt auf passende neue Werte.
+
+  /// War: tiefes Tannengrün für Headlines hell. Jetzt: ink.
+  static const Color forest = ink;
+
+  /// War: dunkles Waldgrün (App-Hintergrund dark). Jetzt: bgAppDark.
+  static const Color forestDeep = bgAppDark;
+
+  /// War: helles Cream. Jetzt: bgApp.
+  static const Color cream2 = bgApp;
+
+  /// War: Beige für Akzentflächen. Jetzt: surface2.
+  static const Color sand = surface2;
+
+  /// War: Off-White auf dark. Jetzt: inkDark.
+  static const Color paper = inkDark;
+
+  /// War: Card-Weiß hell. Jetzt: surface.
+  static const Color cardLight = surface;
+
+  /// War: Card dunkel. Jetzt: surfaceDark.
+  static const Color cardDark = surfaceDark;
+
+  /// War: Helles Salbeigrün. Jetzt: primaryMid.
+  static const Color primaryLight = primaryMid;
+
+  /// Status: läuft ab — gleicher Wert wie accent.
+  static const Color expiryUrgent = accent;
+
+  /// Status: läuft bald ab — Honey-Gold.
+  static const Color expirySoon = honey;
+
+  /// Status: frisch — primary.
+  static const Color expiryFresh = primary;
+
+  /// Status: frisch (Dark) — primaryMid.
+  static const Color expiryFreshDark = primaryMid;
 }

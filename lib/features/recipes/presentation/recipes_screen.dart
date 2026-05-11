@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
-import '../../../core/widgets/gs_app_bar.dart';
 import '../domain/recipe.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_detail_screen.dart';
@@ -14,56 +13,47 @@ class RecipesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
 
     final asyncRecipes = ref.watch(recipesProvider);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
+          color: GSColors.primary,
           onRefresh: () async {
             ref.invalidate(recipesProvider);
             await ref.read(recipesProvider.future);
           },
           child: CustomScrollView(
             slivers: [
-              SliverToBoxAdapter(
-                child: GSAppBar(
-                  subtitle: 'Heute',
-                  title: 'Was kochen wir?',
-                  right: IconButton(
-                    icon: Icon(Icons.refresh, color: subtleColor),
-                    onPressed: () => ref.invalidate(recipesProvider),
-                  ),
-                ),
-              ),
+              SliverToBoxAdapter(child: _Header(isDark: isDark, ref: ref)),
               asyncRecipes.when(
                 loading: () => SliverToBoxAdapter(
-                  child: _LoadingState(color: subtleColor),
+                  child: _LoadingState(color: muteColor),
                 ),
                 error: (e, _) => SliverToBoxAdapter(
                   child: _ErrorState(
                     error: e.toString(),
                     onRetry: () => ref.invalidate(recipesProvider),
-                    textColor: textColor,
-                    subtleColor: subtleColor,
+                    textColor: inkColor,
+                    subtleColor: muteColor,
                   ),
                 ),
                 data: (recipes) {
                   if (recipes.isEmpty) {
                     return SliverToBoxAdapter(
                       child: _EmptyState(
-                        textColor: textColor,
-                        subtleColor: subtleColor,
+                        textColor: inkColor,
+                        subtleColor: muteColor,
                       ),
                     );
                   }
                   return SliverList(
                     delegate: SliverChildListDelegate(
-                      _buildSections(recipes, subtleColor),
+                      _buildSections(recipes, muteColor, isDark),
                     ),
                   );
                 },
@@ -76,23 +66,73 @@ class RecipesScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildSections(List<Recipe> recipes, Color subtleColor) {
+  List<Widget> _buildSections(
+      List<Recipe> recipes, Color muteColor, bool isDark) {
     final sections = ['Frühstück', 'Mittag', 'Abend'];
     final widgets = <Widget>[];
     for (final s in sections) {
       final inSection = recipes.where((r) => r.meal == s).toList();
       if (inSection.isEmpty) continue;
       widgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+        padding: const EdgeInsets.fromLTRB(26, 14, 26, 12),
         child: Text(s.toUpperCase(),
-            style: GSTypography.label(color: subtleColor)),
+            style: GSTypography.label(color: muteColor)),
       ));
       for (final r in inSection) {
         widgets.add(_RecipeCard(recipe: r));
       }
-      widgets.add(const SizedBox(height: 16));
+      widgets.add(const SizedBox(height: 12));
     }
     return widgets;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({required this.isDark, required this.ref});
+  final bool isDark;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('HEUTE', style: GSTypography.label(color: muteColor)),
+              GestureDetector(
+                onTap: () => ref.invalidate(recipesProvider),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: surfaceColor,
+                    border: Border.all(color: lineColor),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(Icons.refresh, color: inkColor, size: 20),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Was kochen wir?',
+            style: GSTypography.headline(color: inkColor, size: 34),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -105,36 +145,41 @@ class _RecipeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
       child: Material(
-        color: isDark ? GSColors.cardDark : GSColors.cardLight,
-        borderRadius: BorderRadius.circular(20),
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => RecipeDetailScreen(recipe: recipe),
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: lineColor),
+            ),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
                         recipe.title,
                         style: GSTypography.headline(
-                          color: textColor,
-                          size: 18,
+                          color: inkColor,
+                          size: 22,
                           weight: FontWeight.w500,
                         ),
                       ),
@@ -144,41 +189,54 @@ class _RecipeCard extends StatelessWidget {
                   ],
                 ),
                 if (recipe.blurb.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     recipe.blurb,
-                    style: GSTypography.body(color: subtleColor, size: 13),
+                    style: GSTypography.body(
+                      color: muteColor,
+                      size: 14,
+                      height: 1.45,
+                    ),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Wrap(
-                  spacing: 8,
+                  spacing: 16,
                   runSpacing: 6,
                   children: [
                     _MetaChip(
                       icon: Icons.schedule,
                       label: '${recipe.timeMin} Min',
-                      color: subtleColor,
+                      color: muteColor,
                     ),
                     _MetaChip(
                       icon: Icons.tune,
                       label: recipe.difficulty,
-                      color: subtleColor,
+                      color: muteColor,
                     ),
                     _MetaChip(
                       icon: Icons.people_outline,
                       label: '${recipe.servings} Pers.',
-                      color: subtleColor,
+                      color: muteColor,
                     ),
                   ],
                 ),
                 if (recipe.missing.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text(
-                    'Du brauchst noch: ${recipe.missing.join(", ")}',
-                    style: GSTypography.body(
-                      color: GSColors.expirySoon,
-                      size: 12,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: GSColors.accent.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Du brauchst noch: ${recipe.missing.join(", ")}',
+                      style: GSTypography.body(
+                        color: GSColors.accentDeep,
+                        size: 12.5,
+                        weight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -198,17 +256,21 @@ class _MatchBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color color;
+    Color bg;
     if (score >= 80) {
       color = GSColors.primary;
+      bg = GSColors.primary.withValues(alpha: 0.12);
     } else if (score >= 50) {
-      color = GSColors.expirySoon;
+      color = const Color(0xFF8A6A17);
+      bg = GSColors.honey.withValues(alpha: 0.18);
     } else {
-      color = GSColors.expiryUrgent;
+      color = GSColors.accentDeep;
+      bg = GSColors.accent.withValues(alpha: 0.14);
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -216,7 +278,7 @@ class _MatchBadge extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: 12,
+          fontSize: 13,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
@@ -239,9 +301,14 @@ class _MetaChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 12)),
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            )),
       ],
     );
   }
@@ -289,7 +356,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off, size: 56, color: GSColors.expirySoon),
+          const Icon(Icons.cloud_off, size: 56, color: GSColors.accent),
           const SizedBox(height: 16),
           Text(
             'Konnte keine Rezepte laden',
@@ -328,7 +395,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'Noch keine Rezepte',
             textAlign: TextAlign.center,
-            style: GSTypography.headline(color: textColor, size: 20),
+            style: GSTypography.headline(color: textColor, size: 22),
           ),
           const SizedBox(height: 8),
           Text(

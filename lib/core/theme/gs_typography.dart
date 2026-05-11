@@ -1,30 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typografie für Green Spoon.
+/// Typografie für Green Spoon — Redesign v2.
 ///
-/// - **Fraunces** (Serife): für Headlines, Titles — gibt der App den
-///   warmen, etwas redaktionellen Charakter.
-/// - **Inter** (Sans): für alle UI-Texte, Listen, Buttons.
+/// - **Newsreader** (Serife): für Headlines, Display-Texte — feiner und
+///   eleganter als Fraunces, mit variabler Optical-Size-Achse.
+/// - **Manrope** (Sans): für UI-Text, Buttons, Labels — geometrischer
+///   als Inter, modern aber warm.
 class GSTypography {
   GSTypography._();
 
-  /// Headline-Style mit Fraunces.
+  /// Headline-Style mit Newsreader.
+  /// `size` bestimmt auch die optical size (variable font axis).
   static TextStyle headline({
     required Color color,
     double size = 28,
-    FontWeight weight = FontWeight.w400,
+    FontWeight weight = FontWeight.w500,
   }) {
-    return GoogleFonts.fraunces(
+    return GoogleFonts.newsreader(
       fontSize: size,
       fontWeight: weight,
-      height: 1.05,
-      letterSpacing: -0.4,
+      height: 1.02,
+      letterSpacing: -0.6,
       color: color,
     );
   }
 
-  /// Body / UI-Text mit Inter.
+  /// Body / UI-Text mit Manrope.
   static TextStyle body({
     required Color color,
     double size = 14,
@@ -32,7 +34,7 @@ class GSTypography {
     double height = 1.45,
     double letterSpacing = 0,
   }) {
-    return GoogleFonts.inter(
+    return GoogleFonts.manrope(
       fontSize: size,
       fontWeight: weight,
       height: height,
@@ -41,20 +43,21 @@ class GSTypography {
     );
   }
 
-  /// Kleines Label in Großbuchstaben (für Section-Header).
+  /// "Eyebrow"-Style: kleines Label in Großbuchstaben, weit gespacet.
+  /// Für Section-Header wie "VORRAT" oder "BENACHRICHTIGUNGEN".
   static TextStyle label({required Color color}) {
-    return GoogleFonts.inter(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 1.98, // 0.18em bei 11pt
+    return GoogleFonts.manrope(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.6,
       color: color,
     );
   }
 
-  /// Italic-Footer-Text (z.B. "Green Spoon · Version 1.4").
+  /// Italic-Caption mit Newsreader (Footer-Texte etc.).
   static TextStyle italicCaption({required Color color}) {
-    return GoogleFonts.fraunces(
-      fontSize: 11,
+    return GoogleFonts.newsreader(
+      fontSize: 12,
       fontStyle: FontStyle.italic,
       color: color,
     );
