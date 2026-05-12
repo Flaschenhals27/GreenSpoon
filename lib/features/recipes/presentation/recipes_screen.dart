@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../main_shell.dart';
+import '../data/recipe_repository.dart';
 import '../domain/recipe.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_detail_screen.dart';
@@ -25,7 +27,11 @@ class RecipesScreen extends ConsumerWidget {
           color: GSColors.primary,
           onRefresh: () async {
             ref.invalidate(recipesProvider);
-            await ref.read(recipesProvider.future);
+            try {
+              await ref.read(recipesProvider.future);
+            } catch (_) {
+              // RefreshIndicator soll nicht stehen bleiben, wenn Error
+            }
           },
           child: CustomScrollView(
             slivers: [
@@ -34,20 +40,19 @@ class RecipesScreen extends ConsumerWidget {
                 loading: () => SliverToBoxAdapter(
                   child: _LoadingState(color: muteColor),
                 ),
-                error: (e, _) => SliverToBoxAdapter(
-                  child: _ErrorState(
-                    error: e.toString(),
-                    onRetry: () => ref.invalidate(recipesProvider),
-                    textColor: inkColor,
-                    subtleColor: muteColor,
-                  ),
+                error: (e, _) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildErrorOrEmptyState(
+                    context, ref, e, inkColor, muteColor),
                 ),
                 data: (recipes) {
                   if (recipes.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: _EmptyState(
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _NoRecipesGeneratedState(
                         textColor: inkColor,
                         subtleColor: muteColor,
+                        onRetry: () => ref.invalidate(recipesProvider),
                       ),
                     );
                   }
@@ -64,6 +69,77 @@ class RecipesScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Wählt zwischen "Vorrat leer" und den drei Error-Varianten.
+  Widget _buildErrorOrEmptyState(
+    BuildContext context,
+    WidgetRef ref,
+    Object error,
+    Color textColor,
+    Color subtleColor,
+  ) {
+    if (error is PantryEmptyException) {
+      return _PantryEmptyState(
+        textColor: textColor,
+        subtleColor: subtleColor,
+      );
+    }
+    if (error is RecipeException) {
+      return _StatusState(
+        emoji: _emojiForType(error.type),
+        title: _titleForType(error.type),
+        message: _messageForType(error.type),
+        details: error.details,
+        textColor: textColor,
+        subtleColor: subtleColor,
+        onRetry: () => ref.invalidate(recipesProvider),
+      );
+    }
+    // Fallback für alles andere (sollte selten passieren)
+    return _StatusState(
+      emoji: '🤔',
+      title: 'Da ist was schiefgelaufen',
+      message:
+          'Irgendwas hat nicht geklappt. Du kannst es nochmal versuchen — wenn\'s bleibt, schreib uns.',
+      details: error.toString(),
+      textColor: textColor,
+      subtleColor: subtleColor,
+      onRetry: () => ref.invalidate(recipesProvider),
+    );
+  }
+
+  String _emojiForType(RecipeErrorType t) {
+    switch (t) {
+      case RecipeErrorType.offline:
+        return '📡';
+      case RecipeErrorType.geminiDown:
+        return '🍳';
+      case RecipeErrorType.unknown:
+        return '🤔';
+    }
+  }
+
+  String _titleForType(RecipeErrorType t) {
+    switch (t) {
+      case RecipeErrorType.offline:
+        return 'Keine Verbindung';
+      case RecipeErrorType.geminiDown:
+        return 'Unsere KI macht gerade Pause';
+      case RecipeErrorType.unknown:
+        return 'Da ist was schiefgelaufen';
+    }
+  }
+
+  String _messageForType(RecipeErrorType t) {
+    switch (t) {
+      case RecipeErrorType.offline:
+        return 'Schau mal, ob WLAN oder Mobilfunk an sind — Rezeptvorschläge brauchen Internet.';
+      case RecipeErrorType.geminiDown:
+        return 'Das passiert manchmal kurz. Versuch\'s in einer Minute nochmal.';
+      case RecipeErrorType.unknown:
+        return 'Irgendwas hat nicht geklappt. Du kannst es nochmal versuchen — wenn\'s bleibt, schreib uns.';
+    }
   }
 
   List<Widget> _buildSections(
@@ -338,15 +414,125 @@ class _LoadingState extends StatelessWidget {
   }
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.error,
+// ─────────────────────────────────────────────────────────────────────
+
+/// Allgemeiner Status-Screen mit Emoji, Titel, Beschreibung
+/// und optionalem aufklappbarem Technical-Details-Block.
+class _StatusState extends StatefulWidget {
+  const _StatusState({
+    required this.emoji,
+    required this.title,
+    required this.message,
+    required this.textColor,
+    required this.subtleColor,
     required this.onRetry,
+    this.details,
+  });
+
+  final String emoji;
+  final String title;
+  final String message;
+  final String? details;
+  final Color textColor;
+  final Color subtleColor;
+  final VoidCallback onRetry;
+
+  @override
+  State<_StatusState> createState() => _StatusStateState();
+}
+
+class _StatusStateState extends State<_StatusState> {
+  bool _showDetails = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(widget.emoji, style: const TextStyle(fontSize: 56)),
+          const SizedBox(height: 16),
+          Text(
+            widget.title,
+            textAlign: TextAlign.center,
+            style: GSTypography.headline(color: widget.textColor, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.message,
+            textAlign: TextAlign.center,
+            style: GSTypography.body(
+              color: widget.subtleColor,
+              size: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: widget.onRetry,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(180, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              backgroundColor: GSColors.primary,
+              foregroundColor: GSColors.cream,
+            ),
+            child: const Text('Erneut versuchen'),
+          ),
+          if (widget.details != null) ...[
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () => setState(() => _showDetails = !_showDetails),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _showDetails
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: widget.subtleColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Technische Details',
+                    style: GSTypography.body(
+                      color: widget.subtleColor,
+                      size: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_showDetails) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.details!,
+                textAlign: TextAlign.center,
+                style: GSTypography.body(
+                  color: widget.subtleColor,
+                  size: 11,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+/// Wenn der User keinen Vorrat hat — schickt ihn dezent zum Vorrat-Tab.
+class _PantryEmptyState extends StatelessWidget {
+  const _PantryEmptyState({
     required this.textColor,
     required this.subtleColor,
   });
-  final String error;
-  final VoidCallback onRetry;
   final Color textColor;
   final Color subtleColor;
 
@@ -355,23 +541,37 @@ class _ErrorState extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_off, size: 56, color: GSColors.accent),
+          const Text('🌱', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
           Text(
-            'Konnte keine Rezepte laden',
-            style: GSTypography.headline(color: textColor, size: 20),
+            'Noch nichts zum Kochen',
+            textAlign: TextAlign.center,
+            style: GSTypography.headline(color: textColor, size: 22),
           ),
           const SizedBox(height: 8),
           Text(
-            error,
+            'Füge ein paar Lebensmittel zum Vorrat hinzu, dann\nschlägt dir Gemini passende Rezepte vor.',
             textAlign: TextAlign.center,
-            style: GSTypography.body(color: subtleColor, size: 12.5),
+            style: GSTypography.body(
+              color: subtleColor,
+              size: 14,
+              height: 1.45,
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           FilledButton(
-            onPressed: onRetry,
-            child: const Text('Erneut versuchen'),
+            onPressed: () => mainShellTabNotifier.value = 0,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(180, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              backgroundColor: GSColors.primary,
+              foregroundColor: GSColors.cream,
+            ),
+            child: const Text('Zum Vorrat'),
           ),
         ],
       ),
@@ -379,29 +579,56 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.textColor, required this.subtleColor});
+// ─────────────────────────────────────────────────────────────────────
+
+/// Vorrat ist da, aber Gemini hat keine Rezepte geliefert (selten,
+/// aber nicht ausgeschlossen).
+class _NoRecipesGeneratedState extends StatelessWidget {
+  const _NoRecipesGeneratedState({
+    required this.textColor,
+    required this.subtleColor,
+    required this.onRetry,
+  });
   final Color textColor;
   final Color subtleColor;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text('🥄', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
           Text(
-            'Noch keine Rezepte',
+            'Keine Vorschläge gerade',
             textAlign: TextAlign.center,
             style: GSTypography.headline(color: textColor, size: 22),
           ),
           const SizedBox(height: 8),
           Text(
-            'Füge ein paar Lebensmittel zum Vorrat hinzu, dann\nschlägt Gemini passende Rezepte vor.',
+            'Gemini hat aus deinem aktuellen Vorrat nichts\ngezaubert. Versuch\'s gleich nochmal.',
             textAlign: TextAlign.center,
-            style: GSTypography.body(color: subtleColor, size: 13),
+            style: GSTypography.body(
+              color: subtleColor,
+              size: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: onRetry,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(180, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+              backgroundColor: GSColors.primary,
+              foregroundColor: GSColors.cream,
+            ),
+            child: const Text('Erneut versuchen'),
           ),
         ],
       ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -11,7 +13,7 @@ class RecipeRepository {
   SupabaseClient get _client => SupabaseService.client;
 
   /// Ruft die Edge Function auf und gibt die Rezeptliste zurück.
-  /// Wirft [RecipeException] mit lesbarer Message bei Fehlern.
+  /// Wirft [RecipeException] mit kategorisiertem Fehlertyp bei Problemen.
   Future<List<Recipe>> generate() async {
     try {
       final response = await _client.functions.invoke(
@@ -19,37 +21,91 @@ class RecipeRepository {
         method: HttpMethod.post,
       );
 
+      // Server-Fehler unterscheiden
       if (response.status != 200) {
-        final body = response.data;
-        final msg = (body is Map && body['error'] != null)
-            ? body['error'].toString()
-            : 'Status ${response.status}';
-        throw RecipeException(msg);
+        if (response.status == 503 ||
+            response.status == 504 ||
+            response.status == 500) {
+          throw const RecipeException(
+            type: RecipeErrorType.geminiDown,
+            details: 'Edge Function returned status 5xx',
+          );
+        }
+        throw RecipeException(
+          type: RecipeErrorType.unknown,
+          details: 'Status ${response.status}',
+        );
       }
 
       final data = response.data;
       if (data is! Map) {
-        throw const RecipeException('Antwortformat unerwartet.');
+        throw const RecipeException(
+          type: RecipeErrorType.unknown,
+          details: 'Antwortformat unerwartet.',
+        );
       }
       final recipesRaw = data['recipes'];
       if (recipesRaw is! List) {
-        throw const RecipeException('Keine Rezepte in der Antwort.');
+        throw const RecipeException(
+          type: RecipeErrorType.unknown,
+          details: 'Keine Rezepte in der Antwort.',
+        );
       }
 
       return recipesRaw
           .whereType<Map<String, dynamic>>()
           .map(Recipe.fromJson)
           .toList();
+    } on SocketException catch (e) {
+      throw RecipeException(
+        type: RecipeErrorType.offline,
+        details: e.message,
+      );
     } on FunctionException catch (e) {
-      throw RecipeException('Function-Fehler: ${e.details ?? e.reasonPhrase}');
+      // FunctionException kann verschiedene Statuscodes haben
+      if (e.status == 503 || e.status == 504 || e.status == 500) {
+        throw RecipeException(
+          type: RecipeErrorType.geminiDown,
+          details: e.details?.toString() ?? e.reasonPhrase,
+        );
+      }
+      throw RecipeException(
+        type: RecipeErrorType.unknown,
+        details: e.details?.toString() ?? e.reasonPhrase,
+      );
+    } on RecipeException {
+      rethrow;
+    } catch (e) {
+      throw RecipeException(
+        type: RecipeErrorType.unknown,
+        details: e.toString(),
+      );
     }
   }
 }
 
+/// Kategorisiert verschiedene Fehler-Szenarien, damit das UI passende
+/// Texte und Icons anzeigen kann.
+enum RecipeErrorType {
+  /// Kein Internet (DNS-Fehler, Socket-Exception)
+  offline,
+
+  /// Gemini-API hat ein 5xx oder ist gerade nicht erreichbar
+  geminiDown,
+
+  /// Default: irgendwas anderes ist schiefgelaufen
+  unknown,
+}
+
 class RecipeException implements Exception {
-  const RecipeException(this.message);
-  final String message;
+  const RecipeException({
+    required this.type,
+    this.details,
+  });
+
+  final RecipeErrorType type;
+  final String? details;
 
   @override
-  String toString() => message;
+  String toString() => 'RecipeException(${type.name}): ${details ?? ""}';
 }

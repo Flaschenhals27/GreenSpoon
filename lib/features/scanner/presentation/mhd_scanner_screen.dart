@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../data/mhd_parser.dart';
 
+/// Live-OCR-Scanner für MHD-Daten.
+/// Gibt das gefundene Datum via Navigator.pop zurück.
 class MhdScannerScreen extends StatefulWidget {
   const MhdScannerScreen({super.key});
 
@@ -21,328 +21,274 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-
-  bool _busy = false;
-  DateTime _lastProcess = DateTime.fromMillisecondsSinceEpoch(0);
-  String? _initError;
+  bool _isProcessing = false;
   bool _torchOn = false;
 
-  /// Aktuelle Treffer + Zeitpunkt, an dem sie zuletzt gesehen wurden.
-  /// Treffer bleiben bis zu _stickyDuration sichtbar, auch wenn nachfolgende
-  /// Frames sie nicht mehr enthalten.
-  final Map<DateTime, _StickyMatch> _sticky = {};
-  static const _stickyDuration = Duration(seconds: 4);
-  Timer? _pruneTimer;
+  // Sticky match — wenn dasselbe Datum 4 Sekunden lang dominiert, wird's gewählt.
+  DateTime? _stickyDate;
+  DateTime? _stickySince;
+  String _statusText = 'Halte den Aufdruck ins Bild …';
+
+  // Häufigkeit der erkannten Daten
+  final Map<DateTime, int> _candidateCounts = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _setupCamera();
-    // Alle 500 ms abgelaufene Sticky-Treffer wegräumen.
-    _pruneTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (!mounted) return;
-      final now = DateTime.now();
-      final before = _sticky.length;
-      _sticky.removeWhere(
-        (_, m) => now.difference(m.lastSeenAt) > _stickyDuration,
-      );
-      if (_sticky.length != before) setState(() {});
-    });
+    _initCamera();
   }
 
-  Future<void> _setupCamera() async {
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        setState(() => _initError = 'Keine Kamera gefunden.');
-        return;
-      }
-      final back = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
-
-      final controller = CameraController(
-        back,
-        ResolutionPreset.max,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21,
-      );
-      await controller.initialize();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      _controller = controller;
-      await controller.startImageStream(_onFrame);
-      // Initialer Flash-Mode = off
-      await controller.setFlashMode(FlashMode.off);
-      setState(() {});
-    } catch (e) {
-      if (mounted) setState(() => _initError = 'Kamera-Init fehlgeschlagen: $e');
-    }
-  }
-
-  Future<void> _toggleTorch() async {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) return;
-    try {
-      final next = _torchOn ? FlashMode.off : FlashMode.torch;
-      await c.setFlashMode(next);
-      setState(() => _torchOn = !_torchOn);
-    } catch (_) {
-      // Manche Geräte unterstützen torch im Image-Stream nicht — still ignorieren
-    }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller?.dispose();
+    _recognizer.close();
+    super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive) {
       c.dispose();
-      _controller = null;
     } else if (state == AppLifecycleState.resumed) {
-      _setupCamera();
+      _initCamera();
     }
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pruneTimer?.cancel();
-    _controller?.dispose();
-    _recognizer.close();
-    super.dispose();
+  Future<void> _initCamera() async {
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) return;
+    final back = cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.back,
+      orElse: () => cameras.first,
+    );
+    final controller = CameraController(
+      back,
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.nv21,
+    );
+    _controller = controller;
+    await controller.initialize();
+    if (!mounted) return;
+    setState(() {});
+    await controller.startImageStream(_onFrame);
   }
 
   Future<void> _onFrame(CameraImage image) async {
-    final now = DateTime.now();
-    if (_busy ||
-        now.difference(_lastProcess) < const Duration(milliseconds: 200)) {
-      return;
-    }
-    _busy = true;
-    _lastProcess = now;
+    if (_isProcessing || !mounted) return;
+    _isProcessing = true;
 
     try {
-      final input = _toInputImage(image);
+      final input = _imageFromCamera(image, _controller!.description);
       if (input == null) return;
 
       final result = await _recognizer.processImage(input);
       final found = MhdParser.parseAll(result.text);
 
-      if (found.isNotEmpty && mounted) {
-        final seenAt = DateTime.now();
-        var changed = false;
-        for (final m in found) {
-          final existing = _sticky[m.date];
-          if (existing == null) {
-            _sticky[m.date] = _StickyMatch(match: m, lastSeenAt: seenAt);
-            changed = true;
-          } else {
-            _sticky[m.date] =
-                _StickyMatch(match: existing.match, lastSeenAt: seenAt);
-            // kein UI-Change nötig, nur Timestamp aktualisiert
-          }
+      // Häufigkeits-Voting
+      for (final match in found) {
+        _candidateCounts.update(match.date, (v) => v + 1, ifAbsent: () => 1);
+      }
+
+      DateTime? top;
+      int topCount = 0;
+      _candidateCounts.forEach((d, c) {
+        if (c > topCount) {
+          top = d;
+          topCount = c;
         }
-        if (changed) setState(() {});
+      });
+
+      if (top != null) {
+        if (_stickyDate != top) {
+          _stickyDate = top;
+          _stickySince = DateTime.now();
+        }
+
+        final stableFor =
+            DateTime.now().difference(_stickySince!).inMilliseconds;
+        if (stableFor >= 4000) {
+          if (mounted) Navigator.of(context).pop(_stickyDate);
+          return;
+        }
+
+        setState(() {
+          _statusText =
+              'Erkannt: ${_format(_stickyDate!)}  ·  bestätige in ${(4 - (stableFor / 1000)).clamp(0, 4).toStringAsFixed(0)}s';
+        });
+      } else if (mounted) {
+        setState(() => _statusText = 'Halte den Aufdruck ins Bild …');
       }
     } catch (_) {
-      // Frame-Fehler ignorieren — nächster Frame kommt sofort
+      // OCR-Fehler ignorieren, einfach weitermachen
     } finally {
-      _busy = false;
+      _isProcessing = false;
     }
   }
 
-  /// Wandelt ein CameraImage in ein InputImage für ML Kit.
-  /// Konkateniert alle Planes — wichtig für vollständige Bildinformation.
-  InputImage? _toInputImage(CameraImage image) {
-    final controller = _controller;
-    if (controller == null) return null;
+  static String _format(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
-    final rotation = InputImageRotationValue.fromRawValue(
-      controller.description.sensorOrientation,
-    );
+  InputImage? _imageFromCamera(CameraImage image, CameraDescription cam) {
+    final rotation =
+        InputImageRotationValue.fromRawValue(cam.sensorOrientation);
     if (rotation == null) return null;
 
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null ||
-        (format != InputImageFormat.nv21 &&
-            format != InputImageFormat.bgra8888)) {
-      return null;
-    }
-    if (image.planes.isEmpty) return null;
-
-    // Alle Plane-Bytes zusammenfügen
-    // Alle Plane-Bytes zusammenfügen
-// Alle Plane-Bytes zusammenfügen
-    final totalLength =
-        image.planes.fold<int>(0, (sum, p) => sum + p.bytes.length);
-    final bytes = Uint8List(totalLength);
-    var offset = 0;
-    for (final plane in image.planes) {
-      bytes.setRange(offset, offset + plane.bytes.length, plane.bytes);
-      offset += plane.bytes.length;
-    }
-
+    final plane = image.planes.first;
     return InputImage.fromBytes(
-      bytes: bytes,
+      bytes: plane.bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes.first.bytesPerRow,
+        format: InputImageFormat.nv21,
+        bytesPerRow: plane.bytesPerRow,
       ),
     );
   }
 
-  void _accept(MhdMatch m) {
-    Navigator.of(context).pop<DateTime>(m.date);
-  }
-
-  List<MhdMatch> get _orderedMatches {
-    final list = _sticky.values.map((s) => s.match).toList();
-    final now = DateTime.now();
-    list.sort((a, b) {
-      final aSoon = a.date.difference(now).inDays.abs();
-      final bSoon = b.date.difference(now).inDays.abs();
-      return aSoon.compareTo(bSoon);
-    });
-    return list;
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_initError != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    final c = _controller;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top-Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(Icons.no_photography_outlined,
-                      color: Colors.white70, size: 56),
-                  const SizedBox(height: 16),
-                  Text('Kamera nicht verfügbar',
-                      style:
-                          GSTypography.headline(color: Colors.white, size: 20)),
-                  const SizedBox(height: 8),
-                  Text(_initError!,
-                      textAlign: TextAlign.center,
-                      style: GSTypography.body(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        size: 13.5,
-                      )),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Zurück',
-                        style: TextStyle(color: Colors.white)),
+                  _CircleButton(
+                    icon: Icons.chevron_left,
+                    onTap: () => Navigator.of(context).pop(),
+                    surfaceColor: surfaceColor,
+                    inkColor: inkColor,
+                    lineColor: lineColor,
+                  ),
+                  _CircleButton(
+                    icon: _torchOn ? Icons.flash_on : Icons.flash_off,
+                    onTap: () async {
+                      if (c == null) return;
+                      final newValue = !_torchOn;
+                      await c.setFlashMode(
+                          newValue ? FlashMode.torch : FlashMode.off);
+                      setState(() => _torchOn = newValue);
+                    },
+                    surfaceColor: surfaceColor,
+                    inkColor: inkColor,
+                    lineColor: lineColor,
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      );
-    }
-
-    final controller = _controller;
-    final ready = controller != null && controller.value.isInitialized;
-    final matches = _orderedMatches;
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (ready)
-            CameraPreview(controller)
-          else
-            const Center(child: CircularProgressIndicator(color: Colors.white)),
-
-          // Overlay-Rahmen
-          IgnorePointer(
-            child: Center(
-              child: Container(
-                width: 300,
-                height: 90,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      blurRadius: 60,
-                      spreadRadius: 1000,
+            const SizedBox(height: 28),
+            // Eyebrow + Headline
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MHD-SCAN', style: GSTypography.label(color: muteColor)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Datum erkennen',
+                    style: GSTypography.headline(color: inkColor, size: 32),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            // Kamera-Box
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 5 / 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (c != null && c.value.isInitialized)
+                            CameraPreview(c)
+                          else
+                            Container(
+                              color: Colors.black,
+                              alignment: Alignment.center,
+                              child: const CircularProgressIndicator(
+                                color: GSColors.primaryMid,
+                              ),
+                            ),
+                          IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: inkColor.withValues(alpha: 0.85),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          IgnorePointer(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.black.withValues(alpha: 0.55),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _statusText,
+                                    style: GSTypography.body(
+                                      color: GSColors.cream,
+                                      size: 12.5,
+                                      weight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-
-          // Top-Bar mit Back, Hint und Torch
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  _RoundIconButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Halte das MHD in den Rahmen',
-                        textAlign: TextAlign.center,
-                        style:
-                            GSTypography.body(color: Colors.white, size: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _RoundIconButton(
-                    icon: _torchOn ? Icons.flash_on : Icons.flash_off,
-                    active: _torchOn,
-                    onTap: _toggleTorch,
-                  ),
-                ],
+            // Hilfetext
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
+              child: Text(
+                'Halte den MHD-Aufdruck mittig in den Rahmen.',
+                textAlign: TextAlign.center,
+                style: GSTypography.italicCaption(color: muteColor)
+                    .copyWith(fontSize: 14),
               ),
             ),
-          ),
-
-          // Bottom: Treffer
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: matches.isEmpty
-                  ? const _Hint(key: ValueKey('hint'))
-                  : _MatchesList(
-                      key: const ValueKey('matches'),
-                      matches: matches,
-                      onTap: _accept,
-                    ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -350,138 +296,38 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
 // ─────────────────────────────────────────────────────────────────────
 
-class _StickyMatch {
-  const _StickyMatch({required this.match, required this.lastSeenAt});
-  final MhdMatch match;
-  final DateTime lastSeenAt;
-}
-
-class _Hint extends StatelessWidget {
-  const _Hint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Colors.white70, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Suche nach Datumsangaben…',
-              style: GSTypography.body(
-                color: Colors.white.withValues(alpha: 0.85),
-                size: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MatchesList extends StatelessWidget {
-  const _MatchesList({super.key, required this.matches, required this.onTap});
-  final List<MhdMatch> matches;
-  final ValueChanged<MhdMatch> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = DateFormat('dd.MM.yyyy', 'de_DE');
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < matches.length && i < 3; i++)
-            InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => onTap(matches[i]),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: GSColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check,
-                          color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            fmt.format(matches[i].date),
-                            style: GSTypography.body(
-                              color: Colors.white,
-                              size: 16,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            'erkannt: "${matches[i].rawText}"',
-                            style: GSTypography.body(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              size: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios,
-                        color: Colors.white54, size: 14),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({
     required this.icon,
     required this.onTap,
-    this.active = false,
+    required this.surfaceColor,
+    required this.inkColor,
+    required this.lineColor,
   });
+
   final IconData icon;
   final VoidCallback onTap;
-  final bool active;
+  final Color surfaceColor;
+  final Color inkColor;
+  final Color lineColor;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: active
-              ? GSColors.primary
-              : Colors.black.withValues(alpha: 0.4),
-          shape: BoxShape.circle,
+    return Material(
+      color: surfaceColor,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: lineColor),
+          ),
+          child: Icon(icon, color: inkColor, size: 22),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }

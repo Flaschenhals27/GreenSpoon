@@ -1,26 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'mhd_scanner_screen.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../../core/widgets/gs_date_sheet.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../domain/scanned_product.dart';
-import '../../../core/widgets/gs_date_sheet.dart';
+import 'mhd_scanner_screen.dart';
 
-const _categories = [
-  'Gemüse',
-  'Obst',
-  'Milchprodukte',
-  'Fleisch & Fisch',
-  'Pasta & Reis',
-  'Brot & Backwaren',
-  'Tiefkühl',
-  'Getränke',
-  'Sonstiges',
-];
-
-/// Bottom-Sheet zur Bestätigung eines gescannten Produkts.
 class ScanReviewSheet extends ConsumerStatefulWidget {
   const ScanReviewSheet({super.key, required this.product});
   final ScannedProduct product;
@@ -34,9 +21,26 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
   late final TextEditingController _brandCtrl;
   late final TextEditingController _qtyCtrl;
   late String _category;
-  late String _emoji;
   DateTime? _expiresAt;
   bool _saving = false;
+
+  static const _categories = [
+    'Milchprodukte',
+    'Obst',
+    'Gemüse',
+    'Fleisch & Fisch',
+    'Pasta & Reis',
+    'Brot & Backwaren',
+    'Müsli & Cerealien',
+    'Eier',
+    'Süßes & Snacks',
+    'Gewürze & Saucen',
+    'Aufstriche',
+    'Konserven',
+    'Tiefkühl',
+    'Getränke',
+    'Sonstiges',
+  ];
 
   @override
   void initState() {
@@ -47,7 +51,6 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
     _category = _categories.contains(widget.product.category)
         ? widget.product.category
         : 'Sonstiges';
-    _emoji = widget.product.emoji;
   }
 
   @override
@@ -58,56 +61,34 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final smartDefault = _expiresAt ?? _smartDefaultForCategory();
+  Future<void> _pickDateWheel() async {
     final picked = await showGSDateSheet(
       context,
-      initial: smartDefault,
+      initial: _expiresAt,
     );
-    if (picked != null) setState(() => _expiresAt = picked);
-  }
-
-  DateTime _smartDefaultForCategory() {
-    final now = DateTime.now();
-    switch (_category) {
-      case 'Milchprodukte':
-      case 'Fleisch & Fisch':
-        return now.add(const Duration(days: 7));
-      case 'Obst':
-      case 'Gemüse':
-        return now.add(const Duration(days: 5));
-      case 'Brot & Backwaren':
-        return now.add(const Duration(days: 4));
-      case 'Tiefkühl':
-        return now.add(const Duration(days: 365));
-      case 'Pasta & Reis':
-      case 'Getränke':
-        return now.add(const Duration(days: 365));
-      default:
-        return now.add(const Duration(days: 30));
+    if (picked != null) {
+      setState(() => _expiresAt = picked);
     }
   }
 
   Future<void> _scanMhd() async {
-    final result = await Navigator.of(context).push<DateTime>(
+    final picked = await Navigator.of(context).push<DateTime>(
       MaterialPageRoute(builder: (_) => const MhdScannerScreen()),
     );
-    if (result != null && mounted) {
-      setState(() => _expiresAt = result);
+    if (picked != null) {
+      setState(() => _expiresAt = picked);
     }
   }
 
   Future<void> _save() async {
-    if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bitte einen Namen eingeben.')),
-      );
-      return;
-    }
+    if (_saving) return;
     setState(() => _saving = true);
+
     try {
       await ref.read(pantryRepositoryProvider).add(
-            name: _nameCtrl.text.trim(),
+            name: _nameCtrl.text.trim().isEmpty
+                ? 'Unbekannt'
+                : _nameCtrl.text.trim(),
             brand: _brandCtrl.text.trim().isEmpty
                 ? null
                 : _brandCtrl.text.trim(),
@@ -116,72 +97,71 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                 : _qtyCtrl.text.trim(),
             category: _category,
             barcode: widget.product.barcode,
-            emoji: _emoji,
+            emoji: widget.product.emoji,
             expiresAt: _expiresAt,
           );
-      if (mounted) Navigator.of(context).pop();
-    }catch (e) {
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
+          SnackBar(content: Text('Fehler beim Speichern: $e')),
         );
+        setState(() => _saving = false);
       }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
-    final unknown = widget.product.name.isEmpty;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? GSColors.cardDark : GSColors.cardLight,
+          color: bgColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
             children: [
               // Drag-Handle
               Center(
                 child: Container(
-                  width: 36,
+                  width: 40,
                   height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: subtleColor.withValues(alpha: 0.3),
+                    color: muteColor.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-
-              // Header mit Emoji + Code
+              const SizedBox(height: 18),
+              // Header mit Emoji + Erkannt-Info
               Row(
                 children: [
                   Container(
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : GSColors.sand,
-                      borderRadius: BorderRadius.circular(16),
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: lineColor),
                     ),
                     alignment: Alignment.center,
-                    child: Text(_emoji, style: const TextStyle(fontSize: 30)),
+                    child: Text(
+                      widget.product.emoji,
+                      style: const TextStyle(fontSize: 28),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -189,17 +169,16 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          unknown ? 'Unbekanntes Produkt' : 'Erkannt',
-                          style: GSTypography.label(color: subtleColor),
+                          'ERKANNT',
+                          style: GSTypography.label(color: muteColor),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
                           widget.product.barcode,
-                          style: TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            color: textColor,
-                            letterSpacing: 1.2,
+                          style: GSTypography.body(
+                            color: inkColor,
+                            size: 14,
+                            weight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -207,165 +186,241 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-
-              if (unknown)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: GSColors.expirySoon.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Dieses Produkt ist nicht in der Open-Food-Facts-Datenbank. '
-                    'Bitte Name und Kategorie selbst angeben.',
-                    style: GSTypography.body(
-                      color: textColor,
-                      size: 12.5,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-
+              const SizedBox(height: 20),
               // Name
-              TextField(
+              _Field(
+                label: 'Name',
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
               ),
-              const SizedBox(height: 12),
-
-              // Marke + Menge
+              const SizedBox(height: 10),
+              // Marke + Menge nebeneinander
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: _Field(
+                      label: 'Marke',
                       controller: _brandCtrl,
-                      decoration:
-                          const InputDecoration(labelText: 'Marke'),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: TextField(
+                    child: _Field(
+                      label: 'Menge',
                       controller: _qtyCtrl,
-                      decoration:
-                          const InputDecoration(labelText: 'Menge'),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-
+              const SizedBox(height: 10),
               // Kategorie
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Kategorie'),
-                items: [
-                  for (final c in _categories)
-                    DropdownMenuItem(value: c, child: Text(c)),
-                ],
-                onChanged: (v) => setState(() => _category = v!),
+              _CategoryField(
+                value: _category,
+                options: _categories,
+                onChanged: (v) => setState(() => _category = v),
               ),
-              const SizedBox(height: 12),
-
-              // MHD
+              const SizedBox(height: 16),
+              // MHD-Reihe: Picker + Scan-Button
               Row(
                 children: [
                   Expanded(
                     child: InkWell(
-                      onTap: _pickDate,
+                      onTap: _pickDateWheel,
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
+                            horizontal: 14, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.06)
-                              : GSColors.sand,
+                          color: surfaceColor,
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: lineColor),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.event_outlined, color: subtleColor),
+                            Icon(Icons.calendar_today_outlined,
+                                color: muteColor, size: 18),
                             const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _expiresAt == null
-                                    ? 'MHD wählen'
-                                    : '${_expiresAt!.day.toString().padLeft(2, '0')}.${_expiresAt!.month.toString().padLeft(2, '0')}.${_expiresAt!.year}',
-                                style: GSTypography.body(color: textColor, size: 14),
+                            Text(
+                              _expiresAt == null
+                                  ? 'MHD wählen'
+                                  : _formatDate(_expiresAt!),
+                              style: GSTypography.body(
+                                color: _expiresAt == null
+                                    ? muteColor
+                                    : inkColor,
+                                size: 14.5,
+                                weight: FontWeight.w500,
                               ),
                             ),
-                            if (_expiresAt != null)
-                              IconButton(
-                                icon: Icon(Icons.close, color: subtleColor),
-                                onPressed: () =>
-                                    setState(() => _expiresAt = null),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: _scanMhd,
+                  const SizedBox(width: 10),
+                  Material(
+                    color: GSColors.primary,
                     borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: GSColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.center_focus_strong,
-                        color: GSColors.paper,
-                        size: 22,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: _scanMhd,
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.center_focus_strong,
+                          color: GSColors.cream,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              // Buttons
+              const SizedBox(height: 22),
+              // Buttons unten
               Row(
                 children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: _saving
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      child: Text('Abbrechen',
-                          style: TextStyle(color: subtleColor)),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(
+                      'Abbrechen',
+                      style: TextStyle(color: muteColor),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: GSColors.paper,
-                              ),
-                            )
-                          : const Text('Zum Vorrat hinzufügen'),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(220, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      backgroundColor: GSColors.primary,
+                      foregroundColor: GSColors.cream,
                     ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: GSColors.cream,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Zum Vorrat hinzufügen',
+                            style: GSTypography.body(
+                              color: GSColors.cream,
+                              size: 14.5,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.controller});
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: GSTypography.body(color: muteColor, size: 11.5)),
+          TextField(
+            controller: controller,
+            style: GSTypography.body(color: inkColor, size: 15),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.only(top: 2, bottom: 6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryField extends StatelessWidget {
+  const _CategoryField({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Kategorie',
+              style: GSTypography.body(color: muteColor, size: 11.5)),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: surfaceColor,
+              style: GSTypography.body(color: inkColor, size: 15),
+              icon: Icon(Icons.keyboard_arrow_down, color: muteColor),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+              items: [
+                for (final o in options)
+                  DropdownMenuItem(value: o, child: Text(o)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

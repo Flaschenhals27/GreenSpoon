@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../domain/scanned_product.dart';
+import 'product_emoji.dart';
 
 /// Wrapper um die kostenlose Open Food Facts API.
 ///
@@ -41,14 +42,19 @@ class OpenFoodFactsService {
 
     if (finalName.isEmpty) return null;
 
+    final category = _mapCategory(p['categories_tags']);
+
     return ScannedProduct(
       barcode: barcode,
       name: finalName,
       brand: (p['brands'] as String?)?.split(',').first.trim(),
       quantity: (p['quantity'] as String?)?.trim(),
-      category: _mapCategory(p['categories_tags']),
+      category: category,
       imageUrl: p['image_small_url'] as String?,
-      emoji: _emojiFor(finalName, p['categories_tags']),
+      emoji: ProductEmojiResolver.resolve(
+        name: finalName,
+        category: category,
+      ),
     );
   }
 
@@ -57,51 +63,74 @@ class OpenFoodFactsService {
     if (tags is! List) return 'Sonstiges';
     final flat = tags.whereType<String>().join(' ').toLowerCase();
 
-    if (flat.contains('dairy') || flat.contains('milk') ||
-        flat.contains('cheese') || flat.contains('yogurt')) {
+    if (flat.contains('dairy') ||
+        flat.contains('milk') ||
+        flat.contains('cheese') ||
+        flat.contains('yogurt')) {
       return 'Milchprodukte';
     }
+    if (flat.contains('egg')) return 'Eier';
     if (flat.contains('vegetable')) return 'Gemüse';
     if (flat.contains('fruit')) return 'Obst';
-    if (flat.contains('meat') || flat.contains('fish') ||
-        flat.contains('seafood')) return 'Fleisch & Fisch';
-    if (flat.contains('pasta') || flat.contains('rice') ||
-        flat.contains('cereal')) return 'Pasta & Reis';
+    if (flat.contains('meat') ||
+        flat.contains('fish') ||
+        flat.contains('seafood')) {
+      return 'Fleisch & Fisch';
+    }
+    if (flat.contains('pasta') ||
+        flat.contains('rice') ||
+        flat.contains('noodle')) {
+      return 'Pasta & Reis';
+    }
+    if (flat.contains('cereal') ||
+        flat.contains('breakfast') ||
+        flat.contains('müsli') ||
+        flat.contains('muesli') ||
+        flat.contains('granola') ||
+        flat.contains('oat')) {
+      return 'Müsli & Cerealien';
+    }
     if (flat.contains('bread') || flat.contains('bakery')) {
       return 'Brot & Backwaren';
     }
     if (flat.contains('frozen')) return 'Tiefkühl';
-    if (flat.contains('beverage') || flat.contains('drink') ||
-        flat.contains('water')) return 'Getränke';
+    if (flat.contains('beverage') ||
+        flat.contains('drink') ||
+        flat.contains('water') ||
+        flat.contains('soda') ||
+        flat.contains('juice') ||
+        flat.contains('coffee') ||
+        flat.contains('tea')) {
+      return 'Getränke';
+    }
+    if (flat.contains('chocolate') ||
+        flat.contains('candy') ||
+        flat.contains('sweet') ||
+        flat.contains('snack') ||
+        flat.contains('biscuit') ||
+        flat.contains('cookie') ||
+        flat.contains('cake')) {
+      return 'Süßes & Snacks';
+    }
+    if (flat.contains('spice') ||
+        flat.contains('sauce') ||
+        flat.contains('condiment') ||
+        flat.contains('oil') ||
+        flat.contains('vinegar') ||
+        flat.contains('salt')) {
+      return 'Gewürze & Saucen';
+    }
+    if (flat.contains('spread') ||
+        flat.contains('honey') ||
+        flat.contains('jam') ||
+        flat.contains('marmalade') ||
+        flat.contains('nutella')) {
+      return 'Aufstriche';
+    }
+    if (flat.contains('canned') || flat.contains('preserve')) {
+      return 'Konserven';
+    }
     return 'Sonstiges';
-  }
-
-  /// Sehr simple Emoji-Heuristik basierend auf Name/Tags.
-  String _emojiFor(String name, dynamic tags) {
-    final n = name.toLowerCase();
-    final flat = tags is List
-        ? tags.whereType<String>().join(' ').toLowerCase()
-        : '';
-
-    if (n.contains('milch') || flat.contains('milk')) return '🥛';
-    if (n.contains('käse') || flat.contains('cheese')) return '🧀';
-    if (n.contains('joghurt') || flat.contains('yogurt')) return '🥣';
-    if (n.contains('ei') && !n.contains('eis')) return '🥚';
-    if (n.contains('tomat')) return '🍅';
-    if (n.contains('apfel') || n.contains('apple')) return '🍎';
-    if (n.contains('banane') || n.contains('banana')) return '🍌';
-    if (n.contains('brot') || flat.contains('bread')) return '🍞';
-    if (n.contains('pasta') || n.contains('spaghetti') ||
-        n.contains('nudel')) return '🍝';
-    if (n.contains('reis')) return '🌾';
-    if (n.contains('öl') || n.contains('oil')) return '🫒';
-    if (n.contains('honig')) return '🍯';
-    if (flat.contains('vegetable')) return '🥬';
-    if (flat.contains('fruit')) return '🍇';
-    if (flat.contains('meat')) return '🥩';
-    if (flat.contains('fish')) return '🐟';
-    if (flat.contains('beverage')) return '🥤';
-    return '📦';
   }
 
   void dispose() => _client.close();

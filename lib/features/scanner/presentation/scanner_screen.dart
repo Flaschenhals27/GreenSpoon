@@ -4,17 +4,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../data/open_food_facts_service.dart';
 import '../domain/scanned_product.dart';
-import '../providers/scanner_providers.dart';
 import 'scan_review_sheet.dart';
 
-/// Kamera-View mit Barcode-Erkennung.
-///
-/// Workflow:
-/// 1. mobile_scanner liefert einen Barcode
-/// 2. Open Food Facts wird abgefragt
-/// 3. ScanReviewSheet öffnet sich (bestätigen/anpassen → speichern)
-/// 4. Nach Speichern → Scanner bleibt offen für nächsten Scan
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
@@ -22,145 +15,201 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen>
-    with WidgetsBindingObserver {
-  late final MobileScannerController _controller;
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+  final MobileScannerController _controller = MobileScannerController();
   bool _processing = false;
-  String? _lastBarcode;
-  DateTime _lastScanAt = DateTime.fromMillisecondsSinceEpoch(0);
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.normal,
-      facing: CameraFacing.back,
-      formats: const [
-        BarcodeFormat.ean13,
-        BarcodeFormat.ean8,
-        BarcodeFormat.upcA,
-        BarcodeFormat.upcE,
-        BarcodeFormat.code128,
-      ],
-    );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Kamera bei Hintergrund anhalten, sonst hängt sie sich auf manchen
-    // Geräten auf.
-    if (state == AppLifecycleState.resumed) {
-      _controller.start();
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      _controller.stop();
-    }
-  }
+  bool _torchOn = false;
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _onDetect(BarcodeCapture capture) async {
+  Future<void> _handleBarcode(String code) async {
     if (_processing) return;
-    final code = capture.barcodes.firstOrNull?.rawValue;
-    if (code == null || code.isEmpty) return;
-
-    // Doppel-Scans desselben Codes innerhalb von 2 s ignorieren.
-    final now = DateTime.now();
-    if (code == _lastBarcode &&
-        now.difference(_lastScanAt) < const Duration(seconds: 2)) {
-      return;
-    }
-    _lastBarcode = code;
-    _lastScanAt = now;
-
     setState(() => _processing = true);
     await _controller.stop();
 
-    try {
-      final svc = ref.read(openFoodFactsProvider);
-      final product = await svc.lookup(code) ?? ScannedProduct.unknown(code);
+    final service = OpenFoodFactsService();
+    final product = await service.lookup(code);
 
-      if (!mounted) return;
-      await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => ScanReviewSheet(product: product),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lookup fehlgeschlagen: $e')),
+    if (!mounted) return;
+
+    final scanned = product ??
+        ScannedProduct(
+          barcode: code,
+          name: '',
+          brand: null,
+          quantity: null,
+          category: 'Sonstiges',
+          emoji: '📦',
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _processing = false);
-        await _controller.start();
-      }
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ScanReviewSheet(product: scanned),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _processing = false);
+      await _controller.start();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-            errorBuilder: (context, error, controller) => _CameraError(error: error),
-          ),
-
-          // Dunkles Overlay mit Reticle
-          const _ScanReticle(),
-
-          // Top-Bar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top-Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _RoundIconButton(
-                    icon: Icons.arrow_back,
+                  _CircleButton(
+                    icon: Icons.chevron_left,
                     onTap: () => Navigator.of(context).pop(),
+                    surfaceColor: surfaceColor,
+                    inkColor: inkColor,
+                    lineColor: lineColor,
                   ),
-                  const SizedBox(width: 10),
-                  _StatusPill(processing: _processing),
-                  const Spacer(),
-                  _RoundIconButton(
-                    icon: Icons.flash_on,
-                    onTap: () => _controller.toggleTorch(),
+                  _CircleButton(
+                    icon: _torchOn ? Icons.flash_on : Icons.flash_off,
+                    onTap: () async {
+                      await _controller.toggleTorch();
+                      setState(() => _torchOn = !_torchOn);
+                    },
+                    surfaceColor: surfaceColor,
+                    inkColor: inkColor,
+                    lineColor: lineColor,
                   ),
                 ],
               ),
             ),
-          ),
-
-          // Hint unten
-          Positioned(
-            bottom: 56,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                _processing ? 'Suche Produktdaten…' : 'Halte den Barcode in den Rahmen.',
-                style: GSTypography.body(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  size: 13.5,
+            const SizedBox(height: 28),
+            // Eyebrow + Headline
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('SCANNEN', style: GSTypography.label(color: muteColor)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Barcode finden',
+                    style: GSTypography.headline(color: inkColor, size: 32),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            // Kamera-Box
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 5 / 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          MobileScanner(
+                            controller: _controller,
+                            onDetect: (capture) {
+                              final code =
+                                  capture.barcodes.firstOrNull?.rawValue;
+                              if (code != null && code.isNotEmpty) {
+                                _handleBarcode(code);
+                              }
+                            },
+                          ),
+                          // Reticle-Rahmen
+                          IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: inkColor.withValues(alpha: 0.85),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Status-Pille mittig
+                          IgnorePointer(
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: GSColors.primaryMid,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _processing
+                                          ? 'Suche Produkt …'
+                                          : 'Suche Barcode …',
+                                      style: GSTypography.body(
+                                        color: GSColors.cream,
+                                        size: 13,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            // Hilfetext
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
+              child: Text(
+                'Halte den Barcode in den Rahmen.',
+                textAlign: TextAlign.center,
+                style: GSTypography.italicCaption(color: muteColor)
+                    .copyWith(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -168,122 +217,38 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
 // ─────────────────────────────────────────────────────────────────────
 
-class _ScanReticle extends StatelessWidget {
-  const _ScanReticle();
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    required this.surfaceColor,
+    required this.inkColor,
+    required this.lineColor,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Center(
-        child: Container(
-          width: 280,
-          height: 180,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white, width: 2),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 60,
-                spreadRadius: 1000,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback onTap;
+  final Color surfaceColor;
+  final Color inkColor;
+  final Color lineColor;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
-          shape: BoxShape.circle,
+    return Material(
+      color: surfaceColor,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: lineColor),
+          ),
+          child: Icon(icon, color: inkColor, size: 22),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.processing});
-  final bool processing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: GSColors.primaryLight,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            processing ? 'Wird verarbeitet' : 'Suche Barcode…',
-            style: GSTypography.body(color: Colors.white, size: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CameraError extends StatelessWidget {
-  const _CameraError({required this.error});
-  final MobileScannerException error;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.no_photography_outlined,
-              color: Colors.white70, size: 56),
-          const SizedBox(height: 16),
-          Text(
-            'Kamera nicht verfügbar',
-            style: GSTypography.headline(color: Colors.white, size: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error.errorCode == MobileScannerErrorCode.permissionDenied
-                ? 'Bitte erlaube den Kamera-Zugriff in den Geräte-Einstellungen.'
-                : error.errorDetails?.message ?? 'Unbekannter Fehler.',
-            textAlign: TextAlign.center,
-            style: GSTypography.body(
-              color: Colors.white.withValues(alpha: 0.7),
-              size: 13.5,
-            ),
-          ),
-        ],
       ),
     );
   }

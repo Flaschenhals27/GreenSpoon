@@ -9,10 +9,8 @@ import '../../../core/widgets/impact_ribbon.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../main_shell.dart';
 import '../../profile/providers/profile_providers.dart';
-import '../../scanner/presentation/scanner_screen.dart';
 import '../domain/pantry_item.dart';
 import '../providers/pantry_providers.dart';
-import 'add_item_dialog.dart';
 
 class PantryScreen extends ConsumerStatefulWidget {
   const PantryScreen({super.key});
@@ -30,12 +28,18 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
   static const _categories = [
     'Alle',
     'Läuft bald ab',
-    'Gemüse',
     'Obst',
+    'Gemüse',
     'Milchprodukte',
     'Fleisch & Fisch',
-    'Pasta & Reis',
     'Brot & Backwaren',
+    'Pasta & Reis',
+    'Müsli & Cerealien',
+    'Eier',
+    'Süßes & Snacks',
+    'Gewürze & Saucen',
+    'Aufstriche',
+    'Konserven',
     'Tiefkühl',
     'Getränke',
     'Sonstiges',
@@ -52,37 +56,6 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'fab-add',
-            onPressed: () => _showAddDialog(context),
-            backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
-            foregroundColor: isDark ? GSColors.inkDark : GSColors.ink,
-            elevation: 2,
-            child: const Icon(Icons.edit_outlined, size: 20),
-          ),
-          const SizedBox(width: 12),
-          FloatingActionButton.extended(
-            heroTag: 'fab-scan',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScannerScreen()),
-            ),
-            backgroundColor: GSColors.primary,
-            foregroundColor: GSColors.cream,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: Text(
-              'Scannen',
-              style: GSTypography.body(
-                color: GSColors.cream,
-                size: 14,
-                weight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: asyncItems.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -248,13 +221,6 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
     addGroup('INNERHALB VON 2 WOCHEN', week);
     addGroup('LÄNGER HALTBAR', later);
     return widgets;
-  }
-
-  void _showAddDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => const AddItemDialog(),
-    );
   }
 }
 
@@ -517,12 +483,18 @@ class _EmojiTile extends StatelessWidget {
   final String category;
 
   static const _categoryColors = <String, Color>{
-    'Milchprodukte': Color(0xFFF1E2BB), // honey-soft
-    'Obst': Color(0xFFF3DCC8),          // accent-soft
-    'Gemüse': Color(0xFFCFDCD0),        // primary-soft
+    'Milchprodukte': Color(0xFFF1E2BB),
+    'Obst': Color(0xFFF3DCC8),
+    'Gemüse': Color(0xFFCFDCD0),
     'Fleisch & Fisch': Color(0xFFF3DCC8),
     'Pasta & Reis': Color(0xFFF1E2BB),
     'Brot & Backwaren': Color(0xFFF1E2BB),
+    'Müsli & Cerealien': Color(0xFFF1E2BB),
+    'Eier': Color(0xFFF1E2BB),
+    'Süßes & Snacks': Color(0xFFF3DCC8),
+    'Gewürze & Saucen': Color(0xFFF1E2BB),
+    'Aufstriche': Color(0xFFF1E2BB),
+    'Konserven': Color(0xFFCFDCD0),
     'Tiefkühl': Color(0xFFCFDCD0),
     'Getränke': Color(0xFFCFDCD0),
   };

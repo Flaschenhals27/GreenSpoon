@@ -1,22 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/widgets/gs_date_sheet.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../../core/widgets/gs_date_sheet.dart';
+import '../../scanner/data/product_emoji.dart';
 import '../providers/pantry_providers.dart';
-
-const _categories = [
-  'Gemüse',
-  'Obst',
-  'Milchprodukte',
-  'Fleisch & Fisch',
-  'Pasta & Reis',
-  'Brot & Backwaren',
-  'Tiefkühl',
-  'Getränke',
-  'Sonstiges',
-];
 
 class AddItemDialog extends ConsumerStatefulWidget {
   const AddItemDialog({super.key});
@@ -26,21 +15,36 @@ class AddItemDialog extends ConsumerStatefulWidget {
 }
 
 class _AddItemDialogState extends ConsumerState<AddItemDialog> {
-  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
-  final _emojiCtrl = TextEditingController(text: '📦');
   String _category = 'Sonstiges';
   DateTime? _expiresAt;
   bool _saving = false;
+
+  static const _categories = [
+    'Milchprodukte',
+    'Obst',
+    'Gemüse',
+    'Fleisch & Fisch',
+    'Pasta & Reis',
+    'Brot & Backwaren',
+    'Müsli & Cerealien',
+    'Eier',
+    'Süßes & Snacks',
+    'Gewürze & Saucen',
+    'Aufstriche',
+    'Konserven',
+    'Tiefkühl',
+    'Getränke',
+    'Sonstiges',
+  ];
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _brandCtrl.dispose();
     _qtyCtrl.dispose();
-    _emojiCtrl.dispose();
     super.dispose();
   }
 
@@ -49,12 +53,21 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
       context,
       initial: _expiresAt,
     );
-    if (picked != null) setState(() => _expiresAt = picked);
+    if (picked != null) {
+      setState(() => _expiresAt = picked);
+    }
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_saving) return;
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte einen Namen eingeben.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
+
     try {
       await ref.read(pantryRepositoryProvider).add(
             name: _nameCtrl.text.trim(),
@@ -65,164 +78,241 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 ? null
                 : _qtyCtrl.text.trim(),
             category: _category,
-            emoji: _emojiCtrl.text.trim().isEmpty
-                ? '📦'
-                : _emojiCtrl.text.trim(),
+            barcode: null,
+            emoji: ProductEmojiResolver.resolve(
+              name: _nameCtrl.text.trim(),
+              category: _category,
+            ),
             expiresAt: _expiresAt,
           );
-      ref.invalidate(pantryStreamProvider); // ← neu
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: $e')),
         );
+        setState(() => _saving = false);
       }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
 
     return Dialog(
-      backgroundColor: isDark ? GSColors.cardDark : GSColors.cardLight,
+      backgroundColor: bgColor,
+      insetPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'NEUES ITEM',
+              style: GSTypography.label(color: muteColor),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Manuell hinzufügen',
+              style: GSTypography.headline(color: inkColor, size: 24),
+            ),
+            const SizedBox(height: 18),
+            _Field(label: 'Name', controller: _nameCtrl),
+            const SizedBox(height: 10),
+            Row(
               children: [
-                Text(
-                  'Neues Lebensmittel',
-                  style: GSTypography.headline(color: textColor, size: 22),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 70,
-                      child: TextFormField(
-                        controller: _emojiCtrl,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 24),
-                        decoration: const InputDecoration(labelText: 'Emoji'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nameCtrl,
-                        decoration: const InputDecoration(labelText: 'Name'),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Pflichtfeld'
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _brandCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Marke (optional)'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _qtyCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Menge (z.B. „500 g")'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _category,
-                  decoration: const InputDecoration(labelText: 'Kategorie'),
-                  items: [
-                    for (final c in _categories)
-                      DropdownMenuItem(value: c, child: Text(c)),
-                  ],
-                  onChanged: (v) => setState(() => _category = v!),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: _pickDate,
+                Expanded(
+                    child: _Field(label: 'Marke', controller: _brandCtrl)),
+                const SizedBox(width: 10),
+                Expanded(child: _Field(label: 'Menge', controller: _qtyCtrl)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _CategoryField(
+              value: _category,
+              options: _categories,
+              onChanged: (v) => setState(() => _category = v),
+            ),
+            const SizedBox(height: 14),
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? GSColors.surfaceDark : GSColors.surface,
                   borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : GSColors.sand,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.event_outlined, color: subtleColor),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _expiresAt == null
-                                ? 'Mindesthaltbar (optional)'
-                                : 'MHD: ${_expiresAt!.day.toString().padLeft(2, '0')}.${_expiresAt!.month.toString().padLeft(2, '0')}.${_expiresAt!.year}',
-                            style: GSTypography.body(
-                                color: textColor, size: 14),
-                          ),
-                        ),
-                        if (_expiresAt != null)
-                          IconButton(
-                            icon: Icon(Icons.close, color: subtleColor),
-                            onPressed: () =>
-                                setState(() => _expiresAt = null),
-                          ),
-                      ],
-                    ),
+                  border: Border.all(
+                    color: isDark ? GSColors.lineDark : GSColors.line,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
+                child: Row(
                   children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        child: Text('Abbrechen',
-                            style: TextStyle(color: subtleColor)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _saving ? null : _save,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: GSColors.paper,
-                                ),
-                              )
-                            : const Text('Speichern'),
+                    Icon(Icons.calendar_today_outlined,
+                        color: muteColor, size: 18),
+                    const SizedBox(width: 10),
+                    Text(
+                      _expiresAt == null
+                          ? 'MHD wählen (optional)'
+                          : _formatDate(_expiresAt!),
+                      style: GSTypography.body(
+                        color: _expiresAt == null ? muteColor : inkColor,
+                        size: 14.5,
+                        weight: FontWeight.w500,
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Abbrechen',
+                      style: TextStyle(color: muteColor)),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(180, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    backgroundColor: GSColors.primary,
+                    foregroundColor: GSColors.cream,
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: GSColors.cream,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          'Hinzufügen',
+                          style: GSTypography.body(
+                            color: GSColors.cream,
+                            size: 14.5,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.controller});
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: GSTypography.body(color: muteColor, size: 11.5)),
+          TextField(
+            controller: controller,
+            style: GSTypography.body(color: inkColor, size: 15),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.only(top: 2, bottom: 6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryField extends StatelessWidget {
+  const _CategoryField({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Kategorie',
+              style: GSTypography.body(color: muteColor, size: 11.5)),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: surfaceColor,
+              style: GSTypography.body(color: inkColor, size: 15),
+              icon: Icon(Icons.keyboard_arrow_down, color: muteColor),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+              items: [
+                for (final o in options)
+                  DropdownMenuItem(value: o, child: Text(o)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
