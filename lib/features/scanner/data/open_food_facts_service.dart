@@ -22,8 +22,8 @@ class OpenFoodFactsService {
   /// regionalen/Bio-Produkten — dann fallback auf manuelle Eingabe).
   Future<ScannedProduct?> lookup(String barcode) async {
     final uri = Uri.parse('$_base/$barcode.json'
-        '?fields=product_name,product_name_de,brands,quantity,'
-        'categories_tags,image_small_url,code');
+    '?fields=product_name,product_name_de,brands,quantity,'
+    'categories_tags,image_small_url,code,ecoscore_data');
 
     final res = await _client.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) return null;
@@ -55,6 +55,7 @@ class OpenFoodFactsService {
         name: finalName,
         category: category,
       ),
+      co2PerKg: _extractCo2(p['ecoscore_data']),
     );
   }
 
@@ -131,6 +132,15 @@ class OpenFoodFactsService {
       return 'Konserven';
     }
     return 'Sonstiges';
+  }
+
+  double? _extractCo2(dynamic ecoscoreData) {
+    if (ecoscoreData is! Map) return null;
+    final agribalyse = ecoscoreData['agribalyse'];
+    if (agribalyse is! Map) return null;
+    final co2 = agribalyse['co2_total'];
+    if (co2 is num) return co2.toDouble();
+    return null;
   }
 
   void dispose() => _client.close();

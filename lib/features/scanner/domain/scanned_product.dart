@@ -10,6 +10,7 @@ class ScannedProduct {
     required this.category,
     this.imageUrl,
     required this.emoji,
+    this.co2PerKg,
   });
 
   final String barcode;
@@ -19,6 +20,7 @@ class ScannedProduct {
   final String category;
   final String? imageUrl;
   final String emoji;
+  final double? co2PerKg; // kg CO₂ pro kg Produkt, aus Open Food Facts
 
   /// Stub für unbekannten Barcode — User füllt die Felder selbst aus.
   factory ScannedProduct.unknown(String barcode) => ScannedProduct(

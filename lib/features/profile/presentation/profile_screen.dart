@@ -127,7 +127,98 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-
+            // Großer Impact-Block
+            stats.maybeWhen(
+              data: (s) => Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: GSColors.primary,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'DEIN IMPACT',
+                        style: GSTypography.label(
+                          color: GSColors.cream.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${s.rescued}',
+                        style: GSTypography.headline(
+                          color: GSColors.cream,
+                          size: 52,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        'Lebensmittel gerettet',
+                        style: GSTypography.body(
+                          color: GSColors.cream.withValues(alpha: 0.85),
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Diese Woche',
+                                  style: GSTypography.body(
+                                    color: GSColors.cream.withValues(alpha: 0.6),
+                                    size: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${s.cookedThisWeek}',
+                                  style: GSTypography.headline(
+                                    color: GSColors.cream,
+                                    size: 24,
+                                    weight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'CO₂ gespart',
+                                  style: GSTypography.body(
+                                    color: GSColors.cream.withValues(alpha: 0.6),
+                                    size: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${_formatCo2(s.co2SavedKg)} kg',
+                                  style: GSTypography.headline(
+                                    color: GSColors.cream,
+                                    size: 24,
+                                    weight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
             // Stats
             stats.when(
               loading: () => const Padding(
@@ -157,6 +248,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _StatRow(
                     label: 'Insgesamt gerettet',
                     value: '${s.rescued}',
+                  ),
+                  _Divider(isDark: isDark),
+                  _StatRow(
+                    label: 'Eingespart (Schätzung)',
+                    value: '${s.eurSaved.toStringAsFixed(0)} €',
                   ),
                 ],
               ),
@@ -402,6 +498,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final h = hour.toString().padLeft(2, '0');
     final m = minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+
+  String _formatCo2(double kg) {
+    if (kg >= 10) return kg.toStringAsFixed(0);
+    return kg.toStringAsFixed(1);
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {

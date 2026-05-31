@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../scanner/data/co2_estimator.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
@@ -68,25 +68,32 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     }
     setState(() => _saving = true);
 
-    try {
-      await ref.read(pantryRepositoryProvider).add(
-            name: _nameCtrl.text.trim(),
-            brand: _brandCtrl.text.trim().isEmpty
-                ? null
-                : _brandCtrl.text.trim(),
-            quantity: _qtyCtrl.text.trim().isEmpty
-                ? null
-                : _qtyCtrl.text.trim(),
-            category: _category,
-            barcode: null,
-            emoji: ProductEmojiResolver.resolve(
+    final co2 = Co2Estimator.estimateCo2Kg(
+      category: _category,
+      quantity: _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
+    );
+
+      try {
+        await ref.read(pantryRepositoryProvider).add(
               name: _nameCtrl.text.trim(),
+              brand: _brandCtrl.text.trim().isEmpty
+                  ? null
+                  : _brandCtrl.text.trim(),
+              quantity: _qtyCtrl.text.trim().isEmpty
+                  ? null
+                  : _qtyCtrl.text.trim(),
               category: _category,
-            ),
-            expiresAt: _expiresAt,
-          );
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
+              barcode: null,
+              emoji: ProductEmojiResolver.resolve(
+                name: _nameCtrl.text.trim(),
+                category: _category,
+              ),
+              expiresAt: _expiresAt,
+              co2Kg: co2,
+            );
+        if (mounted) Navigator.of(context).pop();
+      }
+     catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: $e')),

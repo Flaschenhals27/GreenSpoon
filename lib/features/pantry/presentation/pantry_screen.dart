@@ -11,6 +11,7 @@ import '../../main_shell.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../domain/pantry_item.dart';
 import '../providers/pantry_providers.dart';
+import 'product_detail_screen.dart';
 
 class PantryScreen extends ConsumerStatefulWidget {
   const PantryScreen({super.key});
@@ -112,7 +113,10 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
             builder: (context, ref, _) {
               final stats = ref.watch(userStatsProvider);
               return stats.maybeWhen(
-                data: (s) => ImpactRibbon(rescuedCount: s.rescued),
+                data: (s) => ImpactRibbon(
+                  rescuedCount: s.rescued,
+                  co2SavedKg: s.co2SavedKg,
+                ),
                 orElse: () => const ImpactRibbon(rescuedCount: 0),
               );
             },
@@ -428,14 +432,20 @@ class _PantryRow extends ConsumerWidget {
           return false;
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: lineColor),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(item: item),
+          ),
         ),
-        padding: const EdgeInsets.all(12),
-        child: Row(
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: lineColor),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Row(
           children: [
             _EmojiTile(emoji: item.emoji, category: item.category),
             const SizedBox(width: 14),
@@ -469,6 +479,7 @@ class _PantryRow extends ConsumerWidget {
             ExpiryDot(days: item.daysUntilExpiry),
           ],
         ),
+      ),
       ),
     );
   }

@@ -13,6 +13,7 @@ class PantryItem {
     this.barcode,
     this.expiresAt,
     required this.createdAt,
+    this.co2Kg,
   });
 
   final String id;
@@ -25,6 +26,7 @@ class PantryItem {
   final String emoji;
   final DateTime? expiresAt;
   final DateTime createdAt;
+  final double? co2Kg;
 
   /// Tage bis Ablauf (negative Werte = bereits abgelaufen, null = kein MHD).
   int? get daysUntilExpiry {
@@ -50,6 +52,7 @@ class PantryItem {
           ? DateTime.parse(json['expires_at'] as String)
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
+      co2Kg: (json['co2_kg'] as num?)?.toDouble(),
     );
   }
 
@@ -64,6 +67,7 @@ class PantryItem {
       'barcode': barcode,
       'emoji': emoji,
       'expires_at': expiresAt?.toIso8601String().split('T').first,
+      'co2_kg': co2Kg,
     };
   }
 }

@@ -4,16 +4,17 @@ import '../theme/gs_colors.dart';
 import '../theme/gs_typography.dart';
 
 /// Grüner Banner mit "Dein Impact"-Anzeige.
-/// Zeigt aktuell nur die Anzahl der geretteten Lebensmittel.
-/// CO₂-Anzeige wird später nachgereicht.
+/// Zeigt gerettete Lebensmittel und optional eingespartes CO₂.
 class ImpactRibbon extends StatelessWidget {
   const ImpactRibbon({
     super.key,
     required this.rescuedCount,
+    this.co2SavedKg = 0,
     this.onTap,
   });
 
   final int rescuedCount;
+  final double co2SavedKg;
   final VoidCallback? onTap;
 
   @override
@@ -69,13 +70,19 @@ class ImpactRibbon extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            rescuedCount == 1
-                                ? 'gerettet'
-                                : 'Lebensmittel gerettet',
-                            style: GSTypography.body(
-                              color: GSColors.cream.withValues(alpha: 0.85),
-                              size: 14,
+                          Flexible(
+                            child: Text(
+                              co2SavedKg > 0
+                                  ? 'gerettet · ${_formatCo2(co2SavedKg)} CO₂'
+                                  : (rescuedCount == 1
+                                      ? 'gerettet'
+                                      : 'Lebensmittel gerettet'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GSTypography.body(
+                                color: GSColors.cream.withValues(alpha: 0.85),
+                                size: 14,
+                              ),
                             ),
                           ),
                         ],
@@ -94,5 +101,10 @@ class ImpactRibbon extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatCo2(double kg) {
+    if (kg >= 10) return '${kg.toStringAsFixed(0)} kg';
+    return '${kg.toStringAsFixed(1)} kg';
   }
 }

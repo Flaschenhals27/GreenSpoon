@@ -5,12 +5,18 @@ import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../pantry/providers/pantry_providers.dart';
+import '../data/co2_estimator.dart';
 import '../domain/scanned_product.dart';
 import 'mhd_scanner_screen.dart';
 
 class ScanReviewSheet extends ConsumerStatefulWidget {
-  const ScanReviewSheet({super.key, required this.product});
+  const ScanReviewSheet({
+    super.key,
+    required this.product,
+    this.prefilledExpiry,
+  });
   final ScannedProduct product;
+  final DateTime? prefilledExpiry;
 
   @override
   ConsumerState<ScanReviewSheet> createState() => _ScanReviewSheetState();
@@ -51,6 +57,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
     _category = _categories.contains(widget.product.category)
         ? widget.product.category
         : 'Sonstiges';
+    _expiresAt = widget.prefilledExpiry;
   }
 
   @override
@@ -84,6 +91,12 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
     if (_saving) return;
     setState(() => _saving = true);
 
+    final co2 = Co2Estimator.estimateCo2Kg(
+      offCo2PerKg: widget.product.co2PerKg,
+      category: _category,
+      quantity: _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
+    );
+
     try {
       await ref.read(pantryRepositoryProvider).add(
             name: _nameCtrl.text.trim().isEmpty
@@ -99,6 +112,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
             barcode: widget.product.barcode,
             emoji: widget.product.emoji,
             expiresAt: _expiresAt,
+            co2Kg: co2,
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -134,7 +148,6 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Drag-Handle
               Center(
                 child: Container(
                   width: 40,
@@ -146,7 +159,6 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                 ),
               ),
               const SizedBox(height: 18),
-              // Header mit Emoji + Erkannt-Info
               Row(
                 children: [
                   Container(
@@ -187,39 +199,26 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              // Name
-              _Field(
-                label: 'Name',
-                controller: _nameCtrl,
-              ),
+              _Field(label: 'Name', controller: _nameCtrl),
               const SizedBox(height: 10),
-              // Marke + Menge nebeneinander
               Row(
                 children: [
                   Expanded(
-                    child: _Field(
-                      label: 'Marke',
-                      controller: _brandCtrl,
-                    ),
+                    child: _Field(label: 'Marke', controller: _brandCtrl),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _Field(
-                      label: 'Menge',
-                      controller: _qtyCtrl,
-                    ),
+                    child: _Field(label: 'Menge', controller: _qtyCtrl),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              // Kategorie
               _CategoryField(
                 value: _category,
                 options: _categories,
                 onChanged: (v) => setState(() => _category = v),
               ),
               const SizedBox(height: 16),
-              // MHD-Reihe: Picker + Scan-Button
               Row(
                 children: [
                   Expanded(
@@ -244,9 +243,8 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                                   ? 'MHD wählen'
                                   : _formatDate(_expiresAt!),
                               style: GSTypography.body(
-                                color: _expiresAt == null
-                                    ? muteColor
-                                    : inkColor,
+                                color:
+                                    _expiresAt == null ? muteColor : inkColor,
                                 size: 14.5,
                                 weight: FontWeight.w500,
                               ),
@@ -278,7 +276,6 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                 ],
               ),
               const SizedBox(height: 22),
-              // Buttons unten
               Row(
                 children: [
                   TextButton(
