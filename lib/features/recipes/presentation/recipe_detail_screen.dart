@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../domain/recipe.dart';
+import 'save_recipe_button.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
   const RecipeDetailScreen({super.key, required this.recipe});
@@ -23,9 +24,11 @@ class RecipeDetailScreen extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 40),
           children: [
             // Top-Bar mit Back
+            // Top-Bar mit Back + Speichern
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Material(
                     color: surfaceColor,
@@ -45,6 +48,7 @@ class RecipeDetailScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  SaveRecipeButton(recipe: recipe),
                 ],
               ),
             ),

@@ -72,11 +72,27 @@ Deno.serve(async (req: Request) => {
     const { data: items, error: itemsErr } = await supabase
       .from("pantry_items")
       .select("name, category, quantity, expires_at")
+      .eq("status", "active")
       .order("expires_at", { ascending: true, nullsFirst: false });
 
     if (itemsErr) return jsonError(`DB error: ${itemsErr.message}`, 500);
     if (!items || items.length === 0) {
       return jsonOk({ recipes: [], message: "Vorrat ist leer." });
+    }
+
+    // ─── Diät-Vorlieben des Users laden ──────────────────────────────
+    let dietaryTags: string[] = [];
+    {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("dietary_prefs")
+        .eq("id", userResp.user.id)
+        .maybeSingle();
+
+      const prefs = profile?.dietary_prefs;
+      if (prefs && Array.isArray(prefs.tags)) {
+        dietaryTags = prefs.tags.map((t: unknown) => String(t));
+      }
     }
 
     // ─── 3. Prompt bauen ────────────────────────────────────────
@@ -103,8 +119,17 @@ Deno.serve(async (req: Request) => {
       return `- ${i.name}${qty} [${i.category}${exp}]`;
     };
 
-    const prompt = `Du bist ein deutscher Koch und hilfst, Lebensmittel vor dem Ablauf zu retten.
+    const dietaryBlock = dietaryTags.length > 0
+      ? `\nWICHTIGE ERNÄHRUNGSVORGABEN DES NUTZERS:
+Die Rezepte MÜSSEN zu folgenden Vorgaben passen: ${dietaryTags.join(", ")}.
+Halte dich strikt daran. Schlage NIEMALS Zutaten vor, die diesen Vorgaben widersprechen
+(z.B. bei "vegetarisch" kein Fleisch/Fisch, bei "vegan" keine tierischen Produkte,
+bei "laktosefrei" keine Milchprodukte, bei "ohne Nüsse" keine Nüsse).
+Wenn eine Zutat aus dem Vorrat den Vorgaben widerspricht, lass sie weg.\n`
+      : "";
 
+    const prompt = `Du bist ein deutscher Koch und hilfst, Lebensmittel vor dem Ablauf zu retten.
+${dietaryBlock}
 DRINGEND ZU VERWERTEN (läuft in 0-5 Tagen ab):
 ${expiringSoon.map(formatItem).join("\n") || "(keine)"}
 

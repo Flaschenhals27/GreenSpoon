@@ -8,6 +8,7 @@ import '../data/recipe_repository.dart';
 import '../domain/recipe.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_detail_screen.dart';
+import '../providers/recipe_cooldown_provider.dart';
 
 class RecipesScreen extends ConsumerWidget {
   const RecipesScreen({super.key});
@@ -36,33 +37,42 @@ class RecipesScreen extends ConsumerWidget {
           child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(child: _Header(isDark: isDark, ref: ref)),
-              asyncRecipes.when(
-                loading: () => SliverToBoxAdapter(
-                  child: _LoadingState(color: muteColor),
-                ),
-                error: (e, _) => SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _buildErrorOrEmptyState(
-                    context, ref, e, inkColor, muteColor),
-                ),
-                data: (recipes) {
-                  if (recipes.isEmpty) {
-                    return SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _NoRecipesGeneratedState(
-                        textColor: inkColor,
-                        subtleColor: muteColor,
-                        onRetry: () => ref.invalidate(recipesProvider),
+              // Beim (Re-)Laden immer den Ladezustand zeigen, auch wenn noch
+// alte Daten im Provider stecken (invalidate behält sie sonst).
+              if (asyncRecipes.isLoading)
+                SliverToBoxAdapter(child: _LoadingState(color: muteColor))
+              else
+                asyncRecipes.when(
+                  loading: () => SliverToBoxAdapter(
+                    child: _LoadingState(color: muteColor),
+                  ),
+                  error: (e, _) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildErrorOrEmptyState(
+                        context, ref, e, inkColor, muteColor),
+                  ),
+                  data: (recipes) {
+                    if (recipes.isEmpty) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _NoRecipesGeneratedState(
+                          textColor: inkColor,
+                          subtleColor: muteColor,
+                          onRetry: () {
+                            if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+                              ref.invalidate(recipesProvider);
+                            }
+                          },
+                        ),
+                      );
+                    }
+                    return SliverList(
+                      delegate: SliverChildListDelegate(
+                        _buildSections(recipes, muteColor, isDark),
                       ),
                     );
-                  }
-                  return SliverList(
-                    delegate: SliverChildListDelegate(
-                      _buildSections(recipes, muteColor, isDark),
-                    ),
-                  );
-                },
-              ),
+                  },
+                ),
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
           ),
@@ -93,7 +103,11 @@ class RecipesScreen extends ConsumerWidget {
         details: error.details,
         textColor: textColor,
         subtleColor: subtleColor,
-        onRetry: () => ref.invalidate(recipesProvider),
+        onRetry: () {
+          if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+            ref.invalidate(recipesProvider);
+          }
+        }
       );
     }
     // Fallback für alles andere (sollte selten passieren)
@@ -105,7 +119,11 @@ class RecipesScreen extends ConsumerWidget {
       details: error.toString(),
       textColor: textColor,
       subtleColor: subtleColor,
-      onRetry: () => ref.invalidate(recipesProvider),
+      onRetry: () {
+        if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+          ref.invalidate(recipesProvider);
+        }
+      }
     );
   }
 
@@ -186,18 +204,40 @@ class _Header extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('HEUTE', style: GSTypography.label(color: muteColor)),
-              GestureDetector(
-                onTap: () => ref.invalidate(recipesProvider),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    border: Border.all(color: lineColor),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(Icons.refresh, color: inkColor, size: 20),
-                ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final cooldown = ref.watch(recipeCooldownProvider);
+                  final onCooldown = cooldown > 0;
+                  return GestureDetector(
+                    onTap: onCooldown
+                        ? null
+                        : () {
+                            if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+                              ref.invalidate(recipesProvider);
+                            }
+                          },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        border: Border.all(color: lineColor),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      alignment: Alignment.center,
+                      child: onCooldown
+                          ? Text(
+                              '$cooldown',
+                              style: TextStyle(
+                                color: muteColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          : Icon(Icons.refresh, color: inkColor, size: 20),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -399,14 +439,28 @@ class _LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(48),
+      padding: const EdgeInsets.fromLTRB(32, 60, 32, 32),
       child: Column(
         children: [
-          const CircularProgressIndicator(color: GSColors.primary),
-          const SizedBox(height: 16),
+          const SizedBox(
+            width: 38,
+            height: 38,
+            child: CircularProgressIndicator(
+              color: GSColors.primary,
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 20),
           Text(
-            'Gemini denkt nach…',
-            style: GSTypography.body(color: color, size: 13),
+            'Gemini sucht passende Rezepte …',
+            textAlign: TextAlign.center,
+            style: GSTypography.headline(color: color, size: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Das kann ein paar Sekunden dauern — wir\nbauen die Vorschläge aus deinem Vorrat.',
+            textAlign: TextAlign.center,
+            style: GSTypography.body(color: color, size: 13, height: 1.45),
           ),
         ],
       ),
@@ -469,17 +523,27 @@ class _StatusStateState extends State<_StatusState> {
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
-            onPressed: widget.onRetry,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(180, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              backgroundColor: GSColors.primary,
-              foregroundColor: GSColors.cream,
-            ),
-            child: const Text('Erneut versuchen'),
+          Consumer(
+            builder: (context, ref, _) {
+              final cooldown = ref.watch(recipeCooldownProvider);
+              final onCooldown = cooldown > 0;
+              return FilledButton(
+                onPressed: onCooldown ? null : widget.onRetry,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(180, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  backgroundColor: GSColors.primary,
+                  foregroundColor: GSColors.cream,
+                  disabledBackgroundColor: GSColors.primary.withValues(alpha: 0.4),
+                  disabledForegroundColor: GSColors.cream.withValues(alpha: 0.7),
+                ),
+                child: Text(onCooldown
+                    ? 'Bitte warten … ${cooldown}s'
+                    : 'Erneut versuchen'),
+              );
+            },
           ),
           if (widget.details != null) ...[
             const SizedBox(height: 24),

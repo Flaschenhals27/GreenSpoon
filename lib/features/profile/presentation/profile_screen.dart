@@ -10,6 +10,8 @@ import '../../notifications/notification_settings.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../../settings/theme_providers.dart';
 import '../providers/profile_providers.dart';
+import 'dietary_prefs_sheet.dart';
+import '../providers/dietary_prefs_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -256,6 +258,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ERNÄHRUNG
+            _SectionLabel(text: 'ERNÄHRUNG', muteColor: muteColor),
+            Consumer(
+              builder: (context, ref, _) {
+                final prefs = ref.watch(dietaryPrefsProvider);
+                final tags = prefs.maybeWhen(
+                  data: (t) => t,
+                  orElse: () => const <String>[],
+                );
+                return _Card(
+                  isDark: isDark,
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        await showModalBottomSheet<bool>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => DietaryPrefsSheet(initial: tags),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.restaurant_outlined,
+                                color: muteColor, size: 22),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ernährungsweise',
+                                    style: GSTypography.body(
+                                      color: inkColor,
+                                      size: 14.5,
+                                      weight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    tags.isEmpty
+                                        ? 'Keine Vorgaben — alles ist ok'
+                                        : tags.join(' · '),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GSTypography.body(
+                                        color: muteColor, size: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right,
+                                color: muteColor, size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
