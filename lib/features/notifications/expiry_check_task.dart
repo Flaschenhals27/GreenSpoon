@@ -49,9 +49,7 @@ void workManagerCallbackDispatcher() {
           .gte('expires_at', today.toIso8601String().split('T').first)
           .lte('expires_at', inTwoDays.toIso8601String().split('T').first);
 
-      final items = (response as List)
-          .map((r) => r['name'] as String)
-          .toList();
+      final items = (response as List).map((r) => r['name'] as String).toList();
 
       if (items.isNotEmpty) {
         await NotificationService.instance.initialize();

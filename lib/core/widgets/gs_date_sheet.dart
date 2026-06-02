@@ -62,8 +62,18 @@ class _GSDateSheetState extends State<_GSDateSheet> {
   late final FixedExtentScrollController _yearCtrl;
 
   static const _monthNames = [
-    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    'Januar',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
   ];
 
   late final List<int> _years;
@@ -77,9 +87,7 @@ class _GSDateSheetState extends State<_GSDateSheet> {
 
     _day = widget.initialDay.clamp(1, 31);
     _month = widget.initialMonth.clamp(1, 12);
-    _year = _years.contains(widget.initialYear)
-        ? widget.initialYear
-        : nowYear;
+    _year = _years.contains(widget.initialYear) ? widget.initialYear : nowYear;
 
     _dayCtrl = FixedExtentScrollController(initialItem: _day - 1);
     _monthCtrl = FixedExtentScrollController(initialItem: _month - 1);
@@ -126,7 +134,8 @@ class _GSDateSheetState extends State<_GSDateSheet> {
         : GSColors.forest.withValues(alpha: 0.55);
 
     final fmt = DateFormat('EEEE, d. MMMM y', 'de_DE');
-    final preview = fmt.format(DateTime(_year, _month, _day.clamp(1, _daysInMonth)));
+    final preview =
+        fmt.format(DateTime(_year, _month, _day.clamp(1, _daysInMonth)));
 
     return Container(
       decoration: BoxDecoration(
@@ -275,8 +284,7 @@ class _WheelPicker extends StatelessWidget {
         background: GSColors.primary.withValues(alpha: 0.12),
       ),
       children: [
-        for (var i = 0; i < itemCount; i++)
-          Center(child: builder(i)),
+        for (var i = 0; i < itemCount; i++) Center(child: builder(i)),
       ],
     );
   }

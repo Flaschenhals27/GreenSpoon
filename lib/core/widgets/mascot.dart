@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Die verfügbaren Posen des Maskottchens "Löffeli".
 enum MascotPose {
-  waving,      // Begrüßung (Onboarding)
-  sleeping,    // Leerer Vorrat — nichts zu tun
-  searching,   // Keine Rezepte gefunden
+  waving, // Begrüßung (Onboarding)
+  sleeping, // Leerer Vorrat — nichts zu tun
+  searching, // Keine Rezepte gefunden
   celebrating, // Erfolg (Item verbraucht)
-  confused,    // Fehler-States
+  confused, // Fehler-States
 }
 
 extension _MascotAsset on MascotPose {

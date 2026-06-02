@@ -33,8 +33,7 @@ class PantryItem {
     if (expiresAt == null) return null;
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
-    final expDate =
-        DateTime(expiresAt!.year, expiresAt!.month, expiresAt!.day);
+    final expDate = DateTime(expiresAt!.year, expiresAt!.month, expiresAt!.day);
     return expDate.difference(todayDate).inDays;
   }
 
@@ -70,4 +69,29 @@ class PantryItem {
       'co2_kg': co2Kg,
     };
   }
+}
+
+/// Schlanker Entwurf für einen Batch-Insert (z.B. nach dem Foto-Scan eines
+/// ganzen Einkaufs), bevor Postgres `id`/`created_at` vergibt.
+@immutable
+class PantryDraft {
+  const PantryDraft({
+    required this.name,
+    this.brand,
+    this.quantity,
+    required this.category,
+    this.barcode,
+    required this.emoji,
+    this.expiresAt,
+    this.co2Kg,
+  });
+
+  final String name;
+  final String? brand;
+  final String? quantity;
+  final String category;
+  final String? barcode;
+  final String emoji;
+  final DateTime? expiresAt;
+  final double? co2Kg;
 }

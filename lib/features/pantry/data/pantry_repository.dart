@@ -24,27 +24,28 @@ class PantryRepository {
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .map((rows) {
-      final items = rows
-          .where((r) => (r['status'] ?? 'active') == 'active')
-          .map(PantryItem.fromJson)
-          .toList();
-      items.sort((a, b) {
-        if (a.expiresAt == null && b.expiresAt == null) return 0;
-        if (a.expiresAt == null) return 1;
-        if (b.expiresAt == null) return -1;
-        return a.expiresAt!.compareTo(b.expiresAt!);
-      });
-      return items;
-    }).handleError((error) async {
-      // Token-Probleme: einmalig versuchen zu refreshen, dann signOut
-      if (error.toString().toLowerCase().contains('jwt')) {
-        try {
-          await _client.auth.refreshSession();
-        } catch (_) {
-          await _client.auth.signOut();
-        }
-      }
-    });
+          final items = rows
+              .where((r) => (r['status'] ?? 'active') == 'active')
+              .map(PantryItem.fromJson)
+              .toList();
+          items.sort((a, b) {
+            if (a.expiresAt == null && b.expiresAt == null) return 0;
+            if (a.expiresAt == null) return 1;
+            if (b.expiresAt == null) return -1;
+            return a.expiresAt!.compareTo(b.expiresAt!);
+          });
+          return items;
+        })
+        .handleError((error) async {
+          // Token-Probleme: einmalig versuchen zu refreshen, dann signOut
+          if (error.toString().toLowerCase().contains('jwt')) {
+            try {
+              await _client.auth.refreshSession();
+            } catch (_) {
+              await _client.auth.signOut();
+            }
+          }
+        });
   }
 
   /// Item hinzufügen.
@@ -64,22 +65,58 @@ class PantryRepository {
       throw StateError('Nicht eingeloggt.');
     }
 
-    final inserted = await _client.from(_table).insert({
-      'user_id': userId,
-      'name': name,
-      'brand': brand,
-      'quantity': quantity,
-      'category': category,
-      'barcode': barcode,
-      'emoji': emoji,
-      'expires_at': expiresAt?.toIso8601String().split('T').first,
-      'co2_kg': co2Kg,
-    }).select().single().timeout(
+    final inserted = await _client
+        .from(_table)
+        .insert({
+          'user_id': userId,
+          'name': name,
+          'brand': brand,
+          'quantity': quantity,
+          'category': category,
+          'barcode': barcode,
+          'emoji': emoji,
+          'expires_at': expiresAt?.toIso8601String().split('T').first,
+          'co2_kg': co2Kg,
+        })
+        .select()
+        .single()
+        .timeout(
           const Duration(seconds: 12),
-          onTimeout: () => throw TimeoutException('Speichern hat zu lange gedauert.'),
+          onTimeout: () =>
+              throw TimeoutException('Speichern hat zu lange gedauert.'),
         );
 
     return PantryItem.fromJson(inserted);
+  }
+
+  /// Mehrere Items auf einmal hinzufügen (z.B. nach dem Foto-Scan eines
+  /// ganzen Einkaufs). Ein einziger Insert-Round-Trip.
+  Future<void> addAll(List<PantryDraft> drafts) async {
+    if (drafts.isEmpty) return;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Nicht eingeloggt.');
+    }
+
+    final rows = drafts
+        .map((d) => {
+              'user_id': userId,
+              'name': d.name,
+              'brand': d.brand,
+              'quantity': d.quantity,
+              'category': d.category,
+              'barcode': d.barcode,
+              'emoji': d.emoji,
+              'expires_at': d.expiresAt?.toIso8601String().split('T').first,
+              'co2_kg': d.co2Kg,
+            })
+        .toList();
+
+    await _client.from(_table).insert(rows).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () =>
+              throw TimeoutException('Speichern hat zu lange gedauert.'),
+        );
   }
 
   /// Item löschen.
@@ -102,13 +139,29 @@ class PantryRepository {
   /// Default-Grund: 'discarded'.
   Future<void> delete(String id) => archive(id, status: 'discarded');
 
-    /// Berechnet die User-Stats für den Profil-Screen.
-    /// Berechnet die User-Stats für den Profil-Screen.
+  /// Macht ein Archivieren rückgängig (für den Undo nach einem Wisch).
+  Future<void> restore(String id) async {
+    await _client.from(_table).update({
+      'status': 'active',
+      'removed_at': null,
+    }).eq('id', id);
+  }
+
+  /// Schwelle (Tage Restlaufzeit), bis zu der ein verwertetes Item als
+  /// „auf den letzten Drücker gerettet" zählt.
+  static const buzzerThresholdDays = 3;
+
+  /// Berechnet die User-Stats für Profil + Impact-Seite.
   Future<UserStats> fetchStats() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return const UserStats();
 
-    // 1. Aktuelle Vorrat-Größe
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final startOfThisMonth = DateTime(now.year, now.month, 1);
+    final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
+
+    // 1. Aktueller Vorrat
     final activeRes = await _client
         .from(_table)
         .select('id')
@@ -116,61 +169,83 @@ class PantryRepository {
         .eq('status', 'active')
         .count();
 
-    // 2. Diese Woche gekocht (consumed in letzten 7 Tagen)
-    final weekAgo = DateTime.now()
-        .subtract(const Duration(days: 7))
-        .toUtc()
-        .toIso8601String();
-
-    final consumedWeekRes = await _client
-        .from(_table)
-        .select('id')
-        .eq('user_id', userId)
-        .eq('status', 'consumed')
-        .gte('removed_at', weekAgo)
-        .count();
-
-    // 3. Insgesamt gerettet (consumed total) — mit CO₂- und Kategorie-Daten
-    //    für die Impact-Summen.
+    // 2. Verwertete Items (mit Datums-Infos für Wochen- + Buzzer-Zählung)
     final consumedRows = await _client
         .from(_table)
-        .select('co2_kg, category, quantity')
+        .select('co2_kg, category, quantity, expires_at, removed_at')
         .eq('user_id', userId)
         .eq('status', 'consumed');
 
-    final rescued = (consumedRows as List).length;
+    // 3. Weggeworfene Items (weggeworfen + abgelaufen)
+    final wastedRows = await _client
+        .from(_table)
+        .select('category, quantity, removed_at')
+        .eq('user_id', userId)
+        .inFilter('status', ['discarded', 'expired']);
 
+    // ── consumed auswerten ────────────────────────────────────────
+    var consumedTotal = 0;
+    var cookedThisWeek = 0;
+    var buzzerSaves = 0;
     double co2Total = 0;
     double eurTotal = 0;
-    for (final row in consumedRows) {
-      final map = row as Map<String, dynamic>;
-      final co2 = map['co2_kg'];
-      final category = map['category'] as String? ?? 'Sonstiges';
-      final quantity = map['quantity'] as String?;
+    for (final row in consumedRows as List) {
+      final m = row as Map<String, dynamic>;
+      consumedTotal++;
+      final category = m['category'] as String? ?? 'Sonstiges';
+      final quantity = m['quantity'] as String?;
+      final co2 = m['co2_kg'];
 
-      // CO₂: gespeicherter Wert oder Schätzung als Fallback
-      if (co2 is num) {
-        co2Total += co2.toDouble();
-      } else {
-        co2Total += Co2Estimator.estimateCo2Kg(
-          category: category,
-          quantity: quantity,
-        );
+      co2Total += (co2 is num)
+          ? co2.toDouble()
+          : Co2Estimator.estimateCo2Kg(category: category, quantity: quantity);
+      eurTotal +=
+          Co2Estimator.estimatePriceEur(category: category, quantity: quantity);
+
+      final removedAt = DateTime.tryParse(m['removed_at'] as String? ?? '');
+      if (removedAt != null && removedAt.isAfter(weekAgo)) cookedThisWeek++;
+
+      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD.
+      final expiresAt = m['expires_at'] != null
+          ? DateTime.tryParse(m['expires_at'] as String)
+          : null;
+      if (expiresAt != null && removedAt != null) {
+        final daysLeft =
+            DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
+                .difference(
+                    DateTime(removedAt.year, removedAt.month, removedAt.day))
+                .inDays;
+        if (daysLeft <= buzzerThresholdDays) buzzerSaves++;
       }
+    }
 
-      // Euro immer geschätzt (speichern wir nicht)
-      eurTotal += Co2Estimator.estimatePriceEur(
-        category: category,
-        quantity: quantity,
-      );
+    // ── wasted auswerten ──────────────────────────────────────────
+    var wastedTotal = 0;
+    double wastedKgThisMonth = 0;
+    double wastedKgLastMonth = 0;
+    for (final row in wastedRows as List) {
+      final m = row as Map<String, dynamic>;
+      wastedTotal++;
+      final kg = Co2Estimator.parseWeightKg(m['quantity'] as String?) ?? 0.5;
+      final removedAt = DateTime.tryParse(m['removed_at'] as String? ?? '');
+      if (removedAt == null) continue;
+      if (removedAt.isAfter(startOfThisMonth)) {
+        wastedKgThisMonth += kg;
+      } else if (removedAt.isAfter(startOfLastMonth)) {
+        wastedKgLastMonth += kg;
+      }
     }
 
     return UserStats(
       inPantry: activeRes.count,
-      cookedThisWeek: consumedWeekRes.count,
-      rescued: rescued,
+      cookedThisWeek: cookedThisWeek,
+      consumedTotal: consumedTotal,
+      wastedTotal: wastedTotal,
+      buzzerSaves: buzzerSaves,
       co2SavedKg: double.parse(co2Total.toStringAsFixed(1)),
       eurSaved: double.parse(eurTotal.toStringAsFixed(0)),
+      wastedKgThisMonth: double.parse(wastedKgThisMonth.toStringAsFixed(1)),
+      wastedKgLastMonth: double.parse(wastedKgLastMonth.toStringAsFixed(1)),
     );
   }
 }
@@ -179,13 +254,39 @@ class UserStats {
   const UserStats({
     this.inPantry = 0,
     this.cookedThisWeek = 0,
-    this.rescued = 0,
+    this.consumedTotal = 0,
+    this.wastedTotal = 0,
+    this.buzzerSaves = 0,
     this.co2SavedKg = 0,
     this.eurSaved = 0,
+    this.wastedKgThisMonth = 0,
+    this.wastedKgLastMonth = 0,
   });
+
   final int inPantry;
   final int cookedThisWeek;
-  final int rescued;
+
+  /// Insgesamt verwertete (gegessene/gekochte) Items.
+  final int consumedTotal;
+
+  /// Insgesamt weggeworfene Items.
+  final int wastedTotal;
+
+  /// Verwertet ≤ [PantryRepository.buzzerThresholdDays] Tage vor MHD.
+  final int buzzerSaves;
+
   final double co2SavedKg;
   final double eurSaved;
+  final double wastedKgThisMonth;
+  final double wastedKgLastMonth;
+
+  /// Anteil verwertet an allem, was den Vorrat verlassen hat (0..1).
+  double get useRate {
+    final total = consumedTotal + wastedTotal;
+    if (total == 0) return 0;
+    return consumedTotal / total;
+  }
+
+  /// Gibt es überhaupt schon Historie für eine sinnvolle Quote?
+  bool get hasHistory => (consumedTotal + wastedTotal) > 0;
 }

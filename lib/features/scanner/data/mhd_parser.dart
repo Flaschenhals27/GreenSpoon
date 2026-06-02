@@ -84,18 +84,30 @@ class MhdParser {
     return s;
   }
 
-  static final _patternIso = RegExp(r'(?<![\d])(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})(?![\d])');
-  static final _patternFull = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](20\d{2})(?![\d])');
-  static final _patternShortYear = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})(?![\d])');
-  static final _patternDayMonth = RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})(?![\d.\-/])');
+  static final _patternIso =
+      RegExp(r'(?<![\d])(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})(?![\d])');
+  static final _patternFull =
+      RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](20\d{2})(?![\d])');
+  static final _patternShortYear =
+      RegExp(r'(?<![\d])(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})(?![\d])');
+  // MM.YYYY (nur Monat + Jahr, sehr häufig: "Mind. haltbar bis Ende 05.2026").
+  // Lookbehind verhindert, dass der "mm.yyyy"-Teil aus "dd.mm.yyyy" matcht.
+  static final _patternMonthYear =
+      RegExp(r'(?<![\d.\-/])(\d{1,2})[.\-/](20\d{2})(?![\d])');
+  // DD.MM (Tag + Monat, ohne Jahr). \w-Lookbehind hält Codes wie "L30.08" fern.
+  static final _patternDayMonth =
+      RegExp(r'(?<![\w.\-/])(\d{1,2})[.\-/](\d{1,2})(?![\d.\-/])');
 
-  static List<MhdMatch> parseAll(String text) {
+  /// [now] erlaubt das Injizieren eines Referenzdatums (für deterministische
+  /// Tests). Produktivcode lässt es weg → es wird [DateTime.now] verwendet.
+  static List<MhdMatch> parseAll(String text, {DateTime? now}) {
+    final reference = now ?? DateTime.now();
     final cleaned = _normalizeOcr(text);
     final matches = <MhdMatch>[];
     final seenDates = <DateTime>{};
 
     void addIfValid(DateTime d, String raw) {
-      if (!_isPlausible(d)) return;
+      if (!_isPlausible(d, reference)) return;
       if (seenDates.contains(d)) return;
       seenDates.add(d);
       matches.add(MhdMatch(date: d, rawText: raw));
@@ -129,35 +141,40 @@ class MhdParser {
       if (date != null) addIfValid(date, m.group(0)!);
     }
 
-    // 4) dd.mm (kurz) — nur wenn KEIN vollständiges Datum gefunden wurde,
-    // sonst gibt's Falschalarme bei Codes wie "L30.08".
-    final hasFullDate = _patternIso.hasMatch(cleaned) ||
-        _patternFull.hasMatch(cleaned) ||
-        _patternShortYear.hasMatch(cleaned);
+    // 4) mm.yyyy (nur Monat + Jahr) → letzter Tag des Monats (MHD = Ende Monat)
+    for (final m in _patternMonthYear.allMatches(cleaned)) {
+      final mo = int.tryParse(m.group(1)!) ?? 0;
+      final y = int.tryParse(m.group(2)!) ?? 0;
+      if (mo < 1 || mo > 12) continue;
+      final date = _safeDate(y, mo, _lastDayOfMonth(y, mo));
+      if (date != null) addIfValid(date, m.group(0)!);
+    }
 
-    /*if (!hasFullDate) {
+    // 5) dd.mm (Tag + Monat, kurz) — nur als Fallback, wenn sonst gar nichts
+    // gefunden wurde, sonst gibt's Falschalarme bei Codes wie "L30.08".
+    if (matches.isEmpty) {
+      final today = DateTime(reference.year, reference.month, reference.day);
       for (final m in _patternDayMonth.allMatches(cleaned)) {
         final d = int.tryParse(m.group(1)!) ?? 0;
         final mo = int.tryParse(m.group(2)!) ?? 0;
-        final now = DateTime.now();
-        var date = _safeDate(now.year, mo, d);
-        if (date != null &&
-            date.isBefore(DateTime(now.year, now.month, now.day))) {
-          date = _safeDate(now.year + 1, mo, d);
+        var date = _safeDate(reference.year, mo, d);
+        if (date != null && date.isBefore(today)) {
+          date = _safeDate(reference.year + 1, mo, d);
         }
         if (date != null) addIfValid(date, m.group(0)!);
       }
-    }*/ // --- IGNORE --- (zu viele Fehlalarme)
+    }
 
-    final now = DateTime.now();
     matches.sort((a, b) {
-      final aSoon = a.date.difference(now).inDays.abs();
-      final bSoon = b.date.difference(now).inDays.abs();
+      final aSoon = a.date.difference(reference).inDays.abs();
+      final bSoon = b.date.difference(reference).inDays.abs();
       return aSoon.compareTo(bSoon);
     });
 
     return matches;
   }
+
+  static int _lastDayOfMonth(int y, int m) => DateTime(y, m + 1, 0).day;
 
   static DateTime? _safeDate(int y, int m, int d) {
     if (m < 1 || m > 12 || d < 1 || d > 31) return null;
@@ -172,18 +189,26 @@ class MhdParser {
     }
   }
 
-  static bool _isPlausible(DateTime date) {
-    final now = DateTime.now();
+  static bool _isPlausible(DateTime date, DateTime now) {
     final yesterday = DateTime(now.year, now.month, now.day - 1);
     final maxFuture = DateTime(now.year + 6, now.month, now.day);
     return date.isAfter(yesterday) && date.isBefore(maxFuture);
   }
 
   /// Sucht im OCR-Text nach Teilerkennungen für die Vorbelegung des
-/// Datepickers, falls kein vollständiges Datum erkannt wurde.
-/// Liefert Tag und/oder Monat, falls plausibel.
+  /// Datepickers, falls kein vollständiges Datum erkannt wurde.
+  /// Liefert Tag und/oder Monat, falls plausibel.
   static MhdHint findHint(String text) {
     final cleaned = _normalizeOcr(text);
+
+    // Monat/Jahr ohne Tag (z.B. "05.2026") — Monat + Jahr vorbelegen.
+    for (final m in _patternMonthYear.allMatches(cleaned)) {
+      final mo = int.tryParse(m.group(1)!) ?? 0;
+      final y = int.tryParse(m.group(2)!) ?? 0;
+      if (mo >= 1 && mo <= 12) {
+        return MhdHint(month: mo, year: y);
+      }
+    }
 
     // Tag/Monat ohne Jahr (z.B. "12.05" — aber nur wenn isoliert,
     // nicht als Teil von "L30.08")

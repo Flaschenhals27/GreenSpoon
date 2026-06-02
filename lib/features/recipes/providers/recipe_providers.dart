@@ -47,8 +47,45 @@ final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
 /// Wird von den Refresh-/Retry-Aktionen im UI genutzt.
 Future<void> refreshRecipes(WidgetRef ref) async {
   await RecipeCache.clear();
+  ref.read(recipeOverridesProvider.notifier).clear();
   ref.invalidate(recipesProvider);
 }
+
+/// Generiert [count] alternative Rezepte für genau eine Mahlzeit
+/// ("Frühstück" | "Mittag" | "Abend"). Wird vom Long-Press auf einer
+/// Rezeptkarte genutzt, um diese Mahlzeit einzeln neu vorschlagen zu lassen.
+///
+/// autoDispose: Jedes Öffnen des Auswahl-Sheets generiert frisch; beim
+/// Schließen wird der Provider verworfen.
+final mealAlternativesProvider =
+    FutureProvider.autoDispose.family<List<Recipe>, String>((ref, meal) async {
+  final repo = ref.watch(recipeRepositoryProvider);
+  final recipes = await repo.generate(meal: meal, count: 3);
+  // Sicherheitsnetz: nur Rezepte der angefragten Mahlzeit behalten.
+  final filtered = recipes.where((r) => r.meal == meal).toList();
+  return filtered.isNotEmpty ? filtered : recipes;
+});
+
+/// Hält die vom User über das Auswahl-Sheet gewählten Ersatz-Rezepte,
+/// je Mahlzeit eines. Die Rezept-Liste im UI wird damit überlagert, ohne
+/// den Cache anzufassen. Ein „Alle neu" leert diese Auswahl wieder.
+class RecipeOverrides extends Notifier<Map<String, Recipe>> {
+  @override
+  Map<String, Recipe> build() => const {};
+
+  void set(String meal, Recipe recipe) {
+    state = {...state, meal: recipe};
+  }
+
+  void clear() {
+    if (state.isNotEmpty) state = const {};
+  }
+}
+
+final recipeOverridesProvider =
+    NotifierProvider<RecipeOverrides, Map<String, Recipe>>(
+  RecipeOverrides.new,
+);
 
 /// Wird vom recipesProvider geworfen, wenn der Vorrat leer ist.
 /// Das UI behandelt das nicht als Fehler, sondern als Empty-State.

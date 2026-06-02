@@ -81,9 +81,9 @@ class HomeScreenPlaceholder extends ConsumerWidget {
 
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor:
-                      isDark ? Colors.white.withValues(alpha: 0.08)
-                              : GSColors.forest.withValues(alpha: 0.06),
+                  backgroundColor: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : GSColors.forest.withValues(alpha: 0.06),
                   foregroundColor: textColor,
                 ),
                 onPressed: () async {

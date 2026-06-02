@@ -37,7 +37,8 @@ class NotificationService {
     );
 
     // Channel anlegen (nur Android)
-    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     await androidImpl?.createNotificationChannel(
       const AndroidNotificationChannel(
         _channelId,
@@ -51,7 +52,8 @@ class NotificationService {
   /// Fragt Berechtigung an. Auf Android 13+ ist das nötig, davor egal.
   /// Liefert true, wenn der User zugestimmt hat (oder unter Android 12 läuft).
   Future<bool> requestPermission() async {
-    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (androidImpl == null) return true;
 
     final granted = await androidImpl.requestNotificationsPermission();
@@ -93,9 +95,9 @@ class NotificationService {
   }
 
   static void _onTapped(NotificationResponse resp) {
-  if (resp.payload == 'recipes') {
-    // Rezepte-Tab ist Index 1
-    mainShellTabNotifier.value = 1;
+    if (resp.payload == 'recipes') {
+      // Rezepte-Tab ist Index 1
+      mainShellTabNotifier.value = 1;
+    }
   }
-}
 }

@@ -51,6 +51,24 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // ─── 0. Optionaler Body: Einzel-Meal-Modus ──────────────────
+    // Ohne Body → wie bisher: 3 Rezepte (Frühstück/Mittag/Abend).
+    // Mit { meal, count } → genau `count` Alternativen für EINE Mahlzeit.
+    const MEALS = ["Frühstück", "Mittag", "Abend"];
+    let focusMeal: string | null = null;
+    let optionCount = 3;
+    try {
+      const body = await req.json();
+      if (body && typeof body.meal === "string" && MEALS.includes(body.meal)) {
+        focusMeal = body.meal;
+      }
+      if (body && typeof body.count === "number") {
+        optionCount = Math.min(Math.max(Math.round(body.count), 1), 5);
+      }
+    } catch (_e) {
+      // Kein/leerer Body → Standardmodus, völlig ok.
+    }
+
     // ─── 1. Auth ────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return jsonError("Missing Authorization header", 401);
@@ -128,6 +146,12 @@ bei "laktosefrei" keine Milchprodukte, bei "ohne Nüsse" keine Nüsse).
 Wenn eine Zutat aus dem Vorrat den Vorgaben widerspricht, lass sie weg.\n`
       : "";
 
+    const mealInstruction = focusMeal
+      ? `Schlage genau ${optionCount} verschiedene Rezepte für die Mahlzeit "${focusMeal}" vor.
+ALLE Rezepte MÜSSEN "meal": "${focusMeal}" haben.
+Mach die Vorschläge deutlich unterschiedlich (verschiedene Hauptzutaten, Stile, Zubereitungsarten).`
+      : `Schlage genau 3 Rezepte vor. Jeweils 1× Frühstück, 1× Mittag, 1× Abend.`;
+
     const prompt = `Du bist ein deutscher Koch und hilfst, Lebensmittel vor dem Ablauf zu retten.
 ${dietaryBlock}
 DRINGEND ZU VERWERTEN (läuft in 0-5 Tagen ab):
@@ -136,7 +160,7 @@ ${expiringSoon.map(formatItem).join("\n") || "(keine)"}
 WEITERER VORRAT:
 ${otherItems.slice(0, 20).map(formatItem).join("\n") || "(leer)"}
 
-Schlage genau 3 Rezepte vor. Jeweils 1× Frühstück, 1× Mittag, 1× Abend.
+${mealInstruction}
 Bevorzuge Rezepte, die möglichst viele DRINGEND ZU VERWERTENDE Zutaten nutzen.
 
 Antworte AUSSCHLIESSLICH mit gültigem JSON in genau diesem Format,

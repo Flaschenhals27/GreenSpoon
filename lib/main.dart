@@ -6,11 +6,12 @@ import 'features/notifications/notification_scheduler.dart';
 import 'app.dart';
 import 'core/supabase/supabase_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // .env laden (enthält Supabase-Credentials).
-  
+
   await dotenv.load(fileName: '.env');
 
   // Supabase initialisieren.

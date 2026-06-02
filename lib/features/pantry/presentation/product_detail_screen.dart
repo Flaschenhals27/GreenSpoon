@@ -27,62 +27,62 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Future<void> _markConsumed() async {
-  if (_busy) return;
-  setState(() => _busy = true);
-  try {
-    await ref
-        .read(pantryRepositoryProvider)
-        .archive(_item.id, status: 'consumed');
-    if (!mounted) return;
-    // Kurzer Feier-Moment
-    await _showCelebration();
-    if (mounted) Navigator.of(context).pop();
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Fehler: $e')),
-      );
-      setState(() => _busy = false);
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(pantryRepositoryProvider)
+          .archive(_item.id, status: 'consumed');
+      if (!mounted) return;
+      // Kurzer Feier-Moment
+      await _showCelebration();
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+        setState(() => _busy = false);
+      }
     }
   }
-}
 
-Future<void> _showCelebration() async {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  await showDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    builder: (ctx) {
-      // schließt sich nach 1,4s von selbst
-      Future.delayed(const Duration(milliseconds: 1400), () {
-        if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
-      });
-      return Dialog(
-        backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Mascot(pose: MascotPose.celebrating, size: 120),
-              const SizedBox(height: 12),
-              Text(
-                'Stark, gerettet!',
-                style: GSTypography.headline(
-                  color: isDark ? GSColors.inkDark : GSColors.ink,
-                  size: 22,
-                ),
-              ),
-            ],
+  Future<void> _showCelebration() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        // schließt sich nach 1,4s von selbst
+        Future.delayed(const Duration(milliseconds: 1400), () {
+          if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+        });
+        return Dialog(
+          backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-        ),
-      );
-    },
-  );
-}
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Mascot(pose: MascotPose.celebrating, size: 120),
+                const SizedBox(height: 12),
+                Text(
+                  'Stark, gerettet!',
+                  style: GSTypography.headline(
+                    color: isDark ? GSColors.inkDark : GSColors.ink,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _changeMhd() async {
     final picked = await showGSDateSheet(context, initial: _item.expiresAt);
@@ -119,8 +119,7 @@ Future<void> _showCelebration() async {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Wirklich löschen?'),
-        content: const Text(
-            'Das Produkt wird aus deinem Vorrat entfernt.'),
+        content: const Text('Das Produkt wird aus deinem Vorrat entfernt.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -257,10 +256,9 @@ Future<void> _showCelebration() async {
                         foregroundColor:
                             isDark ? GSColors.primaryMid : GSColors.primary,
                         side: BorderSide(
-                          color: (isDark
-                                  ? GSColors.primaryMid
-                                  : GSColors.primary)
-                              .withValues(alpha: 0.4),
+                          color:
+                              (isDark ? GSColors.primaryMid : GSColors.primary)
+                                  .withValues(alpha: 0.4),
                         ),
                         minimumSize: const Size.fromHeight(50),
                         shape: RoundedRectangleBorder(
@@ -273,8 +271,7 @@ Future<void> _showCelebration() async {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _changeMhd,
-                      icon: const Icon(Icons.calendar_today_outlined,
-                          size: 18),
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
                       label: const Text('MHD ändern'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: inkColor,
@@ -294,8 +291,8 @@ Future<void> _showCelebration() async {
             // Details-Liste
             Padding(
               padding: const EdgeInsets.fromLTRB(26, 0, 26, 12),
-              child: Text('DETAILS',
-                  style: GSTypography.label(color: muteColor)),
+              child:
+                  Text('DETAILS', style: GSTypography.label(color: muteColor)),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -403,8 +400,7 @@ class _StatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: GSTypography.label(color: fg)),
+                Text(label, style: GSTypography.label(color: fg)),
                 const SizedBox(height: 6),
                 Text(
                   big,

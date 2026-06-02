@@ -106,14 +106,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Expanded(
                         flex: 4,
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 28),
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(p.eyebrow,
-                                  style:
-                                      GSTypography.label(color: muteColor)),
+                                  style: GSTypography.label(color: muteColor)),
                               const SizedBox(height: 14),
                               RichText(
                                 text: TextSpan(
@@ -130,8 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                             ? GSColors.primaryMid
                                             : GSColors.primary,
                                         size: 38,
-                                      ).copyWith(
-                                          fontStyle: FontStyle.italic),
+                                      ).copyWith(fontStyle: FontStyle.italic),
                                     ),
                                   ],
                                 ),
@@ -376,8 +373,7 @@ class _ScanArt extends StatelessWidget {
                     Container(
                       width: i.isEven ? 4 : 2.5,
                       height: 90,
-                      margin:
-                          const EdgeInsets.symmetric(horizontal: 1.5),
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
                       color: GSColors.cream
                           .withValues(alpha: i % 3 == 0 ? 0.9 : 0.5),
                     ),
@@ -474,8 +470,7 @@ class _PlateArt extends StatelessWidget {
             top: 20,
             right: 30,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: GSColors.primaryDeep,
                 borderRadius: BorderRadius.circular(999),

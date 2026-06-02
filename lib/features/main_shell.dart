@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/gs_colors.dart';
+import '../core/theme/gs_typography.dart';
 import 'pantry/presentation/add_item_dialog.dart';
 import 'pantry/presentation/pantry_screen.dart';
 import 'pantry/providers/pantry_providers.dart';
 import 'profile/presentation/profile_screen.dart';
 import 'recipes/presentation/recipes_screen.dart';
+import 'scanner/presentation/grocery_photo_screen.dart';
 import 'scanner/presentation/scanner_screen.dart';
 
 /// Globaler ValueNotifier für Notification-Tap-Handler.
@@ -57,9 +59,26 @@ class _MainShellState extends ConsumerState<MainShell>
     }
   }
 
-  void _openScanner() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ScannerScreen()),
+  void _openScanOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ScanOptionsSheet(
+        isDark: isDark,
+        onSingle: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ScannerScreen()),
+          );
+        },
+        onPhoto: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const GroceryPhotoScreen()),
+          );
+        },
+      ),
     );
   }
 
@@ -103,7 +122,7 @@ class _MainShellState extends ConsumerState<MainShell>
             mainShellTabNotifier.value = i;
             setState(() => _index = i);
           },
-          onScanTap: _openScanner,
+          onScanTap: _openScanOptions,
           onScanLongPress: _openAddDialog,
         ),
       ),
@@ -277,6 +296,180 @@ class _ScanButton extends StatelessWidget {
               color: GSColors.cream,
               size: 24,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+/// Auswahl beim Tippen auf den Scan-Button: einzeln scannen (Barcode/MHD)
+/// oder den ganzen Einkauf abfotografieren (KI-Erkennung).
+class _ScanOptionsSheet extends StatelessWidget {
+  const _ScanOptionsSheet({
+    required this.isDark,
+    required this.onSingle,
+    required this.onPhoto,
+  });
+
+  final bool isDark;
+  final VoidCallback onSingle;
+  final VoidCallback onPhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: muteColor.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text('HINZUFÜGEN', style: GSTypography.label(color: muteColor)),
+              const SizedBox(height: 12),
+              _ScanOption(
+                isDark: isDark,
+                icon: Icons.qr_code_scanner,
+                title: 'Einzeln scannen',
+                subtitle: 'Barcode & MHD von verpackter Ware',
+                onTap: onSingle,
+              ),
+              const SizedBox(height: 12),
+              _ScanOption(
+                isDark: isDark,
+                icon: Icons.photo_camera_outlined,
+                title: 'Einkauf fotografieren',
+                subtitle: 'Obst, Gemüse & mehr auf einmal erkennen',
+                badge: 'NEU',
+                onTap: onPhoto,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanOption extends StatelessWidget {
+  const _ScanOption({
+    required this.isDark,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.badge,
+  });
+
+  final bool isDark;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    return Material(
+      color: surfaceColor,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: lineColor),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: GSColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: GSColors.primary, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            overflow: TextOverflow.ellipsis,
+                            style: GSTypography.body(
+                              color: inkColor,
+                              size: 15.5,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: GSColors.accent.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: GSTypography.body(
+                                color: GSColors.accentDeep,
+                                size: 10,
+                                weight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GSTypography.body(color: muteColor, size: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: muteColor, size: 22),
+            ],
           ),
         ),
       ),

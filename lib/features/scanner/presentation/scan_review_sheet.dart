@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
+import '../../pantry/domain/pantry_categories.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../data/co2_estimator.dart';
 import '../domain/scanned_product.dart';
@@ -30,31 +31,13 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
   DateTime? _expiresAt;
   bool _saving = false;
 
-  static const _categories = [
-    'Milchprodukte',
-    'Obst',
-    'Gemüse',
-    'Fleisch & Fisch',
-    'Pasta & Reis',
-    'Brot & Backwaren',
-    'Müsli & Cerealien',
-    'Eier',
-    'Süßes & Snacks',
-    'Gewürze & Saucen',
-    'Aufstriche',
-    'Konserven',
-    'Tiefkühl',
-    'Getränke',
-    'Sonstiges',
-  ];
-
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.product.name);
     _brandCtrl = TextEditingController(text: widget.product.brand ?? '');
     _qtyCtrl = TextEditingController(text: widget.product.quantity ?? '');
-    _category = _categories.contains(widget.product.category)
+    _category = kPantryCategories.contains(widget.product.category)
         ? widget.product.category
         : 'Sonstiges';
     _expiresAt = widget.prefilledExpiry;
@@ -102,12 +85,10 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
             name: _nameCtrl.text.trim().isEmpty
                 ? 'Unbekannt'
                 : _nameCtrl.text.trim(),
-            brand: _brandCtrl.text.trim().isEmpty
-                ? null
-                : _brandCtrl.text.trim(),
-            quantity: _qtyCtrl.text.trim().isEmpty
-                ? null
-                : _qtyCtrl.text.trim(),
+            brand:
+                _brandCtrl.text.trim().isEmpty ? null : _brandCtrl.text.trim(),
+            quantity:
+                _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
             category: _category,
             barcode: widget.product.barcode,
             emoji: widget.product.emoji,
@@ -215,7 +196,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
               const SizedBox(height: 10),
               _CategoryField(
                 value: _category,
-                options: _categories,
+                options: kPantryCategories,
                 onChanged: (v) => setState(() => _category = v),
               ),
               const SizedBox(height: 16),

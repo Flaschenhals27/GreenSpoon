@@ -43,7 +43,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) _showError(_humanizeAuthError(e));
     } catch (_) {
-      if (mounted) _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
+      if (mounted)
+        _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -166,8 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: subtleColor,
                             size: 20,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscure = !_obscure),
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
                       validator: (v) {
@@ -201,9 +201,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // ── Wechsel zur Registrierung ──────────
                     Center(
                       child: TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => context.go('/signup'),
+                        onPressed:
+                            _isLoading ? null : () => context.go('/signup'),
                         child: RichText(
                           text: TextSpan(
                             style: GSTypography.body(

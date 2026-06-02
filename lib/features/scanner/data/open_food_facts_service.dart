@@ -22,8 +22,8 @@ class OpenFoodFactsService {
   /// regionalen/Bio-Produkten — dann fallback auf manuelle Eingabe).
   Future<ScannedProduct?> lookup(String barcode) async {
     final uri = Uri.parse('$_base/$barcode.json'
-    '?fields=product_name,product_name_de,brands,quantity,'
-    'categories_tags,image_small_url,code,ecoscore_data');
+        '?fields=product_name,product_name_de,brands,quantity,'
+        'categories_tags,image_small_url,code,ecoscore_data');
 
     final res = await _client.get(uri).timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) return null;
@@ -36,9 +36,8 @@ class OpenFoodFactsService {
 
     final name = (p['product_name_de'] as String?)?.trim();
     final fallbackName = (p['product_name'] as String?)?.trim();
-    final finalName = (name != null && name.isNotEmpty)
-        ? name
-        : (fallbackName ?? '');
+    final finalName =
+        (name != null && name.isNotEmpty) ? name : (fallbackName ?? '');
 
     if (finalName.isEmpty) return null;
 
@@ -71,6 +70,14 @@ class OpenFoodFactsService {
       return 'Milchprodukte';
     }
     if (flat.contains('egg')) return 'Eier';
+    if (flat.contains('legum') ||
+        flat.contains('tofu') ||
+        flat.contains('tempeh') ||
+        flat.contains('lentil') ||
+        flat.contains('chickpea') ||
+        flat.contains('beans')) {
+      return 'Hülsenfrüchte & Tofu';
+    }
     if (flat.contains('vegetable')) return 'Gemüse';
     if (flat.contains('fruit')) return 'Obst';
     if (flat.contains('meat') ||
@@ -94,6 +101,11 @@ class OpenFoodFactsService {
     if (flat.contains('bread') || flat.contains('bakery')) {
       return 'Brot & Backwaren';
     }
+    if (flat.contains('flour') ||
+        flat.contains('yeast') ||
+        flat.contains('baking')) {
+      return 'Backzutaten';
+    }
     if (flat.contains('frozen')) return 'Tiefkühl';
     if (flat.contains('beverage') ||
         flat.contains('drink') ||
@@ -113,10 +125,12 @@ class OpenFoodFactsService {
         flat.contains('cake')) {
       return 'Süßes & Snacks';
     }
+    if (flat.contains('oil') || flat.contains('fats')) {
+      return 'Öle & Fette';
+    }
     if (flat.contains('spice') ||
         flat.contains('sauce') ||
         flat.contains('condiment') ||
-        flat.contains('oil') ||
         flat.contains('vinegar') ||
         flat.contains('salt')) {
       return 'Gewürze & Saucen';

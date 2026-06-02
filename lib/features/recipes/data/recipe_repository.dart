@@ -13,12 +13,18 @@ class RecipeRepository {
   SupabaseClient get _client => SupabaseService.client;
 
   /// Ruft die Edge Function auf und gibt die Rezeptliste zurück.
+  ///
+  /// Ohne [meal] → der Standardmodus (3 Rezepte: Frühstück/Mittag/Abend).
+  /// Mit [meal] → [count] Alternativen für genau diese Mahlzeit (für das
+  /// Einzel-Refresh per Long-Press).
+  ///
   /// Wirft [RecipeException] mit kategorisiertem Fehlertyp bei Problemen.
-  Future<List<Recipe>> generate() async {
+  Future<List<Recipe>> generate({String? meal, int count = 3}) async {
     try {
       final response = await _client.functions.invoke(
         'generate-recipes',
         method: HttpMethod.post,
+        body: meal == null ? null : {'meal': meal, 'count': count},
       );
 
       // Server-Fehler unterscheiden

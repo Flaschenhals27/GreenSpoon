@@ -8,6 +8,7 @@ import '../../../core/widgets/expiry_dot.dart';
 import '../../../core/widgets/impact_ribbon.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../main_shell.dart';
+import '../../profile/presentation/impact_screen.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../domain/pantry_item.dart';
 import '../providers/pantry_providers.dart';
@@ -33,12 +34,15 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
     'Gemüse',
     'Milchprodukte',
     'Fleisch & Fisch',
+    'Hülsenfrüchte & Tofu',
     'Brot & Backwaren',
     'Pasta & Reis',
+    'Backzutaten',
     'Müsli & Cerealien',
     'Eier',
     'Süßes & Snacks',
     'Gewürze & Saucen',
+    'Öle & Fette',
     'Aufstriche',
     'Konserven',
     'Tiefkühl',
@@ -112,12 +116,16 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
           child: Consumer(
             builder: (context, ref, _) {
               final stats = ref.watch(userStatsProvider);
+              void openImpact() => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ImpactScreen()),
+                  );
               return stats.maybeWhen(
                 data: (s) => ImpactRibbon(
-                  rescuedCount: s.rescued,
+                  ratePercent: s.hasHistory ? (s.useRate * 100).round() : null,
                   co2SavedKg: s.co2SavedKg,
+                  onTap: openImpact,
                 ),
-                orElse: () => const ImpactRibbon(rescuedCount: 0),
+                orElse: () => ImpactRibbon(onTap: openImpact),
               );
             },
           ),
@@ -327,8 +335,8 @@ class _FilterPills extends StatelessWidget {
                 onTap: () => onChanged(c),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: value == c
                         ? (isDark ? GSColors.cream : inkColor)
@@ -407,30 +415,50 @@ class _PantryRow extends ConsumerWidget {
 
     return Dismissible(
       key: ValueKey(item.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        padding: const EdgeInsets.only(right: 24),
-        alignment: Alignment.centerRight,
-        decoration: BoxDecoration(
-          color: GSColors.accent.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(Icons.delete_outline, color: GSColors.cream),
+      direction: DismissDirection.horizontal,
+      // Nach rechts wischen → verbraucht (grün)
+      background: const _SwipeBg(
+        color: GSColors.primary,
+        icon: Icons.restaurant,
+        label: 'Verbraucht',
+        alignment: Alignment.centerLeft,
       ),
-      confirmDismiss: (_) async {
-        final reason = await showDialog<String>(
-          context: context,
-          builder: (_) => const _RemoveReasonDialog(),
-        );
-        if (reason == null) return false;
+      // Nach links wischen → weggeworfen (terracotta)
+      secondaryBackground: const _SwipeBg(
+        color: GSColors.accent,
+        icon: Icons.delete_outline,
+        label: 'Weggeworfen',
+        alignment: Alignment.centerRight,
+      ),
+      confirmDismiss: (direction) async {
+        final consumed = direction == DismissDirection.startToEnd;
+        final status = consumed ? 'consumed' : 'discarded';
         try {
           await ref
               .read(pantryRepositoryProvider)
-              .archive(item.id, status: reason);
-          return true;
+              .archive(item.id, status: status);
         } catch (_) {
           return false;
         }
+        if (context.mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                consumed
+                    ? '„${item.name}" als verbraucht markiert'
+                    : '„${item.name}" weggeworfen',
+              ),
+              action: SnackBarAction(
+                label: 'Rückgängig',
+                onPressed: () =>
+                    ref.read(pantryRepositoryProvider).restore(item.id),
+              ),
+            ),
+          );
+        }
+        return true;
       },
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(
@@ -446,40 +474,40 @@ class _PantryRow extends ConsumerWidget {
           ),
           padding: const EdgeInsets.all(12),
           child: Row(
-          children: [
-            _EmojiTile(emoji: item.emoji, category: item.category),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GSTypography.body(
-                      color: inkColor,
-                      size: 16,
-                      weight: FontWeight.w600,
+            children: [
+              _EmojiTile(emoji: item.emoji, category: item.category),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GSTypography.body(
+                        color: inkColor,
+                        size: 16,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [item.brand, item.quantity]
-                        .whereType<String>()
-                        .join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GSTypography.body(color: muteColor, size: 13),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      [item.brand, item.quantity]
+                          .whereType<String>()
+                          .join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GSTypography.body(color: muteColor, size: 13),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            ExpiryDot(days: item.daysUntilExpiry),
-          ],
+              const SizedBox(width: 8),
+              ExpiryDot(days: item.daysUntilExpiry),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -498,12 +526,15 @@ class _EmojiTile extends StatelessWidget {
     'Obst': Color(0xFFF3DCC8),
     'Gemüse': Color(0xFFCFDCD0),
     'Fleisch & Fisch': Color(0xFFF3DCC8),
+    'Hülsenfrüchte & Tofu': Color(0xFFCFDCD0),
     'Pasta & Reis': Color(0xFFF1E2BB),
     'Brot & Backwaren': Color(0xFFF1E2BB),
+    'Backzutaten': Color(0xFFF1E2BB),
     'Müsli & Cerealien': Color(0xFFF1E2BB),
     'Eier': Color(0xFFF1E2BB),
     'Süßes & Snacks': Color(0xFFF3DCC8),
     'Gewürze & Saucen': Color(0xFFF1E2BB),
+    'Öle & Fette': Color(0xFFCFDCD0),
     'Aufstriche': Color(0xFFF1E2BB),
     'Konserven': Color(0xFFCFDCD0),
     'Tiefkühl': Color(0xFFCFDCD0),
@@ -514,9 +545,7 @@ class _EmojiTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = _categoryColors[category] ??
-        (isDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : GSColors.surface2);
+        (isDark ? Colors.white.withValues(alpha: 0.08) : GSColors.surface2);
 
     return Container(
       width: 48,
@@ -567,119 +596,45 @@ class _EmptyState extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────
 
-class _RemoveReasonDialog extends StatelessWidget {
-  const _RemoveReasonDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-
-    return Dialog(
-      backgroundColor: surfaceColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Was ist passiert?',
-              style: GSTypography.headline(color: inkColor, size: 20),
-            ),
-            const SizedBox(height: 14),
-            _ReasonButton(
-              icon: '🍳',
-              label: 'Verwertet',
-              sub: 'Gegessen oder gekocht',
-              color: GSColors.primary,
-              onTap: () => Navigator.of(context).pop('consumed'),
-            ),
-            const SizedBox(height: 8),
-            _ReasonButton(
-              icon: '⏳',
-              label: 'Abgelaufen',
-              sub: 'Leider nicht mehr genießbar',
-              color: GSColors.accent,
-              onTap: () => Navigator.of(context).pop('expired'),
-            ),
-            const SizedBox(height: 8),
-            _ReasonButton(
-              icon: '🗑',
-              label: 'Einfach entfernen',
-              sub: 'Aus der Liste nehmen',
-              color: muteColor,
-              onTap: () => Navigator.of(context).pop('discarded'),
-            ),
-            const SizedBox(height: 14),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Abbrechen', style: TextStyle(color: muteColor)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReasonButton extends StatelessWidget {
-  const _ReasonButton({
+/// Hintergrund, der beim Wischen eines Vorrats-Items sichtbar wird.
+class _SwipeBg extends StatelessWidget {
+  const _SwipeBg({
+    required this.color,
     required this.icon,
     required this.label,
-    required this.sub,
-    required this.color,
-    required this.onTap,
+    required this.alignment,
   });
-  final String icon;
-  final String label;
-  final String sub;
+
   final Color color;
-  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+  final AlignmentGeometry alignment;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
+    final left = alignment == Alignment.centerLeft;
+    final children = [
+      Icon(icon, color: GSColors.cream),
+      const SizedBox(width: 10),
+      Text(
+        label,
+        style: GSTypography.body(
+          color: GSColors.cream,
+          size: 15,
+          weight: FontWeight.w700,
         ),
-        child: Row(
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 24)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GSTypography.body(
-                      color: inkColor,
-                      size: 14.5,
-                      weight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    sub,
-                    style: GSTypography.body(color: muteColor, size: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: alignment,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: left ? children : children.reversed.toList(),
       ),
     );
   }

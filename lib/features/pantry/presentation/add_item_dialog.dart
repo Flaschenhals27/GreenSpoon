@@ -5,6 +5,7 @@ import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../scanner/data/product_emoji.dart';
+import '../domain/pantry_categories.dart';
 import '../providers/pantry_providers.dart';
 
 class AddItemDialog extends ConsumerStatefulWidget {
@@ -21,24 +22,6 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   String _category = 'Sonstiges';
   DateTime? _expiresAt;
   bool _saving = false;
-
-  static const _categories = [
-    'Milchprodukte',
-    'Obst',
-    'Gemüse',
-    'Fleisch & Fisch',
-    'Pasta & Reis',
-    'Brot & Backwaren',
-    'Müsli & Cerealien',
-    'Eier',
-    'Süßes & Snacks',
-    'Gewürze & Saucen',
-    'Aufstriche',
-    'Konserven',
-    'Tiefkühl',
-    'Getränke',
-    'Sonstiges',
-  ];
 
   @override
   void dispose() {
@@ -73,27 +56,24 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
       quantity: _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
     );
 
-      try {
-        await ref.read(pantryRepositoryProvider).add(
+    try {
+      await ref.read(pantryRepositoryProvider).add(
+            name: _nameCtrl.text.trim(),
+            brand:
+                _brandCtrl.text.trim().isEmpty ? null : _brandCtrl.text.trim(),
+            quantity:
+                _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
+            category: _category,
+            barcode: null,
+            emoji: ProductEmojiResolver.resolve(
               name: _nameCtrl.text.trim(),
-              brand: _brandCtrl.text.trim().isEmpty
-                  ? null
-                  : _brandCtrl.text.trim(),
-              quantity: _qtyCtrl.text.trim().isEmpty
-                  ? null
-                  : _qtyCtrl.text.trim(),
               category: _category,
-              barcode: null,
-              emoji: ProductEmojiResolver.resolve(
-                name: _nameCtrl.text.trim(),
-                category: _category,
-              ),
-              expiresAt: _expiresAt,
-              co2Kg: co2,
-            );
-        if (mounted) Navigator.of(context).pop();
-      }
-     catch (e) {
+            ),
+            expiresAt: _expiresAt,
+            co2Kg: co2,
+          );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fehler: $e')),
@@ -112,8 +92,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
 
     return Dialog(
       backgroundColor: bgColor,
-      insetPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
@@ -135,8 +114,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(
-                    child: _Field(label: 'Marke', controller: _brandCtrl)),
+                Expanded(child: _Field(label: 'Marke', controller: _brandCtrl)),
                 const SizedBox(width: 10),
                 Expanded(child: _Field(label: 'Menge', controller: _qtyCtrl)),
               ],
@@ -144,7 +122,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
             const SizedBox(height: 10),
             _CategoryField(
               value: _category,
-              options: _categories,
+              options: kPantryCategories,
               onChanged: (v) => setState(() => _category = v),
             ),
             const SizedBox(height: 14),
@@ -152,8 +130,8 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(14),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
                   color: isDark ? GSColors.surfaceDark : GSColors.surface,
                   borderRadius: BorderRadius.circular(14),
@@ -185,8 +163,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Abbrechen',
-                      style: TextStyle(color: muteColor)),
+                  child: Text('Abbrechen', style: TextStyle(color: muteColor)),
                 ),
                 const Spacer(),
                 FilledButton(

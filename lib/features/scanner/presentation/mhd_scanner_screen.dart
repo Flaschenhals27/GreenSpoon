@@ -309,8 +309,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color:
-                                        Colors.black.withValues(alpha: 0.55),
+                                    color: Colors.black.withValues(alpha: 0.55),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(

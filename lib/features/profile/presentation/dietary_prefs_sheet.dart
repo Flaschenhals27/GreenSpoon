@@ -43,9 +43,7 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await ref
-          .read(dietaryPrefsRepositoryProvider)
-          .save(_selected.toList());
+      await ref.read(dietaryPrefsRepositoryProvider).save(_selected.toList());
       ref.invalidate(dietaryPrefsProvider);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

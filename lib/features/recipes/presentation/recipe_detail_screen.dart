@@ -43,8 +43,8 @@ class RecipeDetailScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           border: Border.all(color: lineColor),
                         ),
-                        child: Icon(Icons.chevron_left,
-                            color: inkColor, size: 22),
+                        child:
+                            Icon(Icons.chevron_left, color: inkColor, size: 22),
                       ),
                     ),
                   ),
@@ -128,9 +128,8 @@ class RecipeDetailScreen extends StatelessWidget {
                         child: Text(
                           t,
                           style: TextStyle(
-                            color: isDark
-                                ? GSColors.primaryMid
-                                : GSColors.primary,
+                            color:
+                                isDark ? GSColors.primaryMid : GSColors.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -181,9 +180,8 @@ class RecipeDetailScreen extends StatelessWidget {
                         child: Text(
                           '${i + 1}',
                           style: TextStyle(
-                            color: isDark
-                                ? GSColors.primaryMid
-                                : GSColors.primary,
+                            color:
+                                isDark ? GSColors.primaryMid : GSColors.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),

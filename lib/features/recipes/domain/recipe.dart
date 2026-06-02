@@ -21,8 +21,8 @@ class Recipe {
   final String difficulty;
   final int servings;
   final List<String> tags;
-  final List<String> uses;     // Zutaten aus dem Vorrat
-  final List<String> missing;  // Zutaten, die fehlen
+  final List<String> uses; // Zutaten aus dem Vorrat
+  final List<String> missing; // Zutaten, die fehlen
   final String blurb;
   final List<String> steps;
 

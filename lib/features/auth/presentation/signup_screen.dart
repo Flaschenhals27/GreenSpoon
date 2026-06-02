@@ -56,7 +56,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } on AuthException catch (e) {
       if (mounted) _showError(_humanizeAuthError(e));
     } catch (_) {
-      if (mounted) _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
+      if (mounted)
+        _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -118,7 +119,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ),
                     ),
                     const SizedBox(height: 28),
-
                     Text(
                       'Konto erstellen',
                       textAlign: TextAlign.center,
@@ -132,7 +132,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           .copyWith(fontSize: 13),
                     ),
                     const SizedBox(height: 36),
-
                     _Label('Email', color: subtleColor),
                     const SizedBox(height: 6),
                     TextFormField(
@@ -154,7 +153,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-
                     _Label('Passwort', color: subtleColor),
                     const SizedBox(height: 6),
                     TextFormField(
@@ -171,8 +169,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             color: subtleColor,
                             size: 20,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscure = !_obscure),
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
                       validator: (v) {
@@ -186,7 +183,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-
                     _Label('Passwort wiederholen', color: subtleColor),
                     const SizedBox(height: 6),
                     TextFormField(
@@ -203,7 +199,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       },
                     ),
                     const SizedBox(height: 28),
-
                     FilledButton(
                       onPressed: _isLoading ? null : _submit,
                       child: _isLoading
@@ -218,12 +213,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           : const Text('Registrieren'),
                     ),
                     const SizedBox(height: 18),
-
                     Center(
                       child: TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () => context.go('/login'),
+                        onPressed:
+                            _isLoading ? null : () => context.go('/login'),
                         child: RichText(
                           text: TextSpan(
                             style: GSTypography.body(

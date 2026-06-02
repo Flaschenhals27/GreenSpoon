@@ -9,9 +9,12 @@ import '../../notifications/notification_scheduler.dart';
 import '../../notifications/notification_service.dart';
 import '../../notifications/notification_settings.dart';
 import '../../pantry/providers/pantry_providers.dart';
+import '../../recipes/presentation/saved_recipes_screen.dart';
+import '../../recipes/providers/saved_recipe_providers.dart';
 import '../../settings/theme_providers.dart';
 import '../providers/profile_providers.dart';
 import 'dietary_prefs_sheet.dart';
+import 'impact_screen.dart';
 import '../providers/dietary_prefs_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -134,107 +137,138 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             stats.maybeWhen(
               data: (s) => Padding(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: GSColors.primary,
-                    borderRadius: BorderRadius.circular(22),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ImpactScreen()),
                   ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'DEIN IMPACT',
-                                  style: GSTypography.label(
-                                    color: GSColors.cream
-                                        .withValues(alpha: 0.6),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: GSColors.primary,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'DEIN IMPACT',
+                                    style: GSTypography.label(
+                                      color:
+                                          GSColors.cream.withValues(alpha: 0.6),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${s.rescued}',
-                                  style: GSTypography.headline(
-                                    color: GSColors.cream,
-                                    size: 52,
-                                    weight: FontWeight.w500,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    s.hasHistory
+                                        ? '${(s.useRate * 100).round()} %'
+                                        : '—',
+                                    style: GSTypography.headline(
+                                      color: GSColors.cream,
+                                      size: 52,
+                                      weight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  'Lebensmittel gerettet',
-                                  style: GSTypography.body(
-                                    color: GSColors.cream
-                                        .withValues(alpha: 0.85),
-                                    size: 14,
+                                  Text(
+                                    s.hasHistory
+                                        ? 'verwertet statt weggeworfen'
+                                        : 'Verbrauche Items, um deine Quote zu sehen',
+                                    style: GSTypography.body(
+                                      color: GSColors.cream
+                                          .withValues(alpha: 0.85),
+                                      size: 14,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const Mascot(
-                            pose: MascotPose.celebrating,
-                            size: 96,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Diese Woche',
-                                  style: GSTypography.body(
-                                    color: GSColors.cream.withValues(alpha: 0.6),
-                                    size: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${s.cookedThisWeek}',
-                                  style: GSTypography.headline(
-                                    color: GSColors.cream,
-                                    size: 24,
-                                    weight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                            const Mascot(
+                              pose: MascotPose.celebrating,
+                              size: 96,
                             ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'CO₂ gespart',
-                                  style: GSTypography.body(
-                                    color: GSColors.cream.withValues(alpha: 0.6),
-                                    size: 12,
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Diese Woche',
+                                    style: GSTypography.body(
+                                      color:
+                                          GSColors.cream.withValues(alpha: 0.6),
+                                      size: 12,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${_formatCo2(s.co2SavedKg)} kg',
-                                  style: GSTypography.headline(
-                                    color: GSColors.cream,
-                                    size: 24,
-                                    weight: FontWeight.w500,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${s.cookedThisWeek}',
+                                    style: GSTypography.headline(
+                                      color: GSColors.cream,
+                                      size: 24,
+                                      weight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'CO₂ gespart',
+                                    style: GSTypography.body(
+                                      color:
+                                          GSColors.cream.withValues(alpha: 0.6),
+                                      size: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${_formatCo2(s.co2SavedKg)} kg',
+                                    style: GSTypography.headline(
+                                      color: GSColors.cream,
+                                      size: 24,
+                                      weight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Details ansehen',
+                              style: GSTypography.body(
+                                color: GSColors.cream.withValues(alpha: 0.9),
+                                size: 13,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: GSColors.cream.withValues(alpha: 0.9),
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -267,8 +301,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   _Divider(isDark: isDark),
                   _StatRow(
-                    label: 'Insgesamt gerettet',
-                    value: '${s.rescued}',
+                    label: 'Verwertet gesamt',
+                    value: '${s.consumedTotal}',
+                  ),
+                  _Divider(isDark: isDark),
+                  _StatRow(
+                    label: 'Weggeworfen gesamt',
+                    value: '${s.wastedTotal}',
+                  ),
+                  _Divider(isDark: isDark),
+                  _StatRow(
+                    label: 'Auf den letzten Drücker',
+                    value: '${s.buzzerSaves}',
                   ),
                   _Divider(isDark: isDark),
                   _StatRow(
@@ -277,6 +321,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // MEINE REZEPTE
+            _SectionLabel(text: 'MEINE REZEPTE', muteColor: muteColor),
+            Consumer(
+              builder: (context, ref, _) {
+                final saved = ref.watch(savedRecipesProvider);
+                final count = saved.maybeWhen(
+                  data: (r) => r.length,
+                  orElse: () => null,
+                );
+                final subtitle = count == null
+                    ? 'Deine Sammlung'
+                    : count == 0
+                        ? 'Noch nichts gespeichert'
+                        : '$count gespeichert';
+                return _Card(
+                  isDark: isDark,
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SavedRecipesScreen(),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.bookmark_outline,
+                                color: muteColor, size: 22),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Gespeicherte Rezepte',
+                                    style: GSTypography.body(
+                                      color: inkColor,
+                                      size: 14.5,
+                                      weight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    subtitle,
+                                    style: GSTypography.body(
+                                        color: muteColor, size: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right,
+                                color: muteColor, size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),
@@ -354,8 +462,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 Consumer(
                   builder: (context, ref, _) {
-                    final current = ref.watch(themeModeProvider).value ??
-                        ThemeMode.system;
+                    final current =
+                        ref.watch(themeModeProvider).value ?? ThemeMode.system;
                     return Column(
                       children: [
                         _ThemeOption(
@@ -364,9 +472,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           icon: Icons.brightness_auto,
                           label: 'System',
                           sub: 'Folgt der Geräte-Einstellung',
-                          onSelect: (m) => ref
-                              .read(themeModeProvider.notifier)
-                              .setMode(m),
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
                           isDark: isDark,
                           textColor: inkColor,
                           subtleColor: muteColor,
@@ -378,9 +485,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           icon: Icons.light_mode_outlined,
                           label: 'Hell',
                           sub: 'Warmes Cream',
-                          onSelect: (m) => ref
-                              .read(themeModeProvider.notifier)
-                              .setMode(m),
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
                           isDark: isDark,
                           textColor: inkColor,
                           subtleColor: muteColor,
@@ -391,9 +497,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           icon: Icons.dark_mode_outlined,
                           label: 'Dunkel',
                           sub: 'Tiefes Tannengrün',
-                          onSelect: (m) => ref
-                              .read(themeModeProvider.notifier)
-                              .setMode(m),
+                          onSelect: (m) =>
+                              ref.read(themeModeProvider.notifier).setMode(m),
                           isDark: isDark,
                           textColor: inkColor,
                           subtleColor: muteColor,
@@ -419,9 +524,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.notifications_outlined,
-                          color: isDark
-                              ? GSColors.primaryMid
-                              : GSColors.primary,
+                          color:
+                              isDark ? GSColors.primaryMid : GSColors.primary,
                           size: 22),
                       const SizedBox(width: 14),
                       Expanded(
@@ -440,8 +544,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               _notifEnabled
                                   ? 'Aktiv um ${_formatTime(_notifHour, _notifMinute)}'
                                   : 'Aus',
-                              style: GSTypography.body(
-                                  color: muteColor, size: 12),
+                              style:
+                                  GSTypography.body(color: muteColor, size: 12),
                             ),
                           ],
                         ),
@@ -575,8 +679,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   String _formatMonthYear(DateTime d) {
     const months = [
-      'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
     ];
     return '${months[d.month - 1]} ${d.year}';
   }
@@ -621,7 +735,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!granted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text(
+            const SnackBar(
+                content: Text(
               'Bitte erlaube Benachrichtigungen in den Einstellungen.',
             )),
           );
@@ -636,7 +751,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         setState(() => _notifEnabled = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(
+          SnackBar(
+              content: Text(
             'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
           )),
         );
@@ -682,7 +798,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!granted) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
+          const SnackBar(
+              content: Text(
             'Bitte erlaube Benachrichtigungen in den Einstellungen.',
           )),
         );
@@ -699,7 +816,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
+          const SnackBar(
+              content: Text(
             'Test-Benachrichtigung gesendet (Beispiel-Daten)',
           )),
         );
@@ -711,7 +829,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(
+          SnackBar(
+              content: Text(
             '${expiring.length} ablaufendes Item${expiring.length == 1 ? "" : "s"} → Notification gesendet',
           )),
         );
@@ -841,8 +960,7 @@ class _ThemeOption extends StatelessWidget {
         InkWell(
           onTap: () => onSelect(mode),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Icon(
@@ -865,8 +983,7 @@ class _ThemeOption extends StatelessWidget {
                       ),
                       Text(
                         sub,
-                        style: GSTypography.body(
-                            color: subtleColor, size: 12),
+                        style: GSTypography.body(color: subtleColor, size: 12),
                       ),
                     ],
                   ),
