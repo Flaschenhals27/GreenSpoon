@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../../core/widgets/mascot.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
@@ -27,22 +27,62 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Future<void> _markConsumed() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(pantryRepositoryProvider)
-          .archive(_item.id, status: 'consumed');
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e')),
-        );
-        setState(() => _busy = false);
-      }
+  if (_busy) return;
+  setState(() => _busy = true);
+  try {
+    await ref
+        .read(pantryRepositoryProvider)
+        .archive(_item.id, status: 'consumed');
+    if (!mounted) return;
+    // Kurzer Feier-Moment
+    await _showCelebration();
+    if (mounted) Navigator.of(context).pop();
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fehler: $e')),
+      );
+      setState(() => _busy = false);
     }
   }
+}
+
+Future<void> _showCelebration() async {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (ctx) {
+      // schließt sich nach 1,4s von selbst
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+      });
+      return Dialog(
+        backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Mascot(pose: MascotPose.celebrating, size: 120),
+              const SizedBox(height: 12),
+              Text(
+                'Stark, gerettet!',
+                style: GSTypography.headline(
+                  color: isDark ? GSColors.inkDark : GSColors.ink,
+                  size: 22,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   Future<void> _changeMhd() async {
     final picked = await showGSDateSheet(context, initial: _item.expiresAt);

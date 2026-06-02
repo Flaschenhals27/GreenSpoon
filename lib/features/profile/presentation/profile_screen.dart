@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../../core/widgets/mascot.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/notification_scheduler.dart';
 import '../../notifications/notification_service.dart';
@@ -142,27 +143,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'DEIN IMPACT',
-                        style: GSTypography.label(
-                          color: GSColors.cream.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${s.rescued}',
-                        style: GSTypography.headline(
-                          color: GSColors.cream,
-                          size: 52,
-                          weight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'Lebensmittel gerettet',
-                        style: GSTypography.body(
-                          color: GSColors.cream.withValues(alpha: 0.85),
-                          size: 14,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'DEIN IMPACT',
+                                  style: GSTypography.label(
+                                    color: GSColors.cream
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${s.rescued}',
+                                  style: GSTypography.headline(
+                                    color: GSColors.cream,
+                                    size: 52,
+                                    weight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  'Lebensmittel gerettet',
+                                  style: GSTypography.body(
+                                    color: GSColors.cream
+                                        .withValues(alpha: 0.85),
+                                    size: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Mascot(
+                            pose: MascotPose.celebrating,
+                            size: 96,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 18),
                       Row(

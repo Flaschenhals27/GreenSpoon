@@ -23,6 +23,9 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   bool _isProcessing = false;
   bool _torchOn = false;
+  bool _streaming = false;
+  bool _leaving = false;
+  DateTime? _lastProcessAt;
 
   // Sticky match — wenn dasselbe Datum 4 Sekunden lang dominiert, wird's gewählt.
   DateTime? _stickyDate;
@@ -41,10 +44,28 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
   @override
   void dispose() {
+    _leaving = true;
+    _streaming = false;
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _recognizer.close();
     super.dispose();
+  }
+
+  /// Stoppt den Bild-Stream sauber (idempotent) und kehrt mit dem Datum
+  /// zurück. Schützt vor doppeltem pop und laufenden Frames nach dem Verlassen.
+  Future<void> _finish(DateTime? date) async {
+    if (_leaving) return;
+    _leaving = true;
+    if (_streaming) {
+      _streaming = false;
+      try {
+        await _controller?.stopImageStream();
+      } catch (_) {
+        // Stream evtl. schon gestoppt — ignorieren.
+      }
+    }
+    if (mounted) Navigator.of(context).pop(date);
   }
 
   @override
@@ -52,8 +73,9 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
+      _streaming = false;
       c.dispose();
-    } else if (state == AppLifecycleState.resumed) {
+    } else if (state == AppLifecycleState.resumed && !_leaving) {
       _initCamera();
     }
   }
@@ -67,19 +89,32 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
     );
     final controller = CameraController(
       back,
-      ResolutionPreset.high,
+      // medium reicht für Text-OCR locker und entlastet Main-Thread/GC
+      // deutlich gegenüber high (sonst Frame-Drops / gefühltes Einfrieren).
+      ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.nv21,
     );
     _controller = controller;
     await controller.initialize();
-    if (!mounted) return;
+    if (!mounted || _leaving) return;
     setState(() {});
     await controller.startImageStream(_onFrame);
+    _streaming = true;
   }
 
   Future<void> _onFrame(CameraImage image) async {
-    if (_isProcessing || !mounted) return;
+    if (_isProcessing || _leaving || !mounted) return;
+
+    // Drossel: höchstens ~alle 500 ms OCR laufen lassen. Ohne das läuft
+    // die Texterkennung auf JEDEM Frame und blockiert den Main-Thread
+    // (ständige GC-Pausen → UI wirkt eingefroren).
+    final now = DateTime.now();
+    if (_lastProcessAt != null &&
+        now.difference(_lastProcessAt!).inMilliseconds < 500) {
+      return;
+    }
+    _lastProcessAt = now;
     _isProcessing = true;
 
     try {
@@ -112,14 +147,16 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
         final stableFor =
             DateTime.now().difference(_stickySince!).inMilliseconds;
         if (stableFor >= 4000) {
-          if (mounted) Navigator.of(context).pop(_stickyDate);
+          await _finish(_stickyDate);
           return;
         }
 
-        setState(() {
-          _statusText =
-              'Erkannt: ${_format(_stickyDate!)}  ·  bestätige in ${(4 - (stableFor / 1000)).clamp(0, 4).toStringAsFixed(0)}s';
-        });
+        if (mounted) {
+          setState(() {
+            _statusText =
+                'Erkannt: ${_format(_stickyDate!)}  ·  übernimm es oder warte ${(4 - (stableFor / 1000)).clamp(0, 4).toStringAsFixed(0)}s';
+          });
+        }
       } else if (mounted) {
         setState(() => _statusText = 'Halte den Aufdruck ins Bild …');
       }
@@ -132,6 +169,24 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
   static String _format(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+  /// Zeigt die Kamera formatfüllend (BoxFit.cover), ohne sie zu verzerren.
+  /// Ohne das presst [StackFit.expand] den Feed in die 5:4-Box und streckt ihn.
+  Widget _coverPreview(CameraController c) {
+    final preview = c.value.previewSize;
+    if (preview == null) return CameraPreview(c);
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        // previewSize ist in Landschafts-Orientierung → für Portrait drehen.
+        child: SizedBox(
+          width: preview.height,
+          height: preview.width,
+          child: CameraPreview(c),
+        ),
+      ),
+    );
+  }
 
   InputImage? _imageFromCamera(CameraImage image, CameraDescription cam) {
     final rotation =
@@ -174,7 +229,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                 children: [
                   _CircleButton(
                     icon: Icons.chevron_left,
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () => _finish(null),
                     surfaceColor: surfaceColor,
                     inkColor: inkColor,
                     lineColor: lineColor,
@@ -225,7 +280,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                         fit: StackFit.expand,
                         children: [
                           if (c != null && c.value.isInitialized)
-                            CameraPreview(c)
+                            _coverPreview(c)
                           else
                             Container(
                               color: Colors.black,
@@ -277,14 +332,58 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                 ),
               ),
             ),
-            // Hilfetext
+            // Manueller Übernehmen-Button (sobald ein Datum erkannt wurde) —
+            // garantierter Ausweg, kein Warten auf die 4s-Auto-Bestätigung.
+            // Darunter immer ein „MHD überspringen", falls kein Datum
+            // aufgedruckt ist oder man es später manuell setzen will.
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
-              child: Text(
-                'Halte den MHD-Aufdruck mittig in den Rahmen.',
-                textAlign: TextAlign.center,
-                style: GSTypography.italicCaption(color: muteColor)
-                    .copyWith(fontSize: 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_stickyDate != null)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => _finish(_stickyDate),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          backgroundColor: GSColors.primary,
+                          foregroundColor: GSColors.cream,
+                        ),
+                        child: Text(
+                          'Datum übernehmen · ${_format(_stickyDate!)}',
+                          style: GSTypography.body(
+                            color: GSColors.cream,
+                            size: 14.5,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      'Halte den MHD-Aufdruck mittig in den Rahmen.',
+                      textAlign: TextAlign.center,
+                      style: GSTypography.italicCaption(color: muteColor)
+                          .copyWith(fontSize: 14),
+                    ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => _finish(null),
+                    child: Text(
+                      'MHD überspringen',
+                      style: GSTypography.body(
+                        color: muteColor,
+                        size: 14,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

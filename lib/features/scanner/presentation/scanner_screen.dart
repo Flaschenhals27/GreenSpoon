@@ -6,6 +6,7 @@ import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../data/open_food_facts_service.dart';
 import '../domain/scanned_product.dart';
+import 'mhd_scanner_screen.dart';
 import 'scan_review_sheet.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -31,10 +32,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     setState(() => _processing = true);
     await _controller.stop();
 
-    final service = OpenFoodFactsService();
-    final product = await service.lookup(code);
+    ScannedProduct? product;
+    try {
+      final service = OpenFoodFactsService();
+      product = await service.lookup(code);
+      service.dispose();
+    } catch (_) {
+      // Network error or timeout — proceed with empty product
+    }
 
-    if (!mounted) return;
+    if (!mounted) {
+      await _controller.start();
+      return;
+    }
 
     final scanned = product ??
         ScannedProduct(
@@ -46,12 +56,32 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           emoji: '📦',
         );
 
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ScanReviewSheet(product: scanned),
-    );
+    // Direkt im Anschluss das MHD scannen — ohne Extra-Tap im Review-Sheet.
+    // Gibt null zurück, wenn der User den MHD-Scan abbricht/überspringt;
+    // das Datum lässt sich im Review-Sheet weiterhin manuell setzen.
+    DateTime? expiry;
+    try {
+      expiry = await Navigator.of(context).push<DateTime>(
+        MaterialPageRoute(builder: (_) => const MhdScannerScreen()),
+      );
+    } catch (_) {
+      // Scanner unerwartet geschlossen — ohne Datum weiter.
+    }
+
+    if (!mounted) return;
+
+    bool? result;
+    try {
+      result = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) =>
+            ScanReviewSheet(product: scanned, prefilledExpiry: expiry),
+      );
+    } catch (_) {
+      // Sheet closed unexpectedly
+    }
 
     if (!mounted) return;
 

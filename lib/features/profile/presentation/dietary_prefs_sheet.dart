@@ -96,7 +96,7 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Gemini berücksichtigt deine Auswahl bei den Rezeptvorschlägen.',
+            'Löffeli berücksichtigt deine Auswahl bei den Rezeptvorschlägen.',
             style: GSTypography.body(color: muteColor, size: 13.5, height: 1.4),
           ),
           const SizedBox(height: 18),

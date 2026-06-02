@@ -53,4 +53,20 @@ class Recipe {
       steps: stringList(json['steps']),
     );
   }
+
+  /// Spiegelt [fromJson] — für den persistenten Rezept-Cache.
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'meal': meal,
+      'time_min': timeMin,
+      'difficulty': difficulty,
+      'servings': servings,
+      'tags': tags,
+      'uses': uses,
+      'missing': missing,
+      'blurb': blurb,
+      'steps': steps,
+    };
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../core/widgets/mascot.dart';
 import '../../core/theme/gs_colors.dart';
 import '../../core/theme/gs_typography.dart';
 
@@ -256,7 +256,9 @@ class _OnbArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (type) {
       case _OnbArt.cartons:
-        return _CartonsArt(isDark: isDark);
+        return const Center(
+          child: Mascot(pose: MascotPose.waving, size: 220),
+        );
       case _OnbArt.scan:
         return _ScanArt(isDark: isDark);
       case _OnbArt.plate:

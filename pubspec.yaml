@@ -57,7 +57,7 @@ flutter:
 
   assets:
     - .env
-
+    - assets/mascot/
   # Fonts werden später aus Google Fonts geladen — wir verwenden google_fonts nicht direkt,
   # sondern definieren die Schriften systemnah. Falls offline-Fähigkeit gewünscht ist,
   # können Fraunces+Inter nachträglich als TTF unter assets/fonts/ eingebunden werden.

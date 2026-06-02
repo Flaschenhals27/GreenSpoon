@@ -9,6 +9,7 @@ import '../domain/recipe.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_detail_screen.dart';
 import '../providers/recipe_cooldown_provider.dart';
+import '../../../core/widgets/mascot.dart';
 
 class RecipesScreen extends ConsumerWidget {
   const RecipesScreen({super.key});
@@ -27,7 +28,7 @@ class RecipesScreen extends ConsumerWidget {
         child: RefreshIndicator(
           color: GSColors.primary,
           onRefresh: () async {
-            ref.invalidate(recipesProvider);
+            await refreshRecipes(ref);
             try {
               await ref.read(recipesProvider.future);
             } catch (_) {
@@ -60,7 +61,7 @@ class RecipesScreen extends ConsumerWidget {
                           subtleColor: muteColor,
                           onRetry: () {
                             if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-                              ref.invalidate(recipesProvider);
+                              refreshRecipes(ref);
                             }
                           },
                         ),
@@ -105,7 +106,7 @@ class RecipesScreen extends ConsumerWidget {
         subtleColor: subtleColor,
         onRetry: () {
           if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-            ref.invalidate(recipesProvider);
+            refreshRecipes(ref);
           }
         }
       );
@@ -121,7 +122,7 @@ class RecipesScreen extends ConsumerWidget {
       subtleColor: subtleColor,
       onRetry: () {
         if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-          ref.invalidate(recipesProvider);
+          refreshRecipes(ref);
         }
       }
     );
@@ -213,7 +214,7 @@ class _Header extends StatelessWidget {
                         ? null
                         : () {
                             if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-                              ref.invalidate(recipesProvider);
+                              refreshRecipes(ref);
                             }
                           },
                     child: Container(
@@ -439,20 +440,13 @@ class _LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(32, 60, 32, 32),
+      padding: const EdgeInsets.fromLTRB(32, 48, 32, 32),
       child: Column(
         children: [
-          const SizedBox(
-            width: 38,
-            height: 38,
-            child: CircularProgressIndicator(
-              color: GSColors.primary,
-              strokeWidth: 3,
-            ),
-          ),
-          const SizedBox(height: 20),
+          const Mascot(pose: MascotPose.searching, size: 140),
+          const SizedBox(height: 16),
           Text(
-            'Gemini sucht passende Rezepte …',
+            'Löffeli sucht passende Rezepte …',
             textAlign: TextAlign.center,
             style: GSTypography.headline(color: color, size: 18),
           ),
@@ -461,6 +455,15 @@ class _LoadingState extends StatelessWidget {
             'Das kann ein paar Sekunden dauern — wir\nbauen die Vorschläge aus deinem Vorrat.',
             textAlign: TextAlign.center,
             style: GSTypography.body(color: color, size: 13, height: 1.45),
+          ),
+          const SizedBox(height: 24),
+          const SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(
+              color: GSColors.primary,
+              strokeWidth: 2.5,
+            ),
           ),
         ],
       ),
@@ -505,7 +508,7 @@ class _StatusStateState extends State<_StatusState> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(widget.emoji, style: const TextStyle(fontSize: 56)),
+          const Mascot(pose: MascotPose.confused, size: 150),
           const SizedBox(height: 16),
           Text(
             widget.title,
@@ -607,7 +610,7 @@ class _PantryEmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🌱', style: TextStyle(fontSize: 56)),
+          const Mascot(pose: MascotPose.sleeping, size: 150),
           const SizedBox(height: 16),
           Text(
             'Noch nichts zum Kochen',
@@ -616,7 +619,7 @@ class _PantryEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Füge ein paar Lebensmittel zum Vorrat hinzu, dann\nschlägt dir Gemini passende Rezepte vor.',
+            'Füge ein paar Lebensmittel zum Vorrat hinzu, dann\nschlägt dir Löffeli passende Rezepte vor.',
             textAlign: TextAlign.center,
             style: GSTypography.body(
               color: subtleColor,
@@ -664,7 +667,7 @@ class _NoRecipesGeneratedState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🥄', style: TextStyle(fontSize: 56)),
+          const Mascot(pose: MascotPose.searching, size: 150),
           const SizedBox(height: 16),
           Text(
             'Keine Vorschläge gerade',
@@ -673,7 +676,7 @@ class _NoRecipesGeneratedState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Gemini hat aus deinem aktuellen Vorrat nichts\ngezaubert. Versuch\'s gleich nochmal.',
+            'Löffeli hat aus deinem aktuellen Vorrat nichts\ngezaubert. Versuch\'s gleich nochmal.',
             textAlign: TextAlign.center,
             style: GSTypography.body(
               color: subtleColor,

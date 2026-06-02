@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../scanner/data/co2_estimator.dart';
 import '../../../core/supabase/supabase_service.dart';
@@ -72,7 +74,10 @@ class PantryRepository {
       'emoji': emoji,
       'expires_at': expiresAt?.toIso8601String().split('T').first,
       'co2_kg': co2Kg,
-    }).select().single();
+    }).select().single().timeout(
+          const Duration(seconds: 12),
+          onTimeout: () => throw TimeoutException('Speichern hat zu lange gedauert.'),
+        );
 
     return PantryItem.fromJson(inserted);
   }
