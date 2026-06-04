@@ -57,8 +57,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         setState(() => _step = _Step.code);
         _showMessage('Code an $_email gesendet.');
       }
-    } catch (_) {
-      _showMessage('Konnte keinen Code senden. Bitte später erneut versuchen.');
+    } on AuthException catch (e) {
+      _showMessage(_humanizeSendError(e));
+    } catch (e) {
+      _showMessage('Konnte keinen Code senden: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -68,9 +70,26 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetCode(_email);
       _showMessage('Neuer Code an $_email gesendet.');
-    } catch (_) {
-      _showMessage('Konnte keinen Code senden. Bitte später erneut versuchen.');
+    } on AuthException catch (e) {
+      _showMessage(_humanizeSendError(e));
+    } catch (e) {
+      _showMessage('Konnte keinen Code senden: $e');
     }
+  }
+
+  /// Übersetzt die häufigsten Supabase-Fehler beim Mailversand.
+  String _humanizeSendError(AuthException e) {
+    final m = e.message.toLowerCase();
+    if (m.contains('rate') || m.contains('seconds') || m.contains('after')) {
+      return 'Zu viele Anfragen — bitte ~1 Minute warten und erneut versuchen.';
+    }
+    if (m.contains('smtp') ||
+        m.contains('sending') ||
+        m.contains('confirmation email')) {
+      return 'Server kann keine Mail senden (SMTP nicht eingerichtet). '
+          'Bitte in Supabase prüfen.';
+    }
+    return 'Konnte keinen Code senden: ${e.message}';
   }
 
   // ── Schritt 2: Code prüfen ────────────────────────────────────
@@ -206,7 +225,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       _Headline('Passwort zurücksetzen', textColor),
       const SizedBox(height: 8),
       _Subtitle(
-        'Gib deine Email ein — wir schicken dir einen 6-stelligen Code.',
+        'Gib deine Email ein — wir schicken dir einen Code zum Zurücksetzen.',
         subtleColor,
       ),
       const SizedBox(height: 36),
@@ -241,25 +260,27 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       const SizedBox(height: 8),
       _Subtitle('Wir haben einen Code an $_email geschickt.', subtleColor),
       const SizedBox(height: 36),
-      _Label('6-stelliger Code', color: subtleColor),
+      _Label('Code aus der Email', color: subtleColor),
       const SizedBox(height: 6),
       TextFormField(
         controller: _codeController,
         keyboardType: TextInputType.number,
         textInputAction: TextInputAction.done,
-        maxLength: 6,
+        // Supabase-OTP ist 6–10 Stellen lang (je nach Projekt-Einstellung),
+        // daher keine feste Länge erzwingen.
+        maxLength: 10,
         onFieldSubmitted: (_) => _verifyCode(),
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textAlign: TextAlign.center,
         style: GSTypography.headline(color: textColor, size: 26)
-            .copyWith(letterSpacing: 8),
+            .copyWith(letterSpacing: 6),
         decoration: const InputDecoration(
-          hintText: '••••••',
+          hintText: 'Code',
           counterText: '',
         ),
         validator: (v) {
-          if (v == null || v.trim().length != 6) {
-            return 'Bitte den 6-stelligen Code eingeben';
+          if (v == null || v.trim().length < 6) {
+            return 'Bitte den Code aus der Email eingeben';
           }
           return null;
         },

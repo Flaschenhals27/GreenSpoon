@@ -102,10 +102,12 @@ Future<void> showAvatarPicker(
   Future<void> doPick(ImageSource source) async {
     try {
       await ref.read(avatarProvider.notifier).pick(source);
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Bild konnte nicht geladen werden.')),
-      );
+    } catch (e) {
+      final text = e.toString().contains('MissingPluginException')
+          ? 'Bild-Plugin noch nicht aktiv — bitte die App einmal komplett neu '
+              'bauen (flutter clean, dann neu starten).'
+          : 'Bild konnte nicht übernommen werden: $e';
+      messenger.showSnackBar(SnackBar(content: Text(text)));
     }
   }
 

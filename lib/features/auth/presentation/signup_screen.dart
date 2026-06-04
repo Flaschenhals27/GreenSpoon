@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../../core/widgets/mascot.dart';
 import '../providers/auth_providers.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -106,18 +107,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: const BoxDecoration(
-                          color: GSColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Text('🥄', style: TextStyle(fontSize: 32)),
-                        ),
-                      ),
+                    const Center(
+                      child: Mascot(pose: MascotPose.waving, size: 104),
                     ),
                     const SizedBox(height: 28),
                     Text(
