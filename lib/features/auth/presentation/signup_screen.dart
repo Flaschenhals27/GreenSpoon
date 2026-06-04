@@ -56,8 +56,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } on AuthException catch (e) {
       if (mounted) _showError(_humanizeAuthError(e));
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

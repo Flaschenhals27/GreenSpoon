@@ -10,7 +10,6 @@ class NotificationScheduler {
   static Future<void> initialize() async {
     await Workmanager().initialize(
       workManagerCallbackDispatcher,
-      isInDebugMode: false, // bei Bedarf auf true für Debug-Logs
     );
   }
 

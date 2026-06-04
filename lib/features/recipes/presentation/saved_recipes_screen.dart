@@ -56,7 +56,7 @@ class SavedRecipesScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('MEINE REZEPTE',
-                      style: GSTypography.label(color: muteColor)),
+                      style: GSTypography.label(color: muteColor),),
                   const SizedBox(height: 8),
                   Text(
                     'Gespeichert',

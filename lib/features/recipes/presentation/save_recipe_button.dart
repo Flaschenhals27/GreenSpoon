@@ -50,7 +50,7 @@ class _SaveRecipeButtonState extends ConsumerState<SaveRecipeButton> {
           SnackBar(
             content: Text(_saved == true
                 ? 'Rezept gespeichert'
-                : 'Aus Gespeicherten entfernt'),
+                : 'Aus Gespeicherten entfernt',),
             duration: const Duration(seconds: 2),
           ),
         );

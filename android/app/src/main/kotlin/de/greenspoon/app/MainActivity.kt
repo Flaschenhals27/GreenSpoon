@@ -1,4 +1,4 @@
-package com.example.green_spoon
+package de.greenspoon.app
 
 import io.flutter.embedding.android.FlutterActivity
 

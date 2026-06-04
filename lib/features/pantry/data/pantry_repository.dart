@@ -109,7 +109,7 @@ class PantryRepository {
               'emoji': d.emoji,
               'expires_at': d.expiresAt?.toIso8601String().split('T').first,
               'co2_kg': d.co2Kg,
-            })
+            },)
         .toList();
 
     await _client.from(_table).insert(rows).timeout(
@@ -213,7 +213,7 @@ class PantryRepository {
         final daysLeft =
             DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
                 .difference(
-                    DateTime(removedAt.year, removedAt.month, removedAt.day))
+                    DateTime(removedAt.year, removedAt.month, removedAt.day),)
                 .inDays;
         if (daysLeft <= buzzerThresholdDays) buzzerSaves++;
       }

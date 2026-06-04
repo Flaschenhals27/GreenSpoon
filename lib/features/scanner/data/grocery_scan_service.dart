@@ -76,7 +76,7 @@ class GroceryScanService {
       rethrow;
     } catch (e) {
       throw GroceryScanException(GroceryScanError.unknown,
-          details: e.toString());
+          details: e.toString(),);
     }
   }
 

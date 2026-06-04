@@ -123,7 +123,7 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Das Foto konnte nicht verarbeitet werden.')),
+            content: Text('Das Foto konnte nicht verarbeitet werden.'),),
       );
       setState(() {
         _busy = false;
@@ -192,7 +192,7 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('EINKAUF FOTOGRAFIEREN',
-                      style: GSTypography.label(color: muteColor)),
+                      style: GSTypography.label(color: muteColor),),
                   const SizedBox(height: 6),
                   Text(
                     'Alles auf einmal',
@@ -228,11 +228,11 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
                               alignment: Alignment.center,
                               child: _initializing
                                   ? const CircularProgressIndicator(
-                                      color: GSColors.primary)
+                                      color: GSColors.primary,)
                                   : Text(
                                       'Keine Kamera verfügbar',
                                       style: GSTypography.body(
-                                          color: muteColor, size: 14),
+                                          color: muteColor, size: 14,),
                                     ),
                             ),
                           IgnorePointer(
@@ -278,7 +278,7 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
                         : GSColors.primary.withValues(alpha: 0.4),
                   ),
                   child: const Icon(Icons.camera_alt,
-                      color: GSColors.cream, size: 30),
+                      color: GSColors.cream, size: 30,),
                 ),
               ),
             ),

@@ -240,7 +240,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                       if (c == null) return;
                       final newValue = !_torchOn;
                       await c.setFlashMode(
-                          newValue ? FlashMode.torch : FlashMode.off);
+                          newValue ? FlashMode.torch : FlashMode.off,);
                       setState(() => _torchOn = newValue);
                     },
                     surfaceColor: surfaceColor,
@@ -307,7 +307,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                                 padding: const EdgeInsets.only(bottom: 16),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8),
+                                      horizontal: 14, vertical: 8,),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.55),
                                     borderRadius: BorderRadius.circular(999),

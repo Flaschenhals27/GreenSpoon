@@ -45,6 +45,34 @@ class AuthRepository {
     );
   }
 
+  /// Schritt 1 des Passwort-Resets: schickt dem User eine Email mit einem
+  /// 6-stelligen Code (kein Deep-Link nötig — siehe Setup-Hinweis).
+  ///
+  /// Damit die Mail den Code enthält, muss die Supabase-Vorlage
+  /// „Reset Password" `{{ .Token }}` ausgeben.
+  Future<void> sendPasswordResetCode(String email) {
+    return _client.auth.resetPasswordForEmail(email.trim());
+  }
+
+  /// Schritt 2: verifiziert den Code aus der Email. Bei Erfolg entsteht eine
+  /// (Recovery-)Session, mit der das Passwort gesetzt werden darf.
+  Future<AuthResponse> verifyPasswordResetCode({
+    required String email,
+    required String token,
+  }) {
+    return _client.auth.verifyOTP(
+      email: email.trim(),
+      token: token.trim(),
+      type: OtpType.recovery,
+    );
+  }
+
+  /// Schritt 3: setzt das neue Passwort für den (per Recovery-Session)
+  /// eingeloggten User.
+  Future<UserResponse> updatePassword(String newPassword) {
+    return _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
   /// Logout.
   Future<void> signOut() => _client.auth.signOut();
 }

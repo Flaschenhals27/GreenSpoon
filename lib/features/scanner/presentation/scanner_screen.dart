@@ -189,7 +189,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8),
+                                    horizontal: 14, vertical: 8,),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.55),
                                   borderRadius: BorderRadius.circular(999),

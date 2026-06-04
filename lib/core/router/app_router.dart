@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/main_shell.dart';
 import '../supabase/supabase_service.dart';
@@ -40,6 +41,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final goingToAuth = loc == '/login' || loc == '/signup';
 
+      // Der Passwort-Reset bleibt immer erreichbar — auch während der
+      // Recovery-Session (sonst würde der User vor dem Setzen des neuen
+      // Passworts auf den Home-Screen umgeleitet).
+      if (loc == '/reset-password') return null;
+
       if (!isLoggedIn && !goingToAuth) return '/login';
       if (isLoggedIn && goingToAuth) return '/';
       return null;
@@ -56,6 +62,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/signup',
         builder: (_, __) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, __) => const ResetPasswordScreen(),
       ),
     ],
   );

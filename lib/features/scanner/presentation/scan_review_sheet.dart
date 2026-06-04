@@ -208,7 +208,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
+                            horizontal: 14, vertical: 14,),
                         decoration: BoxDecoration(
                           color: surfaceColor,
                           borderRadius: BorderRadius.circular(14),
@@ -217,7 +217,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                         child: Row(
                           children: [
                             Icon(Icons.calendar_today_outlined,
-                                color: muteColor, size: 18),
+                                color: muteColor, size: 18,),
                             const SizedBox(width: 10),
                             Text(
                               _expiresAt == null
@@ -381,7 +381,7 @@ class _CategoryField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Kategorie',
-              style: GSTypography.body(color: muteColor, size: 11.5)),
+              style: GSTypography.body(color: muteColor, size: 11.5),),
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,

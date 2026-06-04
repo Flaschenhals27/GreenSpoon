@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
@@ -15,6 +16,8 @@ import '../../settings/theme_providers.dart';
 import '../providers/profile_providers.dart';
 import 'dietary_prefs_sheet.dart';
 import 'impact_screen.dart';
+import 'profile_avatar.dart';
+import '../providers/avatar_providers.dart';
 import '../providers/dietary_prefs_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -28,11 +31,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _notifEnabled = false;
   int _notifHour = 8;
   int _notifMinute = 0;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadNotifSettings();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = info.version);
   }
 
   Future<void> _loadNotifSettings() async {
@@ -89,20 +99,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
               child: Row(
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: const BoxDecoration(
-                      color: GSColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initial,
-                      style: GSTypography.headline(
-                        color: GSColors.cream,
-                        size: 28,
-                      ),
+                  GestureDetector(
+                    onTap: () {
+                      final hasAvatar =
+                          ref.read(avatarProvider).valueOrNull != null;
+                      showAvatarPicker(context, ref, hasAvatar: hasAvatar);
+                    },
+                    child: ProfileAvatar(
+                      initial: initial,
+                      size: 64,
+                      showEditBadge: true,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -350,11 +356,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
+                            horizontal: 16, vertical: 14,),
                         child: Row(
                           children: [
                             Icon(Icons.bookmark_outline,
-                                color: muteColor, size: 22),
+                                color: muteColor, size: 22,),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
@@ -371,13 +377,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   Text(
                                     subtitle,
                                     style: GSTypography.body(
-                                        color: muteColor, size: 12),
+                                        color: muteColor, size: 12,),
                                   ),
                                 ],
                               ),
                             ),
                             Icon(Icons.chevron_right,
-                                color: muteColor, size: 22),
+                                color: muteColor, size: 22,),
                           ],
                         ),
                       ),
@@ -412,11 +418,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
+                            horizontal: 16, vertical: 14,),
                         child: Row(
                           children: [
                             Icon(Icons.restaurant_outlined,
-                                color: muteColor, size: 22),
+                                color: muteColor, size: 22,),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(
@@ -437,13 +443,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: GSTypography.body(
-                                        color: muteColor, size: 12),
+                                        color: muteColor, size: 12,),
                                   ),
                                 ],
                               ),
                             ),
                             Icon(Icons.chevron_right,
-                                color: muteColor, size: 22),
+                                color: muteColor, size: 22,),
                           ],
                         ),
                       ),
@@ -526,7 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Icon(Icons.notifications_outlined,
                           color:
                               isDark ? GSColors.primaryMid : GSColors.primary,
-                          size: 22),
+                          size: 22,),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -564,20 +570,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: _pickTime,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                          horizontal: 16, vertical: 14,),
                       child: Row(
                         children: [
                           Icon(Icons.schedule,
                               color: isDark
                                   ? GSColors.primaryMid
                                   : GSColors.primary,
-                              size: 22),
+                              size: 22,),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
                               'Uhrzeit',
                               style: GSTypography.body(
-                                  color: inkColor, size: 14.5),
+                                  color: inkColor, size: 14.5,),
                             ),
                           ),
                           Text(
@@ -598,20 +604,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () => _testNotification(context, ref),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                          horizontal: 16, vertical: 14,),
                       child: Row(
                         children: [
                           Icon(Icons.notifications_active_outlined,
                               color: isDark
                                   ? GSColors.primaryMid
                                   : GSColors.primary,
-                              size: 22),
+                              size: 22,),
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
                               'Test senden',
                               style: GSTypography.body(
-                                  color: inkColor, size: 14.5),
+                                  color: inkColor, size: 14.5,),
                             ),
                           ),
                           Icon(Icons.chevron_right, color: muteColor),
@@ -643,11 +649,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                        horizontal: 16, vertical: 14,),
                     child: Row(
                       children: [
                         const Icon(Icons.logout,
-                            color: GSColors.accent, size: 22),
+                            color: GSColors.accent, size: 22,),
                         const SizedBox(width: 14),
                         Text(
                           'Abmelden',
@@ -667,7 +673,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 16),
             Center(
               child: Text(
-                'GreenSpoon · Version 0.508 (Beta)',
+                _appVersion.isEmpty
+                    ? 'GreenSpoon'
+                    : 'GreenSpoon · Version $_appVersion (Beta)',
                 style: GSTypography.italicCaption(color: muteColor),
               ),
             ),
@@ -738,7 +746,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SnackBar(
                 content: Text(
               'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-            )),
+            ),),
           );
         }
         return;
@@ -754,7 +762,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
               content: Text(
             'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
-          )),
+          ),),
         );
       }
     } else {
@@ -801,7 +809,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SnackBar(
               content: Text(
             'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-          )),
+          ),),
         );
       }
       return;
@@ -819,7 +827,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SnackBar(
               content: Text(
             'Test-Benachrichtigung gesendet (Beispiel-Daten)',
-          )),
+          ),),
         );
       }
     } else {
@@ -832,7 +840,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
               content: Text(
             '${expiring.length} ablaufendes Item${expiring.length == 1 ? "" : "s"} → Notification gesendet',
-          )),
+          ),),
         );
       }
     }

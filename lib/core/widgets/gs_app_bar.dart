@@ -55,7 +55,7 @@ class GSAppBar extends StatelessWidget {
               children: [
                 if (subtitle != null) ...[
                   Text(subtitle!.toUpperCase(),
-                      style: GSTypography.label(color: subtleColor)),
+                      style: GSTypography.label(color: subtleColor),),
                   const SizedBox(height: 2),
                 ],
                 Text(

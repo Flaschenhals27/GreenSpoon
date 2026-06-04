@@ -54,8 +54,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       barrierDismissible: true,
       builder: (ctx) {
         // schließt sich nach 1,4s von selbst
+        final nav = Navigator.of(ctx);
         Future.delayed(const Duration(milliseconds: 1400), () {
-          if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+          if (nav.canPop()) nav.pop();
         });
         return Dialog(
           backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,

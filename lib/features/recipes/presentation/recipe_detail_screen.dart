@@ -120,7 +120,7 @@ class RecipeDetailScreen extends StatelessWidget {
                     for (final t in recipe.tags)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 12, vertical: 6,),
                         decoration: BoxDecoration(
                           color: GSColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
@@ -236,7 +236,7 @@ class _Meta extends StatelessWidget {
               color: color,
               fontSize: 13,
               fontWeight: FontWeight.w600,
-            )),
+            ),),
       ],
     );
   }
@@ -276,7 +276,7 @@ class _IngredientBlock extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title.toUpperCase(),
-                style: GSTypography.label(color: muteColor)),
+                style: GSTypography.label(color: muteColor),),
             const SizedBox(height: 12),
             for (final i in items)
               Padding(

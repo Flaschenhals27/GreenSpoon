@@ -111,7 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(p.eyebrow,
-                                  style: GSTypography.label(color: muteColor)),
+                                  style: GSTypography.label(color: muteColor),),
                               const SizedBox(height: 14),
                               RichText(
                                 text: TextSpan(
@@ -119,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     TextSpan(
                                       text: p.titleNormal,
                                       style: GSTypography.headline(
-                                          color: inkColor, size: 38),
+                                          color: inkColor, size: 38,),
                                     ),
                                     TextSpan(
                                       text: p.titleItalic,
@@ -182,7 +182,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     TextButton(
                       onPressed: _finish,
                       child: Text('Überspringen',
-                          style: TextStyle(color: muteColor)),
+                          style: TextStyle(color: muteColor),),
                     ),
                   const Spacer(),
                   FilledButton(
@@ -261,89 +261,6 @@ class _OnbArtwork extends StatelessWidget {
       case _OnbArt.plate:
         return _PlateArt(isDark: isDark);
     }
-  }
-}
-
-class _CartonsArt extends StatelessWidget {
-  const _CartonsArt({required this.isDark});
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned(
-          left: 20,
-          top: 30,
-          child: _Tile(
-              color: const Color(0xFFCBA17E), emoji: '🍎', size: 92, rot: -.08),
-        ),
-        Positioned(
-          right: 30,
-          top: 10,
-          child: _Tile(
-              color: GSColors.primaryMid, emoji: '🥬', size: 78, rot: .12),
-        ),
-        Positioned(
-          left: 60,
-          bottom: 20,
-          child: _Tile(
-              color: const Color(0xFFD9A6A0), emoji: '🍅', size: 104, rot: .04),
-        ),
-        Positioned(
-          right: 40,
-          bottom: 40,
-          child: _Tile(
-              color: const Color(0xFFCBA17E), emoji: '🧀', size: 70, rot: -.1),
-        ),
-      ],
-    );
-  }
-}
-
-class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.color,
-    required this.emoji,
-    required this.size,
-    required this.rot,
-  });
-  final Color color;
-  final String emoji;
-  final double size;
-  final double rot;
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: rot,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(size * 0.26),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: Container(
-          width: size * 0.42,
-          height: size * 0.42,
-          decoration: BoxDecoration(
-            color: GSColors.cream,
-            borderRadius: BorderRadius.circular(size * 0.12),
-          ),
-          alignment: Alignment.center,
-          child: Text(emoji, style: TextStyle(fontSize: size * 0.24)),
-        ),
-      ),
-    );
   }
 }
 
@@ -479,14 +396,14 @@ class _PlateArt extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.auto_awesome,
-                      color: GSColors.cream, size: 13),
+                      color: GSColors.cream, size: 13,),
                   const SizedBox(width: 5),
                   Text('100%',
                       style: GSTypography.body(
                         color: GSColors.cream,
                         size: 12,
                         weight: FontWeight.w700,
-                      )),
+                      ),),
                 ],
               ),
             ),

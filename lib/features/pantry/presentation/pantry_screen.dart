@@ -9,6 +9,7 @@ import '../../../core/widgets/impact_ribbon.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../main_shell.dart';
 import '../../profile/presentation/impact_screen.dart';
+import '../../profile/presentation/profile_avatar.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../domain/pantry_item.dart';
 import '../providers/pantry_providers.dart';
@@ -270,23 +271,7 @@ class _Header extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: onAvatarTap,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: GSColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: GSTypography.headline(
-                      color: GSColors.cream,
-                      size: 17,
-                      weight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+                child: ProfileAvatar(initial: initial, size: 40),
               ),
             ],
           ),

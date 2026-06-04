@@ -60,7 +60,7 @@ class ImpactScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('DEIN IMPACT',
-                      style: GSTypography.label(color: muteColor)),
+                      style: GSTypography.label(color: muteColor),),
                   const SizedBox(height: 8),
                   Text(
                     'Was du bewirkst',
@@ -113,7 +113,7 @@ class ImpactScreen extends ConsumerWidget {
             children: [
               Text('CO₂ VERMIEDEN',
                   style: GSTypography.label(
-                      color: GSColors.cream.withValues(alpha: 0.6))),
+                      color: GSColors.cream.withValues(alpha: 0.6),),),
               const SizedBox(height: 8),
               Text(
                 '${_fmtKg(s.co2SavedKg)} kg',
@@ -138,7 +138,7 @@ class ImpactScreen extends ConsumerWidget {
 
         // Äquivalente
         Text('DAS ENTSPRICHT UNGEFÄHR',
-            style: GSTypography.label(color: muteColor)),
+            style: GSTypography.label(color: muteColor),),
         const SizedBox(height: 12),
         if (equivalents.isEmpty)
           Text(
@@ -220,13 +220,13 @@ class _EquivalentRow extends StatelessWidget {
             child: Text(
               e.label,
               style: GSTypography.body(
-                  color: inkColor, size: 14.5, weight: FontWeight.w500),
+                  color: inkColor, size: 14.5, weight: FontWeight.w500,),
             ),
           ),
           Text(
             e.value,
             style: GSTypography.body(
-                color: muteColor, size: 14, weight: FontWeight.w700),
+                color: muteColor, size: 14, weight: FontWeight.w700,),
           ),
         ],
       ),
@@ -276,7 +276,7 @@ class _BalanceCard extends StatelessWidget {
                   style: GSTypography.headline(
                       color: GSColors.primary,
                       size: 40,
-                      weight: FontWeight.w600),
+                      weight: FontWeight.w600,),
                 ),
                 const SizedBox(width: 10),
                 Padding(
@@ -284,7 +284,7 @@ class _BalanceCard extends StatelessWidget {
                   child: Text(
                     'verwertet statt\nweggeworfen',
                     style: GSTypography.body(
-                        color: muteColor, size: 13, height: 1.3),
+                        color: muteColor, size: 13, height: 1.3,),
                   ),
                 ),
               ],
@@ -333,7 +333,7 @@ class _BalanceCard extends StatelessWidget {
                     'Diesen Monat ${_fmt(thisM)} kg weggeworfen '
                     '(${_fmt(lastM)} kg im Vormonat).',
                     style: GSTypography.body(
-                        color: inkColor, size: 13.5, height: 1.35),
+                        color: inkColor, size: 13.5, height: 1.35,),
                   ),
                 ),
               ],
@@ -384,13 +384,13 @@ class _BuzzerCard extends StatelessWidget {
                 Text(
                   '$saves× auf den letzten Drücker gerettet',
                   style: GSTypography.body(
-                      color: inkColor, size: 15.5, weight: FontWeight.w700),
+                      color: inkColor, size: 15.5, weight: FontWeight.w700,),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'So oft hast du etwas noch in den letzten 3 Tagen vor dem MHD verwertet — sonst wär\'s wohl in der Tonne gelandet.',
                   style: GSTypography.body(
-                      color: muteColor, size: 12.5, height: 1.4),
+                      color: muteColor, size: 12.5, height: 1.4,),
                 ),
               ],
             ),

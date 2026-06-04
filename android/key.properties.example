@@ -1,0 +1,13 @@
+# Vorlage für die Release-Signatur.
+# 1. Keystore erzeugen (einmalig, GUT aufbewahren — Verlust = kein Update mehr möglich):
+#
+#      keytool -genkey -v -keystore ~/greenspoon-upload.jks \
+#        -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# 2. Diese Datei nach  android/key.properties  kopieren (wird NICHT eingecheckt)
+#    und die echten Werte eintragen.
+#
+storePassword=DEIN_STORE_PASSWORT
+keyPassword=DEIN_KEY_PASSWORT
+keyAlias=upload
+storeFile=/absoluter/pfad/zu/greenspoon-upload.jks

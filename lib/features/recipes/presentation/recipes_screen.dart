@@ -108,7 +108,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                 error: (e, _) => SliverFillRemaining(
                   hasScrollBody: false,
                   child: _buildErrorOrEmptyState(
-                      context, ref, e, inkColor, muteColor),
+                      context, ref, e, inkColor, muteColor,),
                 ),
                 data: (recipes) {
                   if (recipes.isEmpty) {
@@ -172,7 +172,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             if (ref.read(recipeCooldownProvider.notifier).trigger()) {
               refreshRecipes(ref);
             }
-          });
+          },);
     }
     // Fallback für alles andere (sollte selten passieren)
     return _StatusState(
@@ -187,7 +187,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           if (ref.read(recipeCooldownProvider.notifier).trigger()) {
             refreshRecipes(ref);
           }
-        });
+        },);
   }
 
   String _emojiForType(RecipeErrorType t) {
@@ -224,7 +224,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   }
 
   List<Widget> _buildSections(
-      List<Recipe> recipes, Color muteColor, bool isDark, int gen) {
+      List<Recipe> recipes, Color muteColor, bool isDark, int gen,) {
     final sections = ['Frühstück', 'Mittag', 'Abend'];
     final widgets = <Widget>[];
     var i = 0;
@@ -250,13 +250,13 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             ],
           ),
         ),
-      ));
+      ),);
       for (final r in inSection) {
         widgets.add(_Entrance(
           key: ValueKey('card-$gen-${r.meal}-${r.title}'),
           index: i++,
           child: _RecipeCard(recipe: r),
-        ));
+        ),);
       }
       widgets.add(const SizedBox(height: 12));
     }
@@ -419,7 +419,7 @@ class _RecipeCardState extends ConsumerState<_RecipeCard>
                     Container(
                       color: mc.tint.withValues(alpha: isDark ? 0.22 : 0.12),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                          horizontal: 16, vertical: 12,),
                       child: Row(
                         children: [
                           _EmojiCluster(
@@ -758,7 +758,7 @@ class _MetaChip extends StatelessWidget {
               color: color,
               fontSize: 13,
               fontWeight: FontWeight.w500,
-            )),
+            ),),
       ],
     );
   }
@@ -879,7 +879,7 @@ class _StatusStateState extends State<_StatusState> {
                 ),
                 child: Text(onCooldown
                     ? 'Bitte warten … ${cooldown}s'
-                    : 'Erneut versuchen'),
+                    : 'Erneut versuchen',),
               );
             },
           ),

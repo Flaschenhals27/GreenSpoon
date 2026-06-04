@@ -36,23 +36,23 @@ class Co2Equivalents {
       Co2Equivalent(
           emoji: '🚗',
           label: 'Autofahrt',
-          value: '≈ ${_fmt(kg / _carKgPerKm)} km'),
+          value: '≈ ${_fmt(kg / _carKgPerKm)} km',),
       Co2Equivalent(
           emoji: '🚌',
           label: 'Busfahrt',
-          value: '≈ ${_fmt(kg / _busKgPerKm)} km'),
+          value: '≈ ${_fmt(kg / _busKgPerKm)} km',),
       Co2Equivalent(
           emoji: '📱',
           label: 'Handy laden',
-          value: '≈ ${_fmt(kg / _phoneChargeKg)}×'),
+          value: '≈ ${_fmt(kg / _phoneChargeKg)}×',),
       Co2Equivalent(
           emoji: '🚿',
           label: 'Warm duschen',
-          value: '≈ ${_fmt(kg / _showerKg)}×'),
+          value: '≈ ${_fmt(kg / _showerKg)}×',),
       Co2Equivalent(
           emoji: '🌳',
           label: 'Baum-Arbeit',
-          value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage'),
+          value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage',),
     ];
   }
 

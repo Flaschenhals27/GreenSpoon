@@ -44,7 +44,7 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
               it,
               selected: it.isNew,
               action: _ExistingAction.ignore,
-            ))
+            ),)
         .toList();
   }
 
@@ -100,7 +100,7 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
           category: it.category,
           quantity: it.quantity,
         ),
-      ));
+      ),);
     }
 
     for (final r in _newRows) {
@@ -179,7 +179,7 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('EINKAUF ERKANNT',
-                              style: GSTypography.label(color: muteColor)),
+                              style: GSTypography.label(color: muteColor),),
                           const SizedBox(height: 3),
                           Text(
                             '${widget.items.length} Lebensmittel',
@@ -707,7 +707,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     return AlertDialog(
       backgroundColor: isDark ? GSColors.surfaceDark : GSColors.bgApp,
       title: Text('Bearbeiten',
-          style: GSTypography.headline(color: inkColor, size: 20)),
+          style: GSTypography.headline(color: inkColor, size: 20),),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

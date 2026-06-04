@@ -43,8 +43,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) _showError(_humanizeAuthError(e));
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         _showError('Etwas ist schiefgelaufen. Bitte erneut versuchen.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -180,7 +181,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 8),
+
+                    // ── Passwort vergessen ─────────────────
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => context.go('/reset-password'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Passwort vergessen?',
+                          style: GSTypography.body(
+                            color: GSColors.primary,
+                            size: 13,
+                            weight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // ── Submit ─────────────────────────────
                     FilledButton(

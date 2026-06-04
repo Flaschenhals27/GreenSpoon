@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -443,7 +442,7 @@ class _ScanOption extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
+                                horizontal: 7, vertical: 2,),
                             decoration: BoxDecoration(
                               color: GSColors.accent.withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(999),

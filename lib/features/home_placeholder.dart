@@ -28,7 +28,7 @@ class HomeScreenPlaceholder extends ConsumerWidget {
             children: [
               const SizedBox(height: 24),
               Text('Mein Vorrat',
-                  style: GSTypography.label(color: subtleColor)),
+                  style: GSTypography.label(color: subtleColor),),
               const SizedBox(height: 6),
               Text(
                 'Willkommen 👋',
