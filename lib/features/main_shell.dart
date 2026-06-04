@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/gs_colors.dart';
 import '../core/theme/gs_typography.dart';
+import 'notifications/notification_scheduler.dart';
 import 'pantry/presentation/add_item_dialog.dart';
 import 'pantry/presentation/pantry_screen.dart';
 import 'pantry/providers/pantry_providers.dart';
@@ -91,6 +92,14 @@ class _MainShellState extends ConsumerState<MainShell>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Hält die geplanten Ablauf-Erinnerungen aktuell: bei jeder Vorrats-
+    // Änderung (Hinzufügen, Verwerten, MHD-Edit) und beim Resume neu planen.
+    // [reschedule] ist selbst ein No-op, falls Benachrichtigungen aus sind.
+    ref.listen(pantryStreamProvider, (_, next) {
+      final items = next.valueOrNull;
+      if (items != null) NotificationScheduler.reschedule(items);
+    });
 
     return DecoratedBox(
       decoration: BoxDecoration(

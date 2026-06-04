@@ -74,612 +74,664 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 40),
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('PROFIL', style: GSTypography.label(color: muteColor)),
-                  const SizedBox(height: 8),
-                  Text(
-                    email.split('@').first,
-                    style: GSTypography.headline(color: inkColor, size: 34),
-                  ),
-                ],
-              ),
-            ),
-
-            // Avatar + Meta
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      final hasAvatar =
-                          ref.read(avatarProvider).valueOrNull != null;
-                      showAvatarPicker(context, ref, hasAvatar: hasAvatar);
-                    },
-                    child: ProfileAvatar(
-                      initial: initial,
-                      size: 64,
-                      showEditBadge: true,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          email,
-                          style: GSTypography.body(
-                            color: inkColor,
-                            size: 14.5,
-                            weight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Mitglied seit $memberSince',
-                          style: GSTypography.body(
-                            color: muteColor,
-                            size: 12.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Großer Impact-Block
-            stats.maybeWhen(
-              data: (s) => Padding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ImpactScreen()),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: GSColors.primary,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'DEIN IMPACT',
-                                    style: GSTypography.label(
-                                      color:
-                                          GSColors.cream.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    s.hasHistory
-                                        ? '${(s.useRate * 100).round()} %'
-                                        : '—',
-                                    style: GSTypography.headline(
-                                      color: GSColors.cream,
-                                      size: 52,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    s.hasHistory
-                                        ? 'verwertet statt weggeworfen'
-                                        : 'Verbrauche Items, um deine Quote zu sehen',
-                                    style: GSTypography.body(
-                                      color: GSColors.cream
-                                          .withValues(alpha: 0.85),
-                                      size: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Mascot(
-                              pose: MascotPose.celebrating,
-                              size: 96,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Diese Woche',
-                                    style: GSTypography.body(
-                                      color:
-                                          GSColors.cream.withValues(alpha: 0.6),
-                                      size: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${s.cookedThisWeek}',
-                                    style: GSTypography.headline(
-                                      color: GSColors.cream,
-                                      size: 24,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'CO₂ gespart',
-                                    style: GSTypography.body(
-                                      color:
-                                          GSColors.cream.withValues(alpha: 0.6),
-                                      size: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${_formatCo2(s.co2SavedKg)} kg',
-                                    style: GSTypography.headline(
-                                      color: GSColors.cream,
-                                      size: 24,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Details ansehen',
-                              style: GSTypography.body(
-                                color: GSColors.cream.withValues(alpha: 0.9),
-                                size: 13,
-                                weight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward,
-                              color: GSColors.cream.withValues(alpha: 0.9),
-                              size: 16,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              orElse: () => const SizedBox.shrink(),
-            ),
-            // Stats
-            stats.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Stats konnten nicht geladen werden.',
-                  style: GSTypography.body(color: muteColor, size: 13),
-                ),
-              ),
-              data: (s) => _Card(
-                isDark: isDark,
-                children: [
-                  _StatRow(
-                    label: 'Im Vorrat',
-                    value: '${s.inPantry}',
-                  ),
-                  _Divider(isDark: isDark),
-                  _StatRow(
-                    label: 'Diese Woche verwertet',
-                    value: '${s.cookedThisWeek}',
-                  ),
-                  _Divider(isDark: isDark),
-                  _StatRow(
-                    label: 'Verwertet gesamt',
-                    value: '${s.consumedTotal}',
-                  ),
-                  _Divider(isDark: isDark),
-                  _StatRow(
-                    label: 'Weggeworfen gesamt',
-                    value: '${s.wastedTotal}',
-                  ),
-                  _Divider(isDark: isDark),
-                  _StatRow(
-                    label: 'Auf den letzten Drücker',
-                    value: '${s.buzzerSaves}',
-                  ),
-                  _Divider(isDark: isDark),
-                  _StatRow(
-                    label: 'Eingespart (Schätzung)',
-                    value: '${s.eurSaved.toStringAsFixed(0)} €',
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // MEINE REZEPTE
-            _SectionLabel(text: 'MEINE REZEPTE', muteColor: muteColor),
-            Consumer(
-              builder: (context, ref, _) {
-                final saved = ref.watch(savedRecipesProvider);
-                final count = saved.maybeWhen(
-                  data: (r) => r.length,
-                  orElse: () => null,
-                );
-                final subtitle = count == null
-                    ? 'Deine Sammlung'
-                    : count == 0
-                        ? 'Noch nichts gespeichert'
-                        : '$count gespeichert';
-                return _Card(
-                  isDark: isDark,
+      body: Theme(
+        // Material-Ripple im Profil deaktivieren: sonst „leuchten" beim
+        // Antippen die Ecken der abgerundeten Karten auf, weil der rechteckige
+        // Ink-Splash auf dem darunterliegenden Material gemalt und nicht auf
+        // die Kartenform geclippt wird.
+        data: Theme.of(context).copyWith(
+          splashFactory: NoSplash.splashFactory,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 40),
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    InkWell(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SavedRecipesScreen(),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14,),
-                        child: Row(
-                          children: [
-                            Icon(Icons.bookmark_outline,
-                                color: muteColor, size: 22,),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Gespeicherte Rezepte',
-                                    style: GSTypography.body(
-                                      color: inkColor,
-                                      size: 14.5,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    subtitle,
-                                    style: GSTypography.body(
-                                        color: muteColor, size: 12,),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.chevron_right,
-                                color: muteColor, size: 22,),
-                          ],
-                        ),
-                      ),
+                    Text('PROFIL', style: GSTypography.label(color: muteColor)),
+                    const SizedBox(height: 8),
+                    Text(
+                      email.split('@').first,
+                      style: GSTypography.headline(color: inkColor, size: 34),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              ),
 
-            const SizedBox(height: 24),
-
-            // ERNÄHRUNG
-            _SectionLabel(text: 'ERNÄHRUNG', muteColor: muteColor),
-            Consumer(
-              builder: (context, ref, _) {
-                final prefs = ref.watch(dietaryPrefsProvider);
-                final tags = prefs.maybeWhen(
-                  data: (t) => t,
-                  orElse: () => const <String>[],
-                );
-                return _Card(
-                  isDark: isDark,
+              // Avatar + Meta
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                child: Row(
                   children: [
-                    InkWell(
-                      onTap: () async {
-                        await showModalBottomSheet<bool>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => DietaryPrefsSheet(initial: tags),
-                        );
+                    GestureDetector(
+                      onTap: () {
+                        final hasAvatar =
+                            ref.read(avatarProvider).valueOrNull != null;
+                        showAvatarPicker(context, ref, hasAvatar: hasAvatar);
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14,),
-                        child: Row(
-                          children: [
-                            Icon(Icons.restaurant_outlined,
-                                color: muteColor, size: 22,),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Ernährungsweise',
-                                    style: GSTypography.body(
-                                      color: inkColor,
-                                      size: 14.5,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    tags.isEmpty
-                                        ? 'Keine Vorgaben — alles ist ok'
-                                        : tags.join(' · '),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GSTypography.body(
-                                        color: muteColor, size: 12,),
-                                  ),
-                                ],
-                              ),
+                      child: ProfileAvatar(
+                        initial: initial,
+                        size: 64,
+                        showEditBadge: true,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            email,
+                            style: GSTypography.body(
+                              color: inkColor,
+                              size: 14.5,
+                              weight: FontWeight.w600,
                             ),
-                            Icon(Icons.chevron_right,
-                                color: muteColor, size: 22,),
-                          ],
-                        ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Mitglied seit $memberSince',
+                            style: GSTypography.body(
+                              color: muteColor,
+                              size: 12.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // DARSTELLUNG
-            _SectionLabel(text: 'DARSTELLUNG', muteColor: muteColor),
-            _Card(
-              isDark: isDark,
-              children: [
-                Consumer(
-                  builder: (context, ref, _) {
-                    final current =
-                        ref.watch(themeModeProvider).value ?? ThemeMode.system;
-                    return Column(
-                      children: [
-                        _ThemeOption(
-                          mode: ThemeMode.system,
-                          current: current,
-                          icon: Icons.brightness_auto,
-                          label: 'System',
-                          sub: 'Folgt der Geräte-Einstellung',
-                          onSelect: (m) =>
-                              ref.read(themeModeProvider.notifier).setMode(m),
-                          isDark: isDark,
-                          textColor: inkColor,
-                          subtleColor: muteColor,
-                          isFirst: true,
-                        ),
-                        _ThemeOption(
-                          mode: ThemeMode.light,
-                          current: current,
-                          icon: Icons.light_mode_outlined,
-                          label: 'Hell',
-                          sub: 'Warmes Cream',
-                          onSelect: (m) =>
-                              ref.read(themeModeProvider.notifier).setMode(m),
-                          isDark: isDark,
-                          textColor: inkColor,
-                          subtleColor: muteColor,
-                        ),
-                        _ThemeOption(
-                          mode: ThemeMode.dark,
-                          current: current,
-                          icon: Icons.dark_mode_outlined,
-                          label: 'Dunkel',
-                          sub: 'Tiefes Tannengrün',
-                          onSelect: (m) =>
-                              ref.read(themeModeProvider.notifier).setMode(m),
-                          isDark: isDark,
-                          textColor: inkColor,
-                          subtleColor: muteColor,
-                          isLast: true,
-                        ),
-                      ],
-                    );
-                  },
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // BENACHRICHTIGUNGEN
-            _SectionLabel(text: 'BENACHRICHTIGUNGEN', muteColor: muteColor),
-            _Card(
-              isDark: isDark,
-              children: [
-                // Toggle
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                  child: Row(
-                    children: [
-                      Icon(Icons.notifications_outlined,
-                          color:
-                              isDark ? GSColors.primaryMid : GSColors.primary,
-                          size: 22,),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tägliche Erinnerung',
-                              style: GSTypography.body(
-                                color: inkColor,
-                                size: 14.5,
-                                weight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              _notifEnabled
-                                  ? 'Aktiv um ${_formatTime(_notifHour, _notifMinute)}'
-                                  : 'Aus',
-                              style:
-                                  GSTypography.body(color: muteColor, size: 12),
-                            ),
-                          ],
-                        ),
+              ),
+              // Großer Impact-Block
+              stats.maybeWhen(
+                data: (s) => Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ImpactScreen()),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: GSColors.primary,
+                        borderRadius: BorderRadius.circular(22),
                       ),
-                      Switch(
-                        value: _notifEnabled,
-                        activeThumbColor: GSColors.primary,
-                        onChanged: _onToggle,
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'DEIN IMPACT',
+                                      style: GSTypography.label(
+                                        color: GSColors.cream
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      s.hasHistory
+                                          ? '${(s.useRate * 100).round()} %'
+                                          : '—',
+                                      style: GSTypography.headline(
+                                        color: GSColors.cream,
+                                        size: 52,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      s.hasHistory
+                                          ? 'verwertet statt weggeworfen'
+                                          : 'Verbrauche Items, um deine Quote zu sehen',
+                                      style: GSTypography.body(
+                                        color: GSColors.cream
+                                            .withValues(alpha: 0.85),
+                                        size: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Mascot(
+                                pose: MascotPose.celebrating,
+                                size: 96,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Diese Woche',
+                                      style: GSTypography.body(
+                                        color: GSColors.cream
+                                            .withValues(alpha: 0.6),
+                                        size: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${s.cookedThisWeek}',
+                                      style: GSTypography.headline(
+                                        color: GSColors.cream,
+                                        size: 24,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'CO₂ gespart',
+                                      style: GSTypography.body(
+                                        color: GSColors.cream
+                                            .withValues(alpha: 0.6),
+                                        size: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${_formatCo2(s.co2SavedKg)} kg',
+                                      style: GSTypography.headline(
+                                        color: GSColors.cream,
+                                        size: 24,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Details ansehen',
+                                style: GSTypography.body(
+                                  color: GSColors.cream.withValues(alpha: 0.9),
+                                  size: 13,
+                                  weight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward,
+                                color: GSColors.cream.withValues(alpha: 0.9),
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+              // Stats
+              stats.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Stats konnten nicht geladen werden.',
+                    style: GSTypography.body(color: muteColor, size: 13),
+                  ),
+                ),
+                data: (s) => _Card(
+                  isDark: isDark,
+                  children: [
+                    _StatRow(
+                      label: 'Im Vorrat',
+                      value: '${s.inPantry}',
+                    ),
+                    _Divider(isDark: isDark),
+                    _StatRow(
+                      label: 'Diese Woche verwertet',
+                      value: '${s.cookedThisWeek}',
+                    ),
+                    _Divider(isDark: isDark),
+                    _StatRow(
+                      label: 'Verwertet gesamt',
+                      value: '${s.consumedTotal}',
+                    ),
+                    _Divider(isDark: isDark),
+                    _StatRow(
+                      label: 'Weggeworfen gesamt',
+                      value: '${s.wastedTotal}',
+                    ),
+                    _Divider(isDark: isDark),
+                    _StatRow(
+                      label: 'Auf den letzten Drücker',
+                      value: '${s.buzzerSaves}',
+                    ),
+                    _Divider(isDark: isDark),
+                    _StatRow(
+                      label: 'Eingespart (Schätzung)',
+                      value: '${s.eurSaved.toStringAsFixed(0)} €',
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // MEINE REZEPTE
+              _SectionLabel(text: 'MEINE REZEPTE', muteColor: muteColor),
+              Consumer(
+                builder: (context, ref, _) {
+                  final saved = ref.watch(savedRecipesProvider);
+                  final count = saved.maybeWhen(
+                    data: (r) => r.length,
+                    orElse: () => null,
+                  );
+                  final subtitle = count == null
+                      ? 'Deine Sammlung'
+                      : count == 0
+                          ? 'Noch nichts gespeichert'
+                          : '$count gespeichert';
+                  return _Card(
+                    isDark: isDark,
+                    children: [
+                      InkWell(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SavedRecipesScreen(),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.bookmark_outline,
+                                color: muteColor,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Gespeicherte Rezepte',
+                                      style: GSTypography.body(
+                                        color: inkColor,
+                                        size: 14.5,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      subtitle,
+                                      style: GSTypography.body(
+                                        color: muteColor,
+                                        size: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: muteColor,
+                                size: 22,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                ),
-                if (_notifEnabled) ...[
-                  _Divider(isDark: isDark),
-                  InkWell(
-                    onTap: _pickTime,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14,),
-                      child: Row(
+                  );
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // ERNÄHRUNG
+              _SectionLabel(text: 'ERNÄHRUNG', muteColor: muteColor),
+              Consumer(
+                builder: (context, ref, _) {
+                  final prefs = ref.watch(dietaryPrefsProvider);
+                  final tags = prefs.maybeWhen(
+                    data: (t) => t,
+                    orElse: () => const <String>[],
+                  );
+                  return _Card(
+                    isDark: isDark,
+                    children: [
+                      InkWell(
+                        onTap: () async {
+                          await showModalBottomSheet<bool>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => DietaryPrefsSheet(initial: tags),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.restaurant_outlined,
+                                color: muteColor,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Ernährungsweise',
+                                      style: GSTypography.body(
+                                        color: inkColor,
+                                        size: 14.5,
+                                        weight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      tags.isEmpty
+                                          ? 'Keine Vorgaben — alles ist ok'
+                                          : tags.join(' · '),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GSTypography.body(
+                                        color: muteColor,
+                                        size: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: muteColor,
+                                size: 22,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // DARSTELLUNG
+              _SectionLabel(text: 'DARSTELLUNG', muteColor: muteColor),
+              _Card(
+                isDark: isDark,
+                children: [
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final current = ref.watch(themeModeProvider).value ??
+                          ThemeMode.system;
+                      return Column(
                         children: [
-                          Icon(Icons.schedule,
+                          _ThemeOption(
+                            mode: ThemeMode.system,
+                            current: current,
+                            icon: Icons.brightness_auto,
+                            label: 'System',
+                            sub: 'Folgt der Geräte-Einstellung',
+                            onSelect: (m) =>
+                                ref.read(themeModeProvider.notifier).setMode(m),
+                            isDark: isDark,
+                            textColor: inkColor,
+                            subtleColor: muteColor,
+                            isFirst: true,
+                          ),
+                          _ThemeOption(
+                            mode: ThemeMode.light,
+                            current: current,
+                            icon: Icons.light_mode_outlined,
+                            label: 'Hell',
+                            sub: 'Warmes Cream',
+                            onSelect: (m) =>
+                                ref.read(themeModeProvider.notifier).setMode(m),
+                            isDark: isDark,
+                            textColor: inkColor,
+                            subtleColor: muteColor,
+                          ),
+                          _ThemeOption(
+                            mode: ThemeMode.dark,
+                            current: current,
+                            icon: Icons.dark_mode_outlined,
+                            label: 'Dunkel',
+                            sub: 'Tiefes Tannengrün',
+                            onSelect: (m) =>
+                                ref.read(themeModeProvider.notifier).setMode(m),
+                            isDark: isDark,
+                            textColor: inkColor,
+                            subtleColor: muteColor,
+                            isLast: true,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // BENACHRICHTIGUNGEN
+              _SectionLabel(text: 'BENACHRICHTIGUNGEN', muteColor: muteColor),
+              _Card(
+                isDark: isDark,
+                children: [
+                  // Toggle
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.notifications_outlined,
+                          color:
+                              isDark ? GSColors.primaryMid : GSColors.primary,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tägliche Erinnerung',
+                                style: GSTypography.body(
+                                  color: inkColor,
+                                  size: 14.5,
+                                  weight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                _notifEnabled
+                                    ? 'Aktiv um ${_formatTime(_notifHour, _notifMinute)}'
+                                    : 'Aus',
+                                style: GSTypography.body(
+                                  color: muteColor,
+                                  size: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _notifEnabled,
+                          activeThumbColor: GSColors.primary,
+                          onChanged: _onToggle,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_notifEnabled) ...[
+                    _Divider(isDark: isDark),
+                    InkWell(
+                      onTap: _pickTime,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
                               color: isDark
                                   ? GSColors.primaryMid
                                   : GSColors.primary,
-                              size: 22,),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              'Uhrzeit',
-                              style: GSTypography.body(
-                                  color: inkColor, size: 14.5,),
+                              size: 22,
                             ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                'Uhrzeit',
+                                style: GSTypography.body(
+                                  color: inkColor,
+                                  size: 14.5,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatTime(_notifHour, _notifMinute),
+                              style: GSTypography.body(
+                                color: inkColor,
+                                size: 14,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: muteColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _Divider(isDark: isDark),
+                    InkWell(
+                      onTap: () => _testNotification(context, ref),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.notifications_active_outlined,
+                              color: isDark
+                                  ? GSColors.primaryMid
+                                  : GSColors.primary,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                'Test senden',
+                                style: GSTypography.body(
+                                  color: inkColor,
+                                  size: 14.5,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: muteColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // KONTO
+              _SectionLabel(text: 'KONTO', muteColor: muteColor),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+                child: Material(
+                  color: isDark ? GSColors.surfaceDark : GSColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => _confirmLogout(context, ref),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isDark ? GSColors.lineDark : GSColors.line,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.logout,
+                            color: GSColors.accent,
+                            size: 22,
                           ),
+                          const SizedBox(width: 14),
                           Text(
-                            _formatTime(_notifHour, _notifMinute),
+                            'Abmelden',
                             style: GSTypography.body(
-                              color: inkColor,
-                              size: 14,
+                              color: GSColors.accent,
+                              size: 14.5,
                               weight: FontWeight.w600,
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: muteColor),
                         ],
                       ),
-                    ),
-                  ),
-                  _Divider(isDark: isDark),
-                  InkWell(
-                    onTap: () => _testNotification(context, ref),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14,),
-                      child: Row(
-                        children: [
-                          Icon(Icons.notifications_active_outlined,
-                              color: isDark
-                                  ? GSColors.primaryMid
-                                  : GSColors.primary,
-                              size: 22,),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              'Test senden',
-                              style: GSTypography.body(
-                                  color: inkColor, size: 14.5,),
-                            ),
-                          ),
-                          Icon(Icons.chevron_right, color: muteColor),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // KONTO
-            _SectionLabel(text: 'KONTO', muteColor: muteColor),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-              child: Material(
-                color: isDark ? GSColors.surfaceDark : GSColors.surface,
-                borderRadius: BorderRadius.circular(18),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: () => _confirmLogout(context, ref),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: isDark ? GSColors.lineDark : GSColors.line,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14,),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.logout,
-                            color: GSColors.accent, size: 22,),
-                        const SizedBox(width: 14),
-                        Text(
-                          'Abmelden',
-                          style: GSTypography.body(
-                            color: GSColors.accent,
-                            size: 14.5,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-            Center(
-              child: Text(
-                _appVersion.isEmpty
-                    ? 'GreenSpoon'
-                    : 'GreenSpoon · Version $_appVersion (Beta)',
-                style: GSTypography.italicCaption(color: muteColor),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  _appVersion.isEmpty
+                      ? 'GreenSpoon'
+                      : 'GreenSpoon · Version $_appVersion (Beta)',
+                  style: GSTypography.italicCaption(color: muteColor),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -744,25 +796,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-              'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-            ),),
+              content: Text(
+                'Bitte erlaube Benachrichtigungen in den Einstellungen.',
+              ),
+            ),
           );
         }
         return;
       }
       await NotificationSettings.setEnabled(true);
-      await NotificationScheduler.schedule(
-        hour: _notifHour,
-        minute: _notifMinute,
+      await NotificationScheduler.reschedule(
+        ref.read(pantryStreamProvider).valueOrNull ?? const [],
       );
+      // Für zuverlässige Auslösung auf OEM-ROMs: einmalig um Ausnahme von der
+      // Akkuoptimierung bitten (best effort — Erinnerungen laufen auch ohne).
+      await NotificationService.instance.requestBatteryOptimizationExemption();
       if (mounted) {
         setState(() => _notifEnabled = true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-            'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
-          ),),
+            content: Text(
+              'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
+            ),
+          ),
         );
       }
     } else {
@@ -788,9 +844,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         hour: picked.hour,
         minute: picked.minute,
       );
-      await NotificationScheduler.schedule(
-        hour: picked.hour,
-        minute: picked.minute,
+      await NotificationScheduler.reschedule(
+        ref.read(pantryStreamProvider).valueOrNull ?? const [],
       );
       if (mounted) {
         setState(() {
@@ -807,40 +862,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text(
-            'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-          ),),
+            content: Text(
+              'Bitte erlaube Benachrichtigungen in den Einstellungen.',
+            ),
+          ),
         );
       }
       return;
     }
 
-    final expiring = ref.read(expiringSoonProvider);
+    // Frisch aus der DB lesen — nie aus einem evtl. veralteten Provider und
+    // ohne Beispiel-Daten. So bezieht sich der Test ausschließlich auf
+    // tatsächlich vorhandene, bald ablaufende Lebensmittel.
+    final names = <String>[];
+    try {
+      final expiring =
+          await ref.read(pantryRepositoryProvider).fetchExpiringSoon();
+      names.addAll(expiring.map((e) => e.name));
+    } catch (_) {
+      // Netzwerk-/Auth-Fehler behandeln wir wie „nichts läuft bald ab".
+    }
 
-    if (expiring.isEmpty) {
-      await NotificationService.instance.showExpiryNotification(
-        expiringCount: 2,
-        itemNames: ['Skyr Vanille', 'Tomaten'],
+    if (names.isEmpty) {
+      await NotificationService.instance.showInfoNotification(
+        title: 'Alles frisch 🥬',
+        body: 'Aktuell läuft in den nächsten Tagen nichts ab.',
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text(
-            'Test-Benachrichtigung gesendet (Beispiel-Daten)',
-          ),),
+            content: Text(
+              'Test gesendet — aktuell läuft nichts bald ab.',
+            ),
+          ),
         );
       }
     } else {
       await NotificationService.instance.showExpiryNotification(
-        expiringCount: expiring.length,
-        itemNames: expiring.map((e) => e.name).toList(),
+        itemNames: names,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-            '${expiring.length} ablaufendes Item${expiring.length == 1 ? "" : "s"} → Notification gesendet',
-          ),),
+            content: Text(
+              '${names.length} ablaufendes Item${names.length == 1 ? "" : "s"} → Test gesendet.',
+            ),
+          ),
         );
       }
     }

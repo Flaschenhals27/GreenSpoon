@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/notifications/notification_service.dart';
-import 'features/notifications/notification_scheduler.dart';
 import 'app.dart';
 import 'core/supabase/supabase_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -17,10 +16,9 @@ Future<void> main() async {
   // Supabase initialisieren.
   await SupabaseService.initialize();
   await initializeDateFormatting('de_DE');
-  // Notification Service initialisieren.
+  // Notification Service initialisieren. Geplant wird erst, wenn der Vorrat
+  // geladen ist (siehe MainShell) bzw. der User die Erinnerung aktiviert.
   await NotificationService.instance.initialize();
-  // Notification Scheduler initialisieren.
-  await NotificationScheduler.initialize();
   runApp(
     const ProviderScope(
       child: GreenSpoonApp(),

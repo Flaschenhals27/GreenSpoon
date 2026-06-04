@@ -128,6 +128,34 @@ class PantryRepository {
     }).eq('id', id);
   }
 
+  /// Aktive Items, die innerhalb der nächsten [withinDays] Tage ablaufen
+  /// (inkl. heute) — frisch aus der DB. Liefert nur tatsächlich vorhandene
+  /// Items (kein abgelaufener/verwerteter/weggeworfener Bestand), damit z.B.
+  /// die Test-Benachrichtigung nie über Lebensmittel informiert, die es nicht
+  /// mehr gibt.
+  Future<List<PantryItem>> fetchExpiringSoon({int withinDays = 2}) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return const [];
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final until = DateTime(now.year, now.month, now.day + withinDays);
+
+    final rows = await _client
+        .from(_table)
+        .select()
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .not('expires_at', 'is', null)
+        .gte('expires_at', today.toIso8601String().split('T').first)
+        .lte('expires_at', until.toIso8601String().split('T').first)
+        .order('expires_at');
+
+    return (rows as List)
+        .map((r) => PantryItem.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Ändert nur das MHD eines Items.
   Future<void> updateExpiry(String id, DateTime? expiresAt) async {
     await _client.from(_table).update({
