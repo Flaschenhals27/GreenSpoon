@@ -1,27 +1,43 @@
-# Green Spoon
+# Green Spoon 🥄
 
 > Vorrat scannen, klug kochen.
 
-Flutter-App, die nach dem Einkauf Lebensmittel via Barcode + MHD-OCR
-einscannt, sie in Supabase speichert und bei drohendem Ablauf
-KI-generierte Rezepte vorschlägt.
+**Green Spoon** ist eine Flutter-App, die Lebensmittel nach dem Einkauf per
+Barcode + MHD-Texterkennung erfasst, sie in Supabase verwaltet und bei
+drohendem Ablauf KI-generierte Rezepte vorschlägt – damit weniger im Müll
+landet. Inklusive CO₂-Bilanz, lokalen Ablauf-Erinnerungen und Dark/Light-Theme.
 
 ---
 
-## Status
+## Features
 
-**Phase 1: Fundament — abgeschlossen.**
+- **Vorrat (Pantry)** – Lebensmittel anlegen, bearbeiten, nach Ablaufdatum
+  sortiert; Warnung bei bald ablaufenden Produkten.
+- **Scanner** – Barcode-Scan (mobile_scanner) + MHD-OCR (ML Kit) mit
+  Produktabgleich über Open Food Facts.
+- **KI-Rezepte** – Vorschläge passend zum aktuellen Vorrat, generiert über
+  eine Supabase Edge Function (API-Key bleibt serverseitig).
+- **Erinnerungen** – lokale Push-Benachrichtigungen, bevor etwas verdirbt.
+- **CO₂-Bilanz** – geschätzte Einsparung & anschauliche Äquivalente, plus
+  persönliche Statistiken.
+- **Profil & Auth** – Email/Passwort-Login, Registrierung, In-App-Passwort-
+  Reset per Code, lokal wählbares Profilbild.
+- **Onboarding**, **Dark/Light-Mode**, Schriften Fraunces + Inter.
 
-Enthalten:
-- Projektstruktur (feature-first)
-- Theme (Light + Dark) mit Fraunces & Inter
-- Supabase-Client-Initialisierung
-- Auth: Email/Passwort-Login + Registrierung
-- Router mit Auth-Guard (go_router)
-- Riverpod-Setup
-- Platzhalter-Home nach erfolgreichem Login
+---
 
-Folge-Phasen siehe Abschnitt **Roadmap** unten.
+## Tech-Stack
+
+| Bereich          | Technologie                                  |
+|------------------|----------------------------------------------|
+| Framework        | Flutter (Dart SDK ^3.5)                       |
+| State-Management | Riverpod                                      |
+| Navigation       | go_router (mit Auth-Guard)                    |
+| Backend          | Supabase (Auth, Postgres, Edge Functions)     |
+| Scanning         | mobile_scanner, google_mlkit_text_recognition |
+| Notifications    | flutter_local_notifications, timezone         |
+
+App-ID (Android): `de.greenspoon.app`
 
 ---
 
@@ -29,37 +45,37 @@ Folge-Phasen siehe Abschnitt **Roadmap** unten.
 
 ### 1. Voraussetzungen
 
-- Flutter SDK 3.24+ ([install](https://docs.flutter.dev/get-started/install))
-- Android Studio mit Android-SDK (API 21+)
-- Ein Supabase-Konto (kostenlos)
+- Flutter SDK 3.27+ ([install](https://docs.flutter.dev/get-started/install))
+- Android Studio / Android-SDK (API 21+)
+- Ein (kostenloses) Supabase-Konto
 
 ### 2. Supabase-Projekt anlegen
 
-1. Auf [supabase.com](https://supabase.com) registrieren / anmelden.
-2. Neues Projekt erstellen (region: am besten EU).
-3. In **Settings → API** die folgenden Werte kopieren:
+1. Auf [supabase.com](https://supabase.com) ein Projekt erstellen (Region: EU).
+2. Unter **Settings → API** kopieren:
    - **Project URL**
    - **anon / public key**
 
 ### 3. `.env` anlegen
 
-Datei `.env` im Projekt-Root erstellen (Vorlage: `.env.example`):
+Datei `.env` im Projekt-Root:
 
 ```env
 SUPABASE_URL=https://dein-projekt.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-### 4. Supabase-Auth konfigurieren
+> Der `anon`-Key darf öffentlich in die App – die Daten schützt Row Level
+> Security. KI-/Drittanbieter-Keys liegen **niemals** in der App, sondern als
+> Secret in den Supabase Edge Functions (`supabase/functions/`).
 
-In deinem Supabase-Projekt unter **Authentication → Providers**:
-- **Email** aktivieren (ist Default).
-- Für die Entwicklungsphase empfiehlt sich, **"Confirm email"** unter
-  **Authentication → Sign In / Up → Email Auth** **abzuschalten** — sonst
-  musst du jeden Test-Account per Email bestätigen.
-  Für die Abgabe kannst du es wieder aktivieren.
+### 4. Auth konfigurieren
 
-### 5. Abhängigkeiten installieren & starten
+Unter **Authentication → Providers** **Email** aktivieren. Für den
+Passwort-Reset per Code muss die Reset-Email-Vorlage den Platzhalter
+`{{ .Token }}` enthalten.
+
+### 5. Starten
 
 ```bash
 flutter pub get
@@ -72,62 +88,36 @@ flutter run
 
 ```
 lib/
-├── main.dart                     Init: dotenv, Supabase, ProviderScope
-├── app.dart                      MaterialApp.router + Theme
-├── core/
-│   ├── theme/                    Farben, Typografie, Light+Dark
-│   ├── router/                   go_router mit Auth-Guard
-│   ├── supabase/                 Supabase-Client-Wrapper
-│   ├── widgets/                  (für Phase 2: GSAppBar, ExpiryDot, …)
-│   └── utils/
+├── main.dart            Init: dotenv, Supabase, ProviderScope
+├── app.dart             MaterialApp.router + Theme
+├── core/                Theme, Router, Supabase-Client, Widgets, Utils
 └── features/
-    ├── auth/
-    │   ├── data/                 AuthRepository (Supabase-Calls)
-    │   ├── presentation/         LoginScreen, SignupScreen
-    │   └── providers/            Riverpod-Provider
-    ├── home_placeholder.dart     wird in Phase 2 ersetzt
-    ├── pantry/                   (Phase 2)
-    ├── scanner/                  (Phase 3)
-    ├── recipes/                  (Phase 4)
-    └── profile/                  (Phase 5)
+    ├── auth/            Login, Signup, Passwort-Reset
+    ├── onboarding/
+    ├── pantry/          Vorrat-CRUD + Screens
+    ├── scanner/         Barcode + MHD-OCR
+    ├── recipes/         KI-Rezepte (Edge Function)
+    ├── notifications/   lokale Ablauf-Erinnerungen
+    ├── profile/         Profil, CO₂-Statistiken
+    ├── settings/
+    └── main_shell.dart  Bottom-Navigation
+
+supabase/
+└── functions/
+    ├── generate-recipes/   KI-Rezeptgenerierung
+    └── scan-groceries/     Produktabgleich
 ```
 
 ---
 
-## Roadmap
+## Tests
 
-| Phase | Inhalt | Status |
-|------:|--------|:------:|
-| 1 | Fundament: Auth + Theme + Routing | ✅ |
-| 2 | Supabase-Schema + Vorrat-CRUD + Pantry-Screen | ⬜ |
-| 3 | Scanner: Barcode + MHD-OCR + Open Food Facts | ⬜ |
-| 4 | KI-Rezepte via Supabase Edge Function (Gemini) | ⬜ |
-| 5 | Profil-Screen + lokale Push-Notifications | ⬜ |
-| 6 | iOS-Build (optional) | ⬜ |
+```bash
+flutter test
+```
+
+Unit-Tests u.a. für CO₂-Schätzung, CO₂-Äquivalente und Nutzer-Statistiken.
 
 ---
 
-## Architektur-Notizen
-
-- **State-Management:** Riverpod (mit `ConsumerWidget` / `ConsumerStatefulWidget`).
-- **Navigation:** `go_router` mit zentralem Auth-Guard. Der Router lauscht
-  auf `authStateChangesProvider` und leitet automatisch um.
-- **Auth:** Sessions werden von `supabase_flutter` automatisch persistiert
-  (`flutter_secure_storage` als Hintergrund-Speicher).
-- **API-Keys:** Der Supabase `anon`-Key gehört in die App (öffentlich
-  unbedenklich, RLS schützt die Daten). Der **KI-API-Key** (kommt in Phase 4)
-  liegt **nicht** in der App, sondern als Secret in einer Supabase Edge
-  Function — das ist wichtig fürs Uni-Projekt, sonst ist der Key im APK
-  extrahierbar.
-
----
-
-## Nächster Schritt (Phase 2)
-
-In Phase 2 werden wir:
-1. SQL-Schema für `pantry_items` und `profiles` mit RLS schreiben (als
-   Migration in `supabase/migrations/`).
-2. `PantryRepository` mit CRUD-Operationen bauen.
-3. Den echten `PantryScreen` aus dem Design-Entwurf umsetzen
-   (Liste, Filter-Chips, Ablauf-Indikator, Warn-Card).
-4. Manuelles Hinzufügen von Items (für jetzt — Scanner kommt in Phase 3).
+*Studienprojekt · Flutter + Supabase*
