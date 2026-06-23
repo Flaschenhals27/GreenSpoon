@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:green_spoon/features/pantry/data/pantry_repository.dart';
+import 'package:green_spoon/features/pantry/domain/user_stats.dart';
 
 void main() {
   group('UserStats.useRate', () {

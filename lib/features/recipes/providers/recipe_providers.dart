@@ -1,12 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/supabase/supabase_providers.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../data/recipe_cache.dart';
 import '../data/recipe_repository.dart';
+import '../domain/meal.dart';
 import '../domain/recipe.dart';
 
 final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
-  return RecipeRepository();
+  return SupabaseRecipeRepository(ref.watch(supabaseClientProvider));
+});
+
+final recipeCacheProvider = Provider<RecipeCache>((ref) {
+  return RecipeCache(ref.watch(supabaseClientProvider));
 });
 
 /// Liefert die Rezepte für den aktuellen Vorrat.
@@ -27,10 +33,11 @@ final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
     throw const PantryEmptyException();
   }
 
-  final signature = RecipeCache.signatureFor(pantry);
+  final cache = ref.watch(recipeCacheProvider);
+  final signature = cache.signatureFor(pantry);
 
   // Cache-Treffer (gleicher Tag + Vorrat) → ohne API-Call zurückgeben.
-  final cached = await RecipeCache.load();
+  final cached = await cache.load();
   if (cached != null &&
       cached.signature == signature &&
       cached.recipes.isNotEmpty) {
@@ -39,26 +46,26 @@ final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
 
   final repo = ref.watch(recipeRepositoryProvider);
   final recipes = await repo.generate();
-  await RecipeCache.save(recipes, signature);
+  await cache.save(recipes, signature);
   return recipes;
 });
 
 /// Erzwingt eine frische Rezept-Generierung: leert den Cache und lädt neu.
 /// Wird von den Refresh-/Retry-Aktionen im UI genutzt.
 Future<void> refreshRecipes(WidgetRef ref) async {
-  await RecipeCache.clear();
+  await ref.read(recipeCacheProvider).clear();
   ref.read(recipeOverridesProvider.notifier).clear();
   ref.invalidate(recipesProvider);
 }
 
-/// Generiert [count] alternative Rezepte für genau eine Mahlzeit
-/// ("Frühstück" | "Mittag" | "Abend"). Wird vom Long-Press auf einer
-/// Rezeptkarte genutzt, um diese Mahlzeit einzeln neu vorschlagen zu lassen.
+/// Generiert [count] alternative Rezepte für genau eine [Meal]. Wird vom
+/// Long-Press auf einer Rezeptkarte genutzt, um diese Mahlzeit einzeln neu
+/// vorschlagen zu lassen.
 ///
 /// autoDispose: Jedes Öffnen des Auswahl-Sheets generiert frisch; beim
 /// Schließen wird der Provider verworfen.
 final mealAlternativesProvider =
-    FutureProvider.autoDispose.family<List<Recipe>, String>((ref, meal) async {
+    FutureProvider.autoDispose.family<List<Recipe>, Meal>((ref, meal) async {
   final repo = ref.watch(recipeRepositoryProvider);
   final recipes = await repo.generate(meal: meal, count: 3);
   // Sicherheitsnetz: nur Rezepte der angefragten Mahlzeit behalten.
@@ -69,11 +76,11 @@ final mealAlternativesProvider =
 /// Hält die vom User über das Auswahl-Sheet gewählten Ersatz-Rezepte,
 /// je Mahlzeit eines. Die Rezept-Liste im UI wird damit überlagert, ohne
 /// den Cache anzufassen. Ein „Alle neu" leert diese Auswahl wieder.
-class RecipeOverrides extends Notifier<Map<String, Recipe>> {
+class RecipeOverrides extends Notifier<Map<Meal, Recipe>> {
   @override
-  Map<String, Recipe> build() => const {};
+  Map<Meal, Recipe> build() => const {};
 
-  void set(String meal, Recipe recipe) {
+  void set(Meal meal, Recipe recipe) {
     state = {...state, meal: recipe};
   }
 
@@ -83,7 +90,7 @@ class RecipeOverrides extends Notifier<Map<String, Recipe>> {
 }
 
 final recipeOverridesProvider =
-    NotifierProvider<RecipeOverrides, Map<String, Recipe>>(
+    NotifierProvider<RecipeOverrides, Map<Meal, Recipe>>(
   RecipeOverrides.new,
 );
 

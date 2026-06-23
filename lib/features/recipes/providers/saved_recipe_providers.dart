@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/supabase/supabase_providers.dart';
 import '../data/saved_recipe_repository.dart';
 import '../domain/recipe.dart';
 
-final savedRecipeRepositoryProvider =
-    Provider<SavedRecipeRepository>((ref) => SavedRecipeRepository());
+final savedRecipeRepositoryProvider = Provider<SavedRecipeRepository>(
+  (ref) => SupabaseSavedRecipeRepository(ref.watch(supabaseClientProvider)),
+);
 
 /// Liste der gespeicherten Rezepte (für eine evtl. Übersicht).
 final savedRecipesProvider = FutureProvider<List<Recipe>>((ref) async {

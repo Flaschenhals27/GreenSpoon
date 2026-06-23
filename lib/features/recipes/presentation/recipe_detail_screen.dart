@@ -59,7 +59,7 @@ class RecipeDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    recipe.meal.toUpperCase(),
+                    recipe.meal.label.toUpperCase(),
                     style: GSTypography.label(color: muteColor),
                   ),
                   const SizedBox(height: 8),

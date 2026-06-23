@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/mascot.dart';
+import '../domain/meal.dart';
 import '../domain/recipe.dart';
 import '../providers/saved_recipe_providers.dart';
 import 'recipe_detail_screen.dart';
@@ -259,7 +260,7 @@ class _SavedCard extends StatelessWidget {
 
 class _MealTag extends StatelessWidget {
   const _MealTag({required this.meal, required this.muteColor});
-  final String meal;
+  final Meal meal;
   final Color muteColor;
 
   @override
@@ -271,7 +272,7 @@ class _MealTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        meal,
+        meal.label,
         style: GSTypography.body(
           color: GSColors.primary,
           size: 12,

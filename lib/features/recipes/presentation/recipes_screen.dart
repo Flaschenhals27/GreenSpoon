@@ -8,32 +8,25 @@ import '../../main_shell.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../../scanner/data/product_emoji.dart';
 import '../data/recipe_repository.dart';
+import '../domain/meal.dart';
 import '../domain/recipe.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_detail_screen.dart';
 import '../providers/recipe_cooldown_provider.dart';
 import '../../../core/widgets/mascot.dart';
 
-// ─── Mahlzeit-Akzente: Farbe + Leit-Emoji je Tageszeit ──────────────────
-({Color tint, Color ink}) _mealColors(String meal) {
+// ─── Mahlzeit-Akzente: Farbe je Tageszeit ───────────────────────────────
+// Die Leit-Emojis liefert die Domain (`Meal.emoji`); die Farben bleiben hier
+// in der Präsentationsschicht. Der erschöpfende switch über `Meal` erzwingt,
+// dass eine neue Mahlzeit hier behandelt werden muss (OCP).
+({Color tint, Color ink}) _mealColors(Meal meal) {
   switch (meal) {
-    case 'Frühstück':
+    case Meal.breakfast:
       return (tint: GSColors.honey, ink: const Color(0xFF8A6A17));
-    case 'Abend':
+    case Meal.dinner:
       return (tint: GSColors.accent, ink: GSColors.accentDeep);
-    default: // Mittag
+    case Meal.lunch:
       return (tint: GSColors.primary, ink: GSColors.primary);
-  }
-}
-
-String _mealEmoji(String meal) {
-  switch (meal) {
-    case 'Frühstück':
-      return '🥐';
-    case 'Abend':
-      return '🍲';
-    default:
-      return '🍽';
   }
 }
 
@@ -225,15 +218,14 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
 
   List<Widget> _buildSections(
       List<Recipe> recipes, Color muteColor, bool isDark, int gen,) {
-    final sections = ['Frühstück', 'Mittag', 'Abend'];
     final widgets = <Widget>[];
     var i = 0;
-    for (final s in sections) {
+    for (final s in Meal.values) {
       final inSection = recipes.where((r) => r.meal == s).toList();
       if (inSection.isEmpty) continue;
       final mc = _mealColors(s);
       widgets.add(_Entrance(
-        key: ValueKey('h-$gen-$s'),
+        key: ValueKey('h-$gen-${s.name}'),
         index: i++,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(26, 14, 26, 12),
@@ -246,14 +238,15 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                     BoxDecoration(color: mc.ink, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
-              Text(s.toUpperCase(), style: GSTypography.label(color: mc.ink)),
+              Text(s.label.toUpperCase(),
+                  style: GSTypography.label(color: mc.ink),),
             ],
           ),
         ),
       ),);
       for (final r in inSection) {
         widgets.add(_Entrance(
-          key: ValueKey('card-$gen-${r.meal}-${r.title}'),
+          key: ValueKey('card-$gen-${r.meal.name}-${r.title}'),
           index: i++,
           child: _RecipeCard(recipe: r),
         ),);
@@ -424,7 +417,7 @@ class _RecipeCardState extends ConsumerState<_RecipeCard>
                         children: [
                           _EmojiCluster(
                             emojis: emojis,
-                            fallback: _mealEmoji(recipe.meal),
+                            fallback: recipe.meal.emoji,
                             isDark: isDark,
                           ),
                           const Spacer(),
@@ -1170,18 +1163,9 @@ class _RefreshFooter extends ConsumerWidget {
 /// Wird vom 2-Sekunden-Halten auf einer Rezeptkarte geöffnet.
 class _MealAlternativesSheet extends ConsumerWidget {
   const _MealAlternativesSheet({required this.meal});
-  final String meal;
+  final Meal meal;
 
-  String get _mealLabel {
-    switch (meal) {
-      case 'Mittag':
-        return 'Mittagessen';
-      case 'Abend':
-        return 'Abendessen';
-      default:
-        return meal;
-    }
-  }
+  String get _mealLabel => meal.longLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -4,19 +4,30 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
 import '../domain/recognized_grocery.dart';
 import 'product_emoji.dart';
 
-/// Spricht mit der Edge Function `scan-groceries`: schickt ein Foto und
-/// bekommt eine Liste erkannter Lebensmittel zurück (inkl. Vorrats-Abgleich).
-class GroceryScanService {
-  GroceryScanService();
-
-  SupabaseClient get _client => SupabaseService.client;
-
-  /// Sendet [imageBytes] an die Edge Function und liefert die erkannten
+/// Vertrag für den Foto-Scan eines Einkaufs. Konsumenten hängen nur an dieser
+/// Abstraktion (DIP).
+abstract interface class GroceryScanService {
+  /// Sendet [imageBytes] an die Erkennung und liefert die erkannten
   /// Lebensmittel. Wirft [GroceryScanException] bei Problemen.
+  Future<List<RecognizedGrocery>> scan(
+    Uint8List imageBytes, {
+    String mimeType,
+  });
+}
+
+/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
+/// `scan-groceries`. Schickt ein Foto und bekommt eine Liste erkannter
+/// Lebensmittel zurück (inkl. Vorrats-Abgleich). Der [SupabaseClient] wird
+/// injiziert.
+class SupabaseGroceryScanService implements GroceryScanService {
+  SupabaseGroceryScanService(this._client);
+
+  final SupabaseClient _client;
+
+  @override
   Future<List<RecognizedGrocery>> scan(
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',

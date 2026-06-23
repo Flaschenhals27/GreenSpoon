@@ -2,29 +2,37 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
+import '../domain/meal.dart';
 import '../domain/recipe.dart';
 
-/// Spricht mit der Edge Function `generate-recipes`.
-/// Der Supabase-Client hängt den User-JWT automatisch an.
-class RecipeRepository {
-  RecipeRepository();
-
-  SupabaseClient get _client => SupabaseService.client;
-
-  /// Ruft die Edge Function auf und gibt die Rezeptliste zurück.
+/// Vertrag für die Rezept-Generierung. Konsumenten hängen nur an dieser
+/// Abstraktion (DIP).
+abstract interface class RecipeRepository {
+  /// Generiert Rezepte.
   ///
   /// Ohne [meal] → der Standardmodus (3 Rezepte: Frühstück/Mittag/Abend).
   /// Mit [meal] → [count] Alternativen für genau diese Mahlzeit (für das
   /// Einzel-Refresh per Long-Press).
   ///
   /// Wirft [RecipeException] mit kategorisiertem Fehlertyp bei Problemen.
-  Future<List<Recipe>> generate({String? meal, int count = 3}) async {
+  Future<List<Recipe>> generate({Meal? meal, int count});
+}
+
+/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
+/// `generate-recipes`. Der Supabase-Client hängt den User-JWT automatisch an
+/// und wird injiziert.
+class SupabaseRecipeRepository implements RecipeRepository {
+  SupabaseRecipeRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<List<Recipe>> generate({Meal? meal, int count = 3}) async {
     try {
       final response = await _client.functions.invoke(
         'generate-recipes',
         method: HttpMethod.post,
-        body: meal == null ? null : {'meal': meal, 'count': count},
+        body: meal == null ? null : {'meal': meal.label, 'count': count},
       );
 
       // Server-Fehler unterscheiden

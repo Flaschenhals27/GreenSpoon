@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../pantry/data/pantry_repository.dart';
+import '../../pantry/domain/user_stats.dart';
 import '../../pantry/providers/pantry_providers.dart';
 
 /// User-Stats werden bei jedem Vorrat-Update neu berechnet, indem wir

@@ -1,18 +1,69 @@
 import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../scanner/data/co2_estimator.dart';
-import '../../../core/supabase/supabase_service.dart';
 import '../domain/pantry_item.dart';
+import '../domain/user_stats.dart';
+import '../domain/user_stats_calculator.dart';
 
-class PantryRepository {
-  PantryRepository();
+/// Vertrag für den Zugriff auf den Vorrat. Konsumenten (Provider, UI) hängen
+/// nur an dieser Abstraktion (DIP).
+abstract interface class PantryRepository {
+  /// Live-Stream aller aktiven Items des Users, sortiert nach Ablaufdatum.
+  Stream<List<PantryItem>> watchAll();
 
-  SupabaseClient get _client => SupabaseService.client;
+  /// Item hinzufügen.
+  Future<PantryItem> add({
+    required String name,
+    String? brand,
+    String? quantity,
+    required String category,
+    String? barcode,
+    required String emoji,
+    DateTime? expiresAt,
+    double? co2Kg,
+  });
+
+  /// Mehrere Items in einem Round-Trip hinzufügen.
+  Future<void> addAll(List<PantryDraft> drafts);
+
+  /// Archiviert ein Item mit Grund (kein echtes Löschen).
+  Future<void> archive(String id, {required String status});
+
+  /// Aktive Items, die innerhalb der nächsten [withinDays] Tage ablaufen.
+  Future<List<PantryItem>> fetchExpiringSoon({int withinDays});
+
+  /// Ändert nur das MHD eines Items.
+  Future<void> updateExpiry(String id, DateTime? expiresAt);
+
+  /// Backwards-kompatibler Alias — Default-Grund: 'discarded'.
+  Future<void> delete(String id);
+
+  /// Macht ein Archivieren rückgängig (Undo nach einem Wisch).
+  Future<void> restore(String id);
+
+  /// Berechnet die User-Stats für Profil + Impact-Seite.
+  Future<UserStats> fetchStats();
+}
+
+/// Supabase-gestützte Umsetzung von [PantryRepository].
+///
+/// Der [SupabaseClient] wird injiziert; die Aggregation der Statistik ist an
+/// den reinen [UserStatsCalculator] delegiert (SRP) — dieses Repository
+/// kümmert sich nur um Laden, Mappen und Schreiben.
+class SupabasePantryRepository implements PantryRepository {
+  SupabasePantryRepository(
+    this._client, {
+    UserStatsCalculator statsCalculator = const UserStatsCalculator(),
+  }) : _statsCalculator = statsCalculator;
+
+  final SupabaseClient _client;
+  final UserStatsCalculator _statsCalculator;
+
   static const _table = 'pantry_items';
 
   /// Live-Stream aller Items des aktuellen Users, sortiert nach Ablaufdatum.
   /// `null`-Ablaufdaten landen am Ende.
+  @override
   Stream<List<PantryItem>> watchAll() {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -48,8 +99,7 @@ class PantryRepository {
         });
   }
 
-  /// Item hinzufügen.
-  /// Item hinzufügen.
+  @override
   Future<PantryItem> add({
     required String name,
     String? brand,
@@ -91,6 +141,7 @@ class PantryRepository {
 
   /// Mehrere Items auf einmal hinzufügen (z.B. nach dem Foto-Scan eines
   /// ganzen Einkaufs). Ein einziger Insert-Round-Trip.
+  @override
   Future<void> addAll(List<PantryDraft> drafts) async {
     if (drafts.isEmpty) return;
     final userId = _client.auth.currentUser?.id;
@@ -119,8 +170,8 @@ class PantryRepository {
         );
   }
 
-  /// Item löschen.
   /// Archiviert ein Item mit Grund. Echtes Löschen passiert nicht mehr.
+  @override
   Future<void> archive(String id, {required String status}) async {
     await _client.from(_table).update({
       'status': status,
@@ -133,6 +184,7 @@ class PantryRepository {
   /// Items (kein abgelaufener/verwerteter/weggeworfener Bestand), damit z.B.
   /// die Test-Benachrichtigung nie über Lebensmittel informiert, die es nicht
   /// mehr gibt.
+  @override
   Future<List<PantryItem>> fetchExpiringSoon({int withinDays = 2}) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return const [];
@@ -157,6 +209,7 @@ class PantryRepository {
   }
 
   /// Ändert nur das MHD eines Items.
+  @override
   Future<void> updateExpiry(String id, DateTime? expiresAt) async {
     await _client.from(_table).update({
       'expires_at': expiresAt?.toIso8601String().split('T').first,
@@ -165,9 +218,11 @@ class PantryRepository {
 
   /// Backwards-kompatibler Alias — wird vom Dismissible-Wisch aufgerufen.
   /// Default-Grund: 'discarded'.
+  @override
   Future<void> delete(String id) => archive(id, status: 'discarded');
 
   /// Macht ein Archivieren rückgängig (für den Undo nach einem Wisch).
+  @override
   Future<void> restore(String id) async {
     await _client.from(_table).update({
       'status': 'active',
@@ -175,19 +230,12 @@ class PantryRepository {
     }).eq('id', id);
   }
 
-  /// Schwelle (Tage Restlaufzeit), bis zu der ein verwertetes Item als
-  /// „auf den letzten Drücker gerettet" zählt.
-  static const buzzerThresholdDays = 3;
-
-  /// Berechnet die User-Stats für Profil + Impact-Seite.
+  /// Lädt die rohen Stats-Daten und überlässt die Aggregation dem
+  /// [UserStatsCalculator].
+  @override
   Future<UserStats> fetchStats() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return const UserStats();
-
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final startOfThisMonth = DateTime(now.year, now.month, 1);
-    final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
 
     // 1. Aktueller Vorrat
     final activeRes = await _client
@@ -211,110 +259,29 @@ class PantryRepository {
         .eq('user_id', userId)
         .inFilter('status', ['discarded', 'expired']);
 
-    // ── consumed auswerten ────────────────────────────────────────
-    var consumedTotal = 0;
-    var cookedThisWeek = 0;
-    var buzzerSaves = 0;
-    double co2Total = 0;
-    double eurTotal = 0;
-    for (final row in consumedRows as List) {
-      final m = row as Map<String, dynamic>;
-      consumedTotal++;
-      final category = m['category'] as String? ?? 'Sonstiges';
-      final quantity = m['quantity'] as String?;
-      final co2 = m['co2_kg'];
-
-      co2Total += (co2 is num)
-          ? co2.toDouble()
-          : Co2Estimator.estimateCo2Kg(category: category, quantity: quantity);
-      eurTotal +=
-          Co2Estimator.estimatePriceEur(category: category, quantity: quantity);
-
-      final removedAt = DateTime.tryParse(m['removed_at'] as String? ?? '');
-      if (removedAt != null && removedAt.isAfter(weekAgo)) cookedThisWeek++;
-
-      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD.
-      final expiresAt = m['expires_at'] != null
-          ? DateTime.tryParse(m['expires_at'] as String)
-          : null;
-      if (expiresAt != null && removedAt != null) {
-        final daysLeft =
-            DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
-                .difference(
-                    DateTime(removedAt.year, removedAt.month, removedAt.day),)
-                .inDays;
-        if (daysLeft <= buzzerThresholdDays) buzzerSaves++;
-      }
-    }
-
-    // ── wasted auswerten ──────────────────────────────────────────
-    var wastedTotal = 0;
-    double wastedKgThisMonth = 0;
-    double wastedKgLastMonth = 0;
-    for (final row in wastedRows as List) {
-      final m = row as Map<String, dynamic>;
-      wastedTotal++;
-      final kg = Co2Estimator.parseWeightKg(m['quantity'] as String?) ?? 0.5;
-      final removedAt = DateTime.tryParse(m['removed_at'] as String? ?? '');
-      if (removedAt == null) continue;
-      if (removedAt.isAfter(startOfThisMonth)) {
-        wastedKgThisMonth += kg;
-      } else if (removedAt.isAfter(startOfLastMonth)) {
-        wastedKgLastMonth += kg;
-      }
-    }
-
-    return UserStats(
+    return _statsCalculator.compute(
       inPantry: activeRes.count,
-      cookedThisWeek: cookedThisWeek,
-      consumedTotal: consumedTotal,
-      wastedTotal: wastedTotal,
-      buzzerSaves: buzzerSaves,
-      co2SavedKg: double.parse(co2Total.toStringAsFixed(1)),
-      eurSaved: double.parse(eurTotal.toStringAsFixed(0)),
-      wastedKgThisMonth: double.parse(wastedKgThisMonth.toStringAsFixed(1)),
-      wastedKgLastMonth: double.parse(wastedKgLastMonth.toStringAsFixed(1)),
+      now: DateTime.now(),
+      consumed: (consumedRows as List).map((row) {
+        final m = row as Map<String, dynamic>;
+        final co2 = m['co2_kg'];
+        return ConsumedItem(
+          category: m['category'] as String? ?? 'Sonstiges',
+          quantity: m['quantity'] as String?,
+          co2Kg: co2 is num ? co2.toDouble() : null,
+          expiresAt: m['expires_at'] != null
+              ? DateTime.tryParse(m['expires_at'] as String)
+              : null,
+          removedAt: DateTime.tryParse(m['removed_at'] as String? ?? ''),
+        );
+      }).toList(),
+      wasted: (wastedRows as List).map((row) {
+        final m = row as Map<String, dynamic>;
+        return WastedItem(
+          quantity: m['quantity'] as String?,
+          removedAt: DateTime.tryParse(m['removed_at'] as String? ?? ''),
+        );
+      }).toList(),
     );
   }
-}
-
-class UserStats {
-  const UserStats({
-    this.inPantry = 0,
-    this.cookedThisWeek = 0,
-    this.consumedTotal = 0,
-    this.wastedTotal = 0,
-    this.buzzerSaves = 0,
-    this.co2SavedKg = 0,
-    this.eurSaved = 0,
-    this.wastedKgThisMonth = 0,
-    this.wastedKgLastMonth = 0,
-  });
-
-  final int inPantry;
-  final int cookedThisWeek;
-
-  /// Insgesamt verwertete (gegessene/gekochte) Items.
-  final int consumedTotal;
-
-  /// Insgesamt weggeworfene Items.
-  final int wastedTotal;
-
-  /// Verwertet ≤ [PantryRepository.buzzerThresholdDays] Tage vor MHD.
-  final int buzzerSaves;
-
-  final double co2SavedKg;
-  final double eurSaved;
-  final double wastedKgThisMonth;
-  final double wastedKgLastMonth;
-
-  /// Anteil verwertet an allem, was den Vorrat verlassen hat (0..1).
-  double get useRate {
-    final total = consumedTotal + wastedTotal;
-    if (total == 0) return 0;
-    return consumedTotal / total;
-  }
-
-  /// Gibt es überhaupt schon Historie für eine sinnvolle Quote?
-  bool get hasHistory => (consumedTotal + wastedTotal) > 0;
 }

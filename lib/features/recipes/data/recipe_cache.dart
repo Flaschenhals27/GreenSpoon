@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
 import '../../pantry/domain/pantry_item.dart';
 import '../domain/recipe.dart';
 
@@ -17,15 +17,20 @@ import '../domain/recipe.dart';
 ///  - ein neuer Tag begonnen hat (Rezepte sind „für HEUTE"),
 ///  - sich der Vorrat geändert hat (Item hinzugefügt/entfernt),
 ///  - ein anderer User eingeloggt ist.
+///
+/// Der [SupabaseClient] wird injiziert (nur für die User-ID in der Signatur),
+/// statt auf das globale Singleton zuzugreifen.
 class RecipeCache {
-  RecipeCache._();
+  RecipeCache(this._client);
+
+  final SupabaseClient _client;
 
   static const _kRecipes = 'recipes_cache_json';
   static const _kSignature = 'recipes_cache_signature';
 
   /// Baut die Signatur aus User, aktuellem Datum und Vorrats-IDs.
-  static String signatureFor(List<PantryItem> pantry) {
-    final userId = SupabaseService.client.auth.currentUser?.id ?? 'anon';
+  String signatureFor(List<PantryItem> pantry) {
+    final userId = _client.auth.currentUser?.id ?? 'anon';
     final now = DateTime.now();
     final day = '${now.year}-${now.month}-${now.day}';
     final ids = pantry.map((e) => e.id).toList()..sort();
@@ -34,7 +39,7 @@ class RecipeCache {
 
   /// Liest die gecachten Rezepte + Signatur. Gibt `null` zurück, wenn nichts
   /// gespeichert ist oder der Inhalt nicht gelesen werden kann.
-  static Future<({List<Recipe> recipes, String signature})?> load() async {
+  Future<({List<Recipe> recipes, String signature})?> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kRecipes);
     final signature = prefs.getString(_kSignature);
@@ -54,7 +59,7 @@ class RecipeCache {
   }
 
   /// Speichert Rezepte + zugehörige Signatur.
-  static Future<void> save(List<Recipe> recipes, String signature) async {
+  Future<void> save(List<Recipe> recipes, String signature) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(recipes.map((r) => r.toJson()).toList());
     await prefs.setString(_kRecipes, raw);
@@ -62,7 +67,7 @@ class RecipeCache {
   }
 
   /// Löscht den Cache (erzwingt beim nächsten Laden eine frische Generierung).
-  static Future<void> clear() async {
+  Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kRecipes);
     await prefs.remove(_kSignature);

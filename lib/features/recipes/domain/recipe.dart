@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'meal.dart';
+
 @immutable
 class Recipe {
   const Recipe({
@@ -16,7 +18,7 @@ class Recipe {
   });
 
   final String title;
-  final String meal; // "Frühstück" | "Mittag" | "Abend"
+  final Meal meal;
   final int timeMin;
   final String difficulty;
   final int servings;
@@ -42,7 +44,7 @@ class Recipe {
 
     return Recipe(
       title: json['title'] as String? ?? 'Ohne Titel',
-      meal: json['meal'] as String? ?? 'Mittag',
+      meal: Meal.fromLabel(json['meal'] as String?),
       timeMin: (json['time_min'] as num?)?.toInt() ?? 0,
       difficulty: json['difficulty'] as String? ?? 'Einfach',
       servings: (json['servings'] as num?)?.toInt() ?? 2,
@@ -58,7 +60,7 @@ class Recipe {
   Map<String, dynamic> toJson() {
     return {
       'title': title,
-      'meal': meal,
+      'meal': meal.label,
       'time_min': timeMin,
       'difficulty': difficulty,
       'servings': servings,

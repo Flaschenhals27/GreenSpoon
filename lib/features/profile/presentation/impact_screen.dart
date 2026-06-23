@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/mascot.dart';
-import '../../pantry/data/pantry_repository.dart';
+import '../../pantry/domain/user_stats.dart';
 import '../domain/co2_equivalents.dart';
 import '../providers/profile_providers.dart';
 

@@ -1,26 +1,61 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
-
-/// Repository, das Supabase-Auth kapselt.
+/// Vertrag für das Auth-Backend.
 ///
-/// Alle Auth-Calls laufen ausschließlich hierüber — UI- und Provider-Code
-/// kennen Supabase nicht direkt. Das macht spätere Tests und einen Wechsel
-/// des Auth-Backends einfacher.
-class AuthRepository {
-  AuthRepository();
-
-  SupabaseClient get _client => SupabaseService.client;
-
+/// UI- und Provider-Code hängen ausschließlich an dieser Abstraktion (DIP) —
+/// sie kennen Supabase nicht direkt. Das macht Tests und einen späteren
+/// Wechsel des Auth-Backends einfach.
+abstract interface class AuthRepository {
   /// Aktueller User oder null, wenn nicht eingeloggt.
-  User? get currentUser => _client.auth.currentUser;
+  User? get currentUser;
 
   /// Stream der Auth-Status-Änderungen.
-  Stream<AuthState> authStateChanges() => _client.auth.onAuthStateChange;
+  Stream<AuthState> authStateChanges();
 
   /// Email/Passwort-Login.
-  ///
-  /// Wirft [AuthException] mit lesbarer Message bei Fehlern.
+  Future<AuthResponse> signInWithEmail({
+    required String email,
+    required String password,
+  });
+
+  /// Email/Passwort-Registrierung.
+  Future<AuthResponse> signUpWithEmail({
+    required String email,
+    required String password,
+  });
+
+  /// Schickt dem User eine Email mit einem 6-stelligen Reset-Code.
+  Future<void> sendPasswordResetCode(String email);
+
+  /// Verifiziert den Code aus der Email und öffnet eine Recovery-Session.
+  Future<AuthResponse> verifyPasswordResetCode({
+    required String email,
+    required String token,
+  });
+
+  /// Setzt das neue Passwort für den (per Recovery-Session) eingeloggten User.
+  Future<UserResponse> updatePassword(String newPassword);
+
+  /// Logout.
+  Future<void> signOut();
+}
+
+/// Supabase-gestützte Umsetzung von [AuthRepository].
+///
+/// Alle Auth-Calls laufen ausschließlich hierüber. Der [SupabaseClient] wird
+/// injiziert, statt auf das globale Singleton zuzugreifen.
+class SupabaseAuthRepository implements AuthRepository {
+  SupabaseAuthRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  User? get currentUser => _client.auth.currentUser;
+
+  @override
+  Stream<AuthState> authStateChanges() => _client.auth.onAuthStateChange;
+
+  @override
   Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
@@ -31,10 +66,9 @@ class AuthRepository {
     );
   }
 
-  /// Email/Passwort-Registrierung.
-  ///
   /// Hinweis: Je nach Supabase-Projekteinstellung muss der User die Email
   /// bestätigen, bevor er sich einloggen kann (Default: an).
+  @override
   Future<AuthResponse> signUpWithEmail({
     required String email,
     required String password,
@@ -50,12 +84,14 @@ class AuthRepository {
   ///
   /// Damit die Mail den Code enthält, muss die Supabase-Vorlage
   /// „Reset Password" `{{ .Token }}` ausgeben.
+  @override
   Future<void> sendPasswordResetCode(String email) {
     return _client.auth.resetPasswordForEmail(email.trim());
   }
 
   /// Schritt 2: verifiziert den Code aus der Email. Bei Erfolg entsteht eine
   /// (Recovery-)Session, mit der das Passwort gesetzt werden darf.
+  @override
   Future<AuthResponse> verifyPasswordResetCode({
     required String email,
     required String token,
@@ -69,10 +105,11 @@ class AuthRepository {
 
   /// Schritt 3: setzt das neue Passwort für den (per Recovery-Session)
   /// eingeloggten User.
+  @override
   Future<UserResponse> updatePassword(String newPassword) {
     return _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
-  /// Logout.
+  @override
   Future<void> signOut() => _client.auth.signOut();
 }

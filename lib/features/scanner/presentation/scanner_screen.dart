@@ -4,8 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
-import '../data/open_food_facts_service.dart';
 import '../domain/scanned_product.dart';
+import '../providers/scanner_providers.dart';
 import 'mhd_scanner_screen.dart';
 import 'scan_review_sheet.dart';
 
@@ -34,9 +34,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     ScannedProduct? product;
     try {
-      final service = OpenFoodFactsService();
-      product = await service.lookup(code);
-      service.dispose();
+      product = await ref.read(openFoodFactsProvider).lookup(code);
     } catch (_) {
       // Network error or timeout — proceed with empty product
     }

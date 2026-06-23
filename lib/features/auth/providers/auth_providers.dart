@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/supabase/supabase_providers.dart';
 import '../data/auth_repository.dart';
 
-/// Stellt das Repository zur Verfügung.
+/// Stellt das Repository (als Abstraktion) zur Verfügung.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository();
+  return SupabaseAuthRepository(ref.watch(supabaseClientProvider));
 });
 
 /// Stream des aktuellen Auth-Status.

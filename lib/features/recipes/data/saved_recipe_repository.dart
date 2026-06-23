@@ -1,16 +1,33 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
+import '../domain/meal.dart';
 import '../domain/recipe.dart';
 
-/// Verwaltet gespeicherte Rezepte in der `saved_recipes`-Tabelle.
-class SavedRecipeRepository {
-  SavedRecipeRepository();
+/// Vertrag für gespeicherte Rezepte. Konsumenten hängen nur an dieser
+/// Abstraktion (DIP).
+abstract interface class SavedRecipeRepository {
+  /// Speichert ein Rezept für den aktuellen User.
+  Future<void> save(Recipe r);
 
-  SupabaseClient get _client => SupabaseService.client;
+  /// Entfernt ein gespeichertes Rezept (per Titel des aktuellen Users).
+  Future<void> unsaveByTitle(String title);
+
+  /// Prüft, ob ein Rezept mit diesem Titel schon gespeichert ist.
+  Future<bool> isSaved(String title);
+
+  /// Lädt alle gespeicherten Rezepte des Users.
+  Future<List<Recipe>> fetchAll();
+}
+
+/// Supabase-gestützte Umsetzung: verwaltet gespeicherte Rezepte in der
+/// `saved_recipes`-Tabelle. Der [SupabaseClient] wird injiziert.
+class SupabaseSavedRecipeRepository implements SavedRecipeRepository {
+  SupabaseSavedRecipeRepository(this._client);
+
+  final SupabaseClient _client;
   static const _table = 'saved_recipes';
 
-  /// Speichert ein Rezept für den aktuellen User.
+  @override
   Future<void> save(Recipe r) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Nicht eingeloggt.');
@@ -18,7 +35,7 @@ class SavedRecipeRepository {
     await _client.from(_table).insert({
       'user_id': userId,
       'title': r.title,
-      'meal': r.meal,
+      'meal': r.meal.label,
       'time_min': r.timeMin,
       'difficulty': r.difficulty,
       'servings': r.servings,
@@ -30,7 +47,7 @@ class SavedRecipeRepository {
     });
   }
 
-  /// Entfernt ein gespeichertes Rezept (per Titel des aktuellen Users).
+  @override
   Future<void> unsaveByTitle(String title) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -41,7 +58,7 @@ class SavedRecipeRepository {
         .eq('title', title);
   }
 
-  /// Prüft, ob ein Rezept mit diesem Titel schon gespeichert ist.
+  @override
   Future<bool> isSaved(String title) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return false;
@@ -54,7 +71,7 @@ class SavedRecipeRepository {
     return (res as List).isNotEmpty;
   }
 
-  /// Lädt alle gespeicherten Rezepte des Users.
+  @override
   Future<List<Recipe>> fetchAll() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
@@ -69,7 +86,7 @@ class SavedRecipeRepository {
       // DB → Recipe: body zurück in steps splitten, used_items → uses
       return Recipe(
         title: m['title'] as String? ?? 'Ohne Titel',
-        meal: m['meal'] as String? ?? 'Mittag',
+        meal: Meal.fromLabel(m['meal'] as String?),
         timeMin: (m['time_min'] as num?)?.toInt() ?? 0,
         difficulty: m['difficulty'] as String? ?? 'Einfach',
         servings: (m['servings'] as num?)?.toInt() ?? 2,

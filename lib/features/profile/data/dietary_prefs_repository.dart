@@ -1,17 +1,26 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
+/// Vertrag für die Diät-Vorlieben des Users. Konsumenten hängen nur an dieser
+/// Abstraktion (DIP).
+abstract interface class DietaryPrefsRepository {
+  /// Lädt die gesetzten Diät-Tags des aktuellen Users.
+  Future<List<String>> fetch();
+
+  /// Speichert die Diät-Tags.
+  Future<void> save(List<String> tags);
+}
 
 /// Liest und schreibt die Diät-Vorlieben des Users in `profiles.dietary_prefs`.
 ///
 /// Speicherformat (jsonb): eine Liste von Schlüsseln, z.B.
-/// `{ "tags": ["vegetarisch", "laktosefrei"] }`
-class DietaryPrefsRepository {
-  DietaryPrefsRepository();
+/// `{ "tags": ["vegetarisch", "laktosefrei"] }`. Der [SupabaseClient] wird
+/// injiziert.
+class SupabaseDietaryPrefsRepository implements DietaryPrefsRepository {
+  SupabaseDietaryPrefsRepository(this._client);
 
-  SupabaseClient get _client => SupabaseService.client;
+  final SupabaseClient _client;
 
-  /// Lädt die gesetzten Diät-Tags des aktuellen Users.
+  @override
   Future<List<String>> fetch() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return [];
@@ -29,7 +38,7 @@ class DietaryPrefsRepository {
     return [];
   }
 
-  /// Speichert die Diät-Tags.
+  @override
   Future<void> save(List<String> tags) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw StateError('Nicht eingeloggt.');
