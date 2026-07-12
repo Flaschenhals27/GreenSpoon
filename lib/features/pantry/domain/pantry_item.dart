@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'quantity_utils.dart';
+
 @immutable
 class PantryItem {
   const PantryItem({
@@ -38,12 +40,15 @@ class PantryItem {
   }
 
   factory PantryItem.fromJson(Map<String, dynamic> json) {
+    final rawQuantity = json['quantity'] as String?;
     return PantryItem(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       name: json['name'] as String,
       brand: json['brand'] as String?,
-      quantity: json['quantity'] as String?,
+      // Beim Lesen normalisieren („10pcs" → „10 Stück"): deckt auch
+      // Alt-Bestände ab, ohne die DB anfassen zu müssen.
+      quantity: rawQuantity == null ? null : normalizeQuantity(rawQuantity),
       category: json['category'] as String? ?? 'Sonstiges',
       barcode: json['barcode'] as String?,
       emoji: json['emoji'] as String? ?? '📦',

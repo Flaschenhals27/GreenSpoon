@@ -36,11 +36,29 @@ class WastedItem {
 /// Zeilen, dieser Calculator macht ausschließlich die Aggregation. Dadurch
 /// ist die Logik (CO₂-/€-Summen, Wochen-Zählung, „Buzzer"-Rettungen,
 /// Wegwerf-Bilanz pro Monat) ohne Supabase unit-testbar (SRP).
+///
+/// ## Methodik der „Ersparnis"-Werte (CO₂ & €)
+///
+/// „Vermieden/gespart" ist eine *kontrafaktische* Aussage: sie braucht ein
+/// glaubwürdiges „was wäre sonst passiert?". Normal gegessene Lebensmittel
+/// vermeiden nichts — ihr CO₂ ist bei der Produktion so oder so entstanden.
+/// Deshalb zählen in [UserStats.co2SavedKg] und [UserStats.eurSaved] **nur
+/// Rettungen**: Items, die ≤ [buzzerThresholdDays] Tage vor dem MHD (oder
+/// danach) verwertet wurden. Kontrafaktik: ohne die Rettung wäre das Item
+/// mit hoher Wahrscheinlichkeit im Müll gelandet — sein Produktions-CO₂
+/// wäre „für nichts" ausgestoßen und ein Ersatzkauf (≈ gleicher Preis,
+/// ≈ gleiches CO₂) nötig geworden. Dieselbe Kohorte speist auch den
+/// [UserStats.buzzerSaves]-Zähler — eine Metrik, drei Sichten.
+///
+/// Konservativ dabei: Items ohne MHD oder ohne Entnahme-Datum können nie
+/// als Rettung zählen — lieber unter- als überschätzen.
 class UserStatsCalculator {
   const UserStatsCalculator();
 
   /// Schwelle (Tage Restlaufzeit), bis zu der ein verwertetes Item als
-  /// „auf den letzten Drücker gerettet" zählt.
+  /// „auf den letzten Drücker gerettet" zählt. Negative Restlaufzeit
+  /// (nach MHD verwertet) zählt ebenfalls — MHD ist kein Verfallsdatum,
+  /// und gerade das ist eine Rettung vor der Tonne.
   static const buzzerThresholdDays = 3;
 
   UserStats compute({
@@ -59,28 +77,32 @@ class UserStatsCalculator {
     double co2Total = 0;
     double eurTotal = 0;
     for (final item in consumed) {
-      co2Total += item.co2Kg ??
-          Co2Estimator.estimateCo2Kg(
-            category: item.category,
-            quantity: item.quantity,
-          );
-      eurTotal += Co2Estimator.estimatePriceEur(
-        category: item.category,
-        quantity: item.quantity,
-      );
-
       final removedAt = item.removedAt;
       if (removedAt != null && removedAt.isAfter(weekAgo)) cookedThisWeek++;
 
-      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD.
+      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD
+      // (oder danach). NUR diese Rettungen zählen als CO₂-/€-Ersparnis —
+      // normal verbrauchte Lebensmittel vermeiden nichts (s. Klassen-Doku).
       final expiresAt = item.expiresAt;
       if (expiresAt != null && removedAt != null) {
-        final daysLeft = DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
-            .difference(
-              DateTime(removedAt.year, removedAt.month, removedAt.day),
-            )
-            .inDays;
-        if (daysLeft <= buzzerThresholdDays) buzzerSaves++;
+        final daysLeft =
+            DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
+                .difference(
+                  DateTime(removedAt.year, removedAt.month, removedAt.day),
+                )
+                .inDays;
+        if (daysLeft <= buzzerThresholdDays) {
+          buzzerSaves++;
+          co2Total += item.co2Kg ??
+              Co2Estimator.estimateCo2Kg(
+                category: item.category,
+                quantity: item.quantity,
+              );
+          eurTotal += Co2Estimator.estimatePriceEur(
+            category: item.category,
+            quantity: item.quantity,
+          );
+        }
       }
     }
 

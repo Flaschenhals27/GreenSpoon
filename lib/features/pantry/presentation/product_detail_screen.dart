@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/mascot.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
+import '../../../core/widgets/gs_snackbar.dart';
 import '../domain/pantry_item.dart';
+import '../domain/quantity_utils.dart';
 import '../providers/pantry_providers.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -29,14 +32,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Future<void> _markConsumed() async {
     if (_busy) return;
     setState(() => _busy = true);
+    // Repo & Messenger VOR dem Pop sichern: der Root-Messenger überlebt
+    // diesen Screen, damit funktioniert „Rückgängig" auch nach dem Zurück-
+    // Navigieren — gleiches Verhalten wie der Swipe in der Liste.
+    final repo = ref.read(pantryRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(pantryRepositoryProvider)
-          .archive(_item.id, status: 'consumed');
+      await repo.archive(_item.id, status: 'consumed');
       if (!mounted) return;
+      HapticFeedback.mediumImpact();
       // Kurzer Feier-Moment
       await _showCelebration();
       if (mounted) Navigator.of(context).pop();
+      showGsUndoSnack(
+        messenger,
+        message: '„${_item.name}" als verbraucht markiert',
+        onUndo: () => repo.restore(_item.id),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -53,31 +65,45 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
-        // schließt sich nach 1,4s von selbst
+        // schließt sich nach 1,4s von selbst — aber nur, wenn der Dialog dann
+        // noch offen ist (ctx.mounted), sonst würde der verzögerte pop() die
+        // Route treffen, die inzwischen oben liegt (z.B. den Detail-Screen).
         final nav = Navigator.of(ctx);
         Future.delayed(const Duration(milliseconds: 1400), () {
-          if (nav.canPop()) nav.pop();
+          if (ctx.mounted && nav.canPop()) nav.pop();
         });
-        return Dialog(
-          backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+        // Der Dialog federt mit easeOutBack rein statt hart aufzuploppen —
+        // passt zum Feier-Charakter des Moments.
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutBack,
+          builder: (context, t, child) => Transform.scale(
+            // easeOutBack überschießt > 1 — für die Opacity klemmen.
+            scale: 0.7 + 0.3 * t,
+            child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Mascot(pose: MascotPose.celebrating, size: 120),
-                const SizedBox(height: 12),
-                Text(
-                  'Stark, gerettet!',
-                  style: GSTypography.headline(
-                    color: isDark ? GSColors.inkDark : GSColors.ink,
-                    size: 22,
+          child: Dialog(
+            backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Mascot(pose: MascotPose.celebrating, size: 120),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Stark, gerettet!',
+                    style: GSTypography.headline(
+                      color: isDark ? GSColors.inkDark : GSColors.ink,
+                      size: 22,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -90,6 +116,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (picked == null) return;
     try {
       await ref.read(pantryRepositoryProvider).updateExpiry(_item.id, picked);
+      HapticFeedback.selectionClick();
       // lokalen Stand aktualisieren, damit die Anzeige sofort stimmt
       setState(() {
         _item = PantryItem(
@@ -115,6 +142,228 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
+  /// „Teilweise verbraucht": verbucht den gegessenen Anteil als
+  /// `consumed` (zählt anteilig in die Statistik, inkl. Rettungs-Logik)
+  /// und skaliert das Item auf den Rest ([factor] = was noch da ist).
+  ///
+  /// Würde der Rest auf 0 runden (z.B. „0,1 Stück" nochmal geviertelt),
+  /// ist das Item logisch aufgebraucht → kompletter Verbrauch statt
+  /// einer sinnlosen „0,0 Stück"-Leiche im Vorrat.
+  Future<void> _adjustPortion(double factor) async {
+    final qty = _item.quantity;
+    if (qty == null) return;
+    final value = leadingQuantityValue(qty);
+    if (value == null) return;
+
+    // Anzeige rundet auf eine Nachkommastelle — unter 0,05 wäre der
+    // Rest sichtbar „0". Dann ist alles verbraucht.
+    if (value * factor < 0.05) {
+      await _markConsumed();
+      return;
+    }
+
+    final remaining = scaleQuantity(qty, factor);
+    final consumed = scaleQuantity(qty, 1 - factor);
+    if (remaining == null || consumed == null) return;
+    final totalCo2 = _item.co2Kg;
+    final remainingCo2 = totalCo2 == null ? null : totalCo2 * factor;
+    final consumedCo2 = totalCo2 == null ? null : totalCo2 * (1 - factor);
+
+    try {
+      await ref.read(pantryRepositoryProvider).consumePartial(
+            item: _item,
+            remainingQuantity: remaining,
+            consumedQuantity: consumed,
+            remainingCo2: remainingCo2,
+            consumedCo2: consumedCo2,
+          );
+      HapticFeedback.selectionClick();
+      setState(() {
+        _item = PantryItem(
+          id: _item.id,
+          userId: _item.userId,
+          name: _item.name,
+          category: _item.category,
+          emoji: _item.emoji,
+          brand: _item.brand,
+          quantity: remaining,
+          barcode: _item.barcode,
+          expiresAt: _item.expiresAt,
+          createdAt: _item.createdAt,
+          co2Kg: remainingCo2,
+        );
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('$consumed verbucht — noch $remaining übrig.'),
+            ),
+          );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  /// „1 verbrauchen" für stückzählbare Mengen (2 Mandarinen → 1 essen).
+  /// Verbucht genau ein Stück als consumed (anteilige Statistik) und
+  /// zählt das Item herunter; das letzte Stück → kompletter Verbrauch.
+  Future<void> _consumeOnePiece() async {
+    final qty = _item.quantity;
+    if (qty == null) return;
+    final value = leadingQuantityValue(qty);
+    if (value == null) return;
+    final count = value.round();
+    if (count <= 1) {
+      await _markConsumed();
+      return;
+    }
+
+    final unit = quantityUnit(qty);
+    String fmt(int n) => unit == null ? '$n' : '$n $unit';
+    final remaining = fmt(count - 1);
+    final consumed = fmt(1);
+    final totalCo2 = _item.co2Kg;
+    final perPiece = totalCo2 == null ? null : totalCo2 / count;
+    final remainingCo2 = perPiece == null ? null : perPiece * (count - 1);
+
+    try {
+      await ref.read(pantryRepositoryProvider).consumePartial(
+            item: _item,
+            remainingQuantity: remaining,
+            consumedQuantity: consumed,
+            remainingCo2: remainingCo2,
+            consumedCo2: perPiece,
+          );
+      HapticFeedback.selectionClick();
+      setState(() {
+        _item = PantryItem(
+          id: _item.id,
+          userId: _item.userId,
+          name: _item.name,
+          category: _item.category,
+          emoji: _item.emoji,
+          brand: _item.brand,
+          quantity: remaining,
+          barcode: _item.barcode,
+          expiresAt: _item.expiresAt,
+          createdAt: _item.createdAt,
+          co2Kg: remainingCo2,
+        );
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('$consumed verbucht — noch $remaining übrig.'),
+            ),
+          );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
+  }
+
+  /// Baut die „Teilweise verbraucht"-Sektion passend zum Mengen-Typ.
+  List<Widget> _buildPortionSection(
+    Color inkColor,
+    Color muteColor,
+    Color lineColor,
+  ) {
+    final qty = _item.quantity;
+    if (qty == null) return const [];
+    final value = leadingQuantityValue(qty);
+    if (value == null) return const [];
+
+    ButtonStyle chipStyle() => OutlinedButton.styleFrom(
+          foregroundColor: inkColor,
+          side: BorderSide(color: lineColor),
+          minimumSize: const Size.fromHeight(44),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+
+    Text chipLabel(String label) => Text(
+          label,
+          style: GSTypography.body(
+            color: inkColor,
+            size: 13.5,
+            weight: FontWeight.w600,
+          ),
+        );
+
+    // Stückzählbar: „1 von N verbrauchen".
+    if (isCountableQuantity(qty)) {
+      final count = value.round();
+      if (count < 2) return const []; // 1 Stück → „Verbraucht"-Button
+      return [
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(26, 0, 26, 10),
+          child: Text(
+            'STÜCKWEISE VERBRAUCHT?',
+            style: GSTypography.label(color: muteColor),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: OutlinedButton.icon(
+            onPressed: _consumeOnePiece,
+            icon: Icon(Icons.restaurant, size: 16, color: inkColor),
+            label: chipLabel('Eins gegessen — noch $count da'),
+            style: chipStyle(),
+          ),
+        ),
+      ];
+    }
+
+    // Wiegbar/messbar: Bruch-Chips.
+    return [
+      const SizedBox(height: 20),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(26, 0, 26, 10),
+        child: Text(
+          'TEILWEISE VERBRAUCHT?',
+          style: GSTypography.label(color: muteColor),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Row(
+          children: [
+            for (final (label, factor) in const [
+              ('¾ übrig', 0.75),
+              ('½ übrig', 0.5),
+              ('¼ übrig', 0.25),
+            ]) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _adjustPortion(factor),
+                  style: chipStyle(),
+                  child: chipLabel(label),
+                ),
+              ),
+              if (factor != 0.25) const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    ];
+  }
+
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -128,17 +377,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
+            // Endliche Mindestbreite: das Theme-Default (volle Breite)
+            // crasht in den unbegrenzten Dialog-Actions.
+            style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
             child: const Text('Löschen'),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
+    // Wie bei _markConsumed: Repo & Messenger vor dem Pop sichern,
+    // damit „Rückgängig" nach der Navigation noch funktioniert.
+    final repo = ref.read(pantryRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(pantryRepositoryProvider)
-          .archive(_item.id, status: 'discarded');
+      await repo.archive(_item.id, status: 'discarded');
+      HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop();
+      showGsUndoSnack(
+        messenger,
+        message: '„${_item.name}" weggeworfen',
+        onUndo: () => repo.restore(_item.id),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,6 +434,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 children: [
                   _CircleButton(
                     icon: Icons.chevron_left,
+                    tooltip: 'Zurück',
                     onTap: () => Navigator.of(context).pop(),
                     surfaceColor: surfaceColor,
                     inkColor: inkColor,
@@ -180,6 +442,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                   _CircleButton(
                     icon: Icons.delete_outline,
+                    tooltip: 'Produkt löschen',
                     onTap: _delete,
                     surfaceColor: surfaceColor,
                     inkColor: GSColors.accent,
@@ -189,18 +452,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
 
-            // Großes Emoji-Tile
+            // Großes Emoji-Tile — Hero-Ziel des kleinen Tiles aus der Liste.
             Center(
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: lineColor),
+              child: Hero(
+                tag: 'pantry-emoji-${_item.id}',
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: lineColor),
+                    ),
+                    alignment: Alignment.center,
+                    child: ExcludeSemantics(
+                      child: Text(
+                        _item.emoji,
+                        style: const TextStyle(fontSize: 64),
+                      ),
+                    ),
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: Text(_item.emoji, style: const TextStyle(fontSize: 64)),
               ),
             ),
             const SizedBox(height: 24),
@@ -287,6 +561,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ],
               ),
             ),
+            // Teilweise verbraucht — zwei Modelle je nach Mengen-Typ:
+            //  • stückzählbar („2 Stück") → „1 von 2 verbrauchen"
+            //  • wiegbar („500 g")        → Bruch-Chips (¾/½/¼ übrig)
+            // Bei „1 Stück" oder unparsebarer Menge: gar nichts — dafür
+            // gibt es den „Verbraucht"-Button.
+            ..._buildPortionSection(inkColor, muteColor, lineColor),
             const SizedBox(height: 28),
 
             // Details-Liste
@@ -474,6 +754,7 @@ class _CircleButton extends StatelessWidget {
     required this.surfaceColor,
     required this.inkColor,
     required this.lineColor,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -482,9 +763,13 @@ class _CircleButton extends StatelessWidget {
   final Color inkColor;
   final Color lineColor;
 
+  /// Long-Press-Tooltip; dient gleichzeitig als Screenreader-Label
+  /// für den ansonsten stummen Icon-Button.
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final button = Material(
       color: surfaceColor,
       shape: const CircleBorder(),
       child: InkWell(
@@ -501,5 +786,7 @@ class _CircleButton extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, child: button);
   }
 }

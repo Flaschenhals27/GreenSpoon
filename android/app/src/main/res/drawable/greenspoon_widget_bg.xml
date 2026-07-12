@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hintergrund des Homescreen-Widgets: Waldgrün (GSColors.primary),
+     Ecken passend zur App-Formsprache. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2D5A3F" />
+    <corners android:radius="24dp" />
+</shape>

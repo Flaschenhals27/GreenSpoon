@@ -27,8 +27,10 @@ class HomeScreenPlaceholder extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              Text('Mein Vorrat',
-                  style: GSTypography.label(color: subtleColor),),
+              Text(
+                'Mein Vorrat',
+                style: GSTypography.label(color: subtleColor),
+              ),
               const SizedBox(height: 6),
               Text(
                 'Willkommen 👋',

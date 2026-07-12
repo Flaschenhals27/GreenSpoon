@@ -5,11 +5,16 @@ import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../pantry/domain/pantry_categories.dart';
+import '../../pantry/domain/quantity_utils.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../data/co2_estimator.dart';
 import '../domain/scanned_product.dart';
 import 'mhd_scanner_screen.dart';
 
+/// Review vor dem Speichern eines gescannten Produkts.
+///
+/// Poppt bei Erfolg den **gespeicherten Namen** (für die „hinzugefügt"-
+/// Bestätigung im Serien-Scan), bei Abbruch `null`.
 class ScanReviewSheet extends ConsumerStatefulWidget {
   const ScanReviewSheet({
     super.key,
@@ -36,7 +41,13 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.product.name);
     _brandCtrl = TextEditingController(text: widget.product.brand ?? '');
-    _qtyCtrl = TextEditingController(text: widget.product.quantity ?? '');
+    // Open-Food-Facts-Mengen normalisieren („10pcs" → „10 Stück"),
+    // damit schon das Review sauberes Deutsch zeigt.
+    _qtyCtrl = TextEditingController(
+      text: widget.product.quantity == null
+          ? ''
+          : normalizeQuantity(widget.product.quantity!),
+    );
     _category = kPantryCategories.contains(widget.product.category)
         ? widget.product.category
         : 'Sonstiges';
@@ -80,11 +91,11 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
       quantity: _qtyCtrl.text.trim().isEmpty ? null : _qtyCtrl.text.trim(),
     );
 
+    final name =
+        _nameCtrl.text.trim().isEmpty ? 'Unbekannt' : _nameCtrl.text.trim();
     try {
       await ref.read(pantryRepositoryProvider).add(
-            name: _nameCtrl.text.trim().isEmpty
-                ? 'Unbekannt'
-                : _nameCtrl.text.trim(),
+            name: name,
             brand:
                 _brandCtrl.text.trim().isEmpty ? null : _brandCtrl.text.trim(),
             quantity:
@@ -95,7 +106,7 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
             expiresAt: _expiresAt,
             co2Kg: co2,
           );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) Navigator.of(context).pop(name);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,7 +200,13 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _Field(label: 'Menge', controller: _qtyCtrl),
+                    child: _Field(
+                      label: 'Menge',
+                      controller: _qtyCtrl,
+                      // Format-Hinweis: CO₂- und Kilo-Bilanz parsen die
+                      // Menge („500 g", „1 kg").
+                      hint: 'z.B. 500 g',
+                    ),
                   ),
                 ],
               ),
@@ -208,7 +225,9 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14,),
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
                           color: surfaceColor,
                           borderRadius: BorderRadius.circular(14),
@@ -216,8 +235,11 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today_outlined,
-                                color: muteColor, size: 18,),
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              color: muteColor,
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Text(
                               _expiresAt == null
@@ -260,40 +282,45 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
               Row(
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
+                    onPressed: () => Navigator.of(context).pop(),
                     child: Text(
                       'Abbrechen',
                       style: TextStyle(color: muteColor),
                     ),
                   ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(220, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
+                  const SizedBox(width: 12),
+                  // Expanded statt fester Breite: kann bei großer
+                  // Systemschrift/schmalen Geräten nicht überlaufen.
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _saving ? null : _save,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        backgroundColor: GSColors.primary,
+                        foregroundColor: GSColors.cream,
                       ),
-                      backgroundColor: GSColors.primary,
-                      foregroundColor: GSColors.cream,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: GSColors.cream,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Zum Vorrat hinzufügen',
+                              overflow: TextOverflow.ellipsis,
+                              style: GSTypography.body(
+                                color: GSColors.cream,
+                                size: 14.5,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
                     ),
-                    child: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: GSColors.cream,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            'Zum Vorrat hinzufügen',
-                            style: GSTypography.body(
-                              color: GSColors.cream,
-                              size: 14.5,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
                   ),
                 ],
               ),
@@ -312,9 +339,10 @@ class _ScanReviewSheetState extends ConsumerState<ScanReviewSheet> {
 // ─────────────────────────────────────────────────────────────────────
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.controller});
+  const _Field({required this.label, required this.controller, this.hint});
   final String label;
   final TextEditingController controller;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -338,12 +366,17 @@ class _Field extends StatelessWidget {
           TextField(
             controller: controller,
             style: GSTypography.body(color: inkColor, size: 15),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
+              hintText: hint,
+              hintStyle: GSTypography.body(
+                color: muteColor.withValues(alpha: 0.7),
+                size: 15,
+              ),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
-              contentPadding: EdgeInsets.only(top: 2, bottom: 6),
+              contentPadding: const EdgeInsets.only(top: 2, bottom: 6),
             ),
           ),
         ],
@@ -380,8 +413,10 @@ class _CategoryField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Kategorie',
-              style: GSTypography.body(color: muteColor, size: 11.5),),
+          Text(
+            'Kategorie',
+            style: GSTypography.body(color: muteColor, size: 11.5),
+          ),
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,

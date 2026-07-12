@@ -177,7 +177,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: Text(
                           _step == _Step.email ? 'Zum Login' : 'Zurück',
-                          style: GSTypography.body(color: subtleColor, size: 13),
+                          style:
+                              GSTypography.body(color: subtleColor, size: 13),
                         ),
                       ),
                     ),
@@ -193,8 +194,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Icon(Icons.lock_reset,
-                              color: GSColors.cream, size: 32,),
+                          child: Icon(
+                            Icons.lock_reset,
+                            color: GSColors.cream,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -240,7 +244,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         decoration: const InputDecoration(hintText: 'du@example.com'),
         validator: (v) {
           if (v == null || v.trim().isEmpty) return 'Bitte Email eingeben';
-          if (!v.contains('@') || !v.contains('.')) return 'Keine gültige Email';
+          if (!v.contains('@') || !v.contains('.')) {
+            return 'Keine gültige Email';
+          }
           return null;
         },
       ),

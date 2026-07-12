@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../pantry/domain/shelf_life.dart';
 import '../domain/recognized_grocery.dart';
 import 'product_emoji.dart';
 
@@ -86,25 +87,40 @@ class SupabaseGroceryScanService implements GroceryScanService {
     } on GroceryScanException {
       rethrow;
     } catch (e) {
-      throw GroceryScanException(GroceryScanError.unknown,
-          details: e.toString(),);
+      throw GroceryScanException(
+        GroceryScanError.unknown,
+        details: e.toString(),
+      );
     }
   }
 
   RecognizedGrocery _fromJson(Map raw, DateTime today) {
     final name = (raw['name'] as String?)?.trim();
     final category = raw['category'] as String? ?? 'Sonstiges';
-    final days = (raw['expiry_days'] as num?)?.toInt();
     final isNew = (raw['status'] as String?) != 'schon_da';
+    final resolvedName = (name == null || name.isEmpty) ? 'Unbekannt' : name;
+
+    // Haltbarkeit: KI-Schätzung zuerst; liefert sie nichts, greift die
+    // lokale ShelfLife-Heuristik. So bekommt Frischware auch dann ein
+    // Datum (→ Erinnerung + Impact-Statistik), wenn das Modell das Feld
+    // mal weglässt. null = lange haltbar, bewusst kein Tracking.
+    final days = (raw['expiry_days'] as num?)?.toInt();
+    final expiresAt = days != null
+        ? today.add(Duration(days: days))
+        : ShelfLife.estimateExpiry(
+            name: resolvedName,
+            category: category,
+            from: today,
+          );
 
     return RecognizedGrocery(
-      name: (name == null || name.isEmpty) ? 'Unbekannt' : name,
+      name: resolvedName,
       category: category,
       emoji: ProductEmojiResolver.resolve(name: name, category: category),
       quantity: (raw['quantity'] as String?)?.trim().isEmpty ?? true
           ? null
           : (raw['quantity'] as String).trim(),
-      expiresAt: days == null ? null : today.add(Duration(days: days)),
+      expiresAt: expiresAt,
       isNew: isNew,
       matchedName: raw['matched_name'] as String?,
     );

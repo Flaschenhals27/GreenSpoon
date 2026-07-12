@@ -60,7 +60,8 @@ class NotificationScheduler {
           .toList();
 
       if (names.isEmpty) continue;
-      reminders.add(ScheduledReminder(slot: slot, fireAt: fireAt, names: names));
+      reminders
+          .add(ScheduledReminder(slot: slot, fireAt: fireAt, names: names));
     }
 
     return reminders;

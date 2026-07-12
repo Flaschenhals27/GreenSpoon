@@ -110,8 +110,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.eyebrow,
-                                  style: GSTypography.label(color: muteColor),),
+                              Text(
+                                p.eyebrow,
+                                style: GSTypography.label(color: muteColor),
+                              ),
                               const SizedBox(height: 14),
                               RichText(
                                 text: TextSpan(
@@ -119,7 +121,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     TextSpan(
                                       text: p.titleNormal,
                                       style: GSTypography.headline(
-                                          color: inkColor, size: 38,),
+                                        color: inkColor,
+                                        size: 38,
+                                      ),
                                     ),
                                     TextSpan(
                                       text: p.titleItalic,
@@ -181,8 +185,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   if (!isLast)
                     TextButton(
                       onPressed: _finish,
-                      child: Text('Überspringen',
-                          style: TextStyle(color: muteColor),),
+                      child: Text(
+                        'Überspringen',
+                        style: TextStyle(color: muteColor),
+                      ),
                     ),
                   const Spacer(),
                   FilledButton(
@@ -395,15 +401,20 @@ class _PlateArt extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.auto_awesome,
-                      color: GSColors.cream, size: 13,),
+                  const Icon(
+                    Icons.auto_awesome,
+                    color: GSColors.cream,
+                    size: 13,
+                  ),
                   const SizedBox(width: 5),
-                  Text('100%',
-                      style: GSTypography.body(
-                        color: GSColors.cream,
-                        size: 12,
-                        weight: FontWeight.w700,
-                      ),),
+                  Text(
+                    '100%',
+                    style: GSTypography.body(
+                      color: GSColors.cream,
+                      size: 12,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),

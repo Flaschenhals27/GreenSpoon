@@ -1,6 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart'
+    show openAppSettings;
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
@@ -24,6 +27,10 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
   bool _initializing = true;
   bool _busy = false;
   bool _leaving = false;
+
+  /// Kamera-Berechtigung wurde verweigert — eigener Zustand mit Weg in
+  /// die Einstellungen statt der Sackgasse „Keine Kamera verfügbar".
+  bool _permissionDenied = false;
   String _status = 'Richte die Kamera auf deinen Einkauf';
 
   @override
@@ -43,16 +50,28 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
-      c.dispose();
+      final c = _controller;
+      if (c != null && c.value.isInitialized) {
+        c.dispose();
+        // Sonst würde build nach dem Resume kurz eine Preview auf dem
+        // bereits disposed Controller rendern.
+        _controller = null;
+      }
     } else if (state == AppLifecycleState.resumed && !_leaving) {
+      // Auch nach verweigerter Berechtigung neu versuchen: der User kommt
+      // eventuell gerade aus den System-Einstellungen zurück.
       _initCamera();
     }
   }
 
   Future<void> _initCamera() async {
+    if (mounted) {
+      setState(() {
+        _initializing = true;
+        _permissionDenied = false;
+      });
+    }
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
@@ -72,6 +91,16 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
       await controller.initialize();
       if (!mounted || _leaving) return;
       setState(() => _initializing = false);
+    } on CameraException catch (e) {
+      // 'CameraAccessDenied' (Android/iOS), 'CameraAccessDeniedWithoutPrompt'
+      // und 'CameraAccessRestricted' (iOS) → Berechtigungs-Problem.
+      final denied = e.code.startsWith('CameraAccess');
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _permissionDenied = denied;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _initializing = false);
     }
@@ -85,6 +114,8 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
       _status = 'Foto wird gemacht …';
     });
 
+    // Physischer Auslöser-Moment — wie eine echte Kamera.
+    HapticFeedback.mediumImpact();
     try {
       final file = await c.takePicture();
       final bytes = await file.readAsBytes();
@@ -123,7 +154,8 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Das Foto konnte nicht verarbeitet werden.'),),
+          content: Text('Das Foto konnte nicht verarbeitet werden.'),
+        ),
       );
       setState(() {
         _busy = false;
@@ -164,21 +196,27 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Row(
                 children: [
-                  Material(
-                    color: surfaceColor,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: lineColor),
+                  Tooltip(
+                    message: 'Zurück',
+                    child: Material(
+                      color: surfaceColor,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: lineColor),
+                          ),
+                          child: Icon(
+                            Icons.chevron_left,
+                            color: inkColor,
+                            size: 22,
+                          ),
                         ),
-                        child:
-                            Icon(Icons.chevron_left, color: inkColor, size: 22),
                       ),
                     ),
                   ),
@@ -191,8 +229,10 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('EINKAUF FOTOGRAFIEREN',
-                      style: GSTypography.label(color: muteColor),),
+                  Text(
+                    'EINKAUF FOTOGRAFIEREN',
+                    style: GSTypography.label(color: muteColor),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     'Alles auf einmal',
@@ -228,12 +268,19 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
                               alignment: Alignment.center,
                               child: _initializing
                                   ? const CircularProgressIndicator(
-                                      color: GSColors.primary,)
-                                  : Text(
-                                      'Keine Kamera verfügbar',
-                                      style: GSTypography.body(
-                                          color: muteColor, size: 14,),
-                                    ),
+                                      color: GSColors.primary,
+                                    )
+                                  : _permissionDenied
+                                      ? _PermissionDeniedInfo(
+                                          muteColor: muteColor,
+                                        )
+                                      : Text(
+                                          'Keine Kamera verfügbar',
+                                          style: GSTypography.body(
+                                            color: muteColor,
+                                            size: 14,
+                                          ),
+                                        ),
                             ),
                           IgnorePointer(
                             child: Container(
@@ -266,24 +313,82 @@ class _GroceryPhotoScreenState extends ConsumerState<GroceryPhotoScreen>
             // Auslöser
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
-              child: GestureDetector(
-                onTap: (cameraReady && !_busy) ? _capture : null,
-                child: Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: (cameraReady && !_busy)
-                        ? GSColors.primary
-                        : GSColors.primary.withValues(alpha: 0.4),
+              child: Semantics(
+                button: true,
+                enabled: cameraReady && !_busy,
+                label: 'Foto aufnehmen',
+                child: GestureDetector(
+                  onTap: (cameraReady && !_busy) ? _capture : null,
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (cameraReady && !_busy)
+                          ? GSColors.primary
+                          : GSColors.primary.withValues(alpha: 0.4),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: GSColors.cream,
+                      size: 30,
+                    ),
                   ),
-                  child: const Icon(Icons.camera_alt,
-                      color: GSColors.cream, size: 30,),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Info + Weg in die System-Einstellungen, wenn der Kamera-Zugriff
+/// verweigert wurde. Nach der Rückkehr versucht der Lifecycle-Hook
+/// automatisch eine neue Initialisierung.
+class _PermissionDeniedInfo extends StatelessWidget {
+  const _PermissionDeniedInfo({required this.muteColor});
+  final Color muteColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.no_photography_outlined, color: muteColor, size: 40),
+          const SizedBox(height: 14),
+          Text(
+            'Kamera-Zugriff ist deaktiviert',
+            textAlign: TextAlign.center,
+            style: GSTypography.body(
+              color: muteColor,
+              size: 15,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Erlaube Green Spoon den Kamera-Zugriff in den Einstellungen, um deinen Einkauf zu fotografieren.',
+            textAlign: TextAlign.center,
+            style: GSTypography.body(color: muteColor, size: 13, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: openAppSettings,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(200, 44),
+              backgroundColor: GSColors.primary,
+              foregroundColor: GSColors.cream,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            child: const Text('Einstellungen öffnen'),
+          ),
+        ],
       ),
     );
   }

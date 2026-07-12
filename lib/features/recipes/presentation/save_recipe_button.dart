@@ -48,9 +48,11 @@ class _SaveRecipeButtonState extends ConsumerState<SaveRecipeButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_saved == true
-                ? 'Rezept gespeichert'
-                : 'Aus Gespeicherten entfernt',),
+            content: Text(
+              _saved == true
+                  ? 'Rezept gespeichert'
+                  : 'Aus Gespeicherten entfernt',
+            ),
             duration: const Duration(seconds: 2),
           ),
         );

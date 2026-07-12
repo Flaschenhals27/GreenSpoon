@@ -40,11 +40,13 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
   void initState() {
     super.initState();
     _rows = widget.items
-        .map((it) => _Row(
-              it,
-              selected: it.isNew,
-              action: _ExistingAction.ignore,
-            ),)
+        .map(
+          (it) => _Row(
+            it,
+            selected: it.isNew,
+            action: _ExistingAction.ignore,
+          ),
+        )
         .toList();
   }
 
@@ -90,17 +92,19 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
 
     final drafts = <PantryDraft>[];
     void addDraft(RecognizedGrocery it) {
-      drafts.add(PantryDraft(
-        name: it.name,
-        quantity: it.quantity,
-        category: it.category,
-        emoji: it.emoji,
-        expiresAt: it.expiresAt,
-        co2Kg: Co2Estimator.estimateCo2Kg(
-          category: it.category,
+      drafts.add(
+        PantryDraft(
+          name: it.name,
           quantity: it.quantity,
+          category: it.category,
+          emoji: it.emoji,
+          expiresAt: it.expiresAt,
+          co2Kg: Co2Estimator.estimateCo2Kg(
+            category: it.category,
+            quantity: it.quantity,
+          ),
         ),
-      ),);
+      );
     }
 
     for (final r in _newRows) {
@@ -178,8 +182,10 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('EINKAUF ERKANNT',
-                              style: GSTypography.label(color: muteColor),),
+                          Text(
+                            'EINKAUF ERKANNT',
+                            style: GSTypography.label(color: muteColor),
+                          ),
                           const SizedBox(height: 3),
                           Text(
                             '${widget.items.length} Lebensmittel',
@@ -706,8 +712,10 @@ class _EditItemDialogState extends State<_EditItemDialog> {
 
     return AlertDialog(
       backgroundColor: isDark ? GSColors.surfaceDark : GSColors.bgApp,
-      title: Text('Bearbeiten',
-          style: GSTypography.headline(color: inkColor, size: 20),),
+      title: Text(
+        'Bearbeiten',
+        style: GSTypography.headline(color: inkColor, size: 20),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

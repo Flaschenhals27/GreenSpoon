@@ -36,20 +36,24 @@ class ImpactScreen extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Material(
-                color: surfaceColor,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: lineColor),
+              child: Tooltip(
+                message: 'Zurück',
+                child: Material(
+                  color: surfaceColor,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: lineColor),
+                      ),
+                      child:
+                          Icon(Icons.chevron_left, color: inkColor, size: 22),
                     ),
-                    child: Icon(Icons.chevron_left, color: inkColor, size: 22),
                   ),
                 ),
               ),
@@ -59,8 +63,10 @@ class ImpactScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('DEIN IMPACT',
-                      style: GSTypography.label(color: muteColor),),
+                  Text(
+                    'DEIN IMPACT',
+                    style: GSTypography.label(color: muteColor),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Was du bewirkst',
@@ -101,48 +107,72 @@ class ImpactScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
       children: [
-        // CO₂-Hero
+        // ── 1. Die Wegwerf-Bilanz zuerst: das ist die ehrliche, nicht
+        // „gamebare" Kennzahl (misst das Outcome direkt, keine
+        // Kontrafaktik). CO₂ folgt bewusst erst danach als Schätzung.
+        Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
+        const SizedBox(height: 12),
+        _BalanceCard(stats: s, isDark: isDark, avgWeek: _avgWastePerWeekKg),
+
+        const SizedBox(height: 16),
+
+        // Buzzer-Saves
+        _BuzzerCard(saves: s.buzzerSaves, isDark: isDark),
+
+        const SizedBox(height: 26),
+
+        // ── 2. CO₂ — kompakter als früher und klar als Schätzung
+        // gerahmt, damit die Zahl nicht zum Highscore wird.
+        Text(
+          'CO₂ VERMIEDEN · SCHÄTZUNG',
+          style: GSTypography.label(color: muteColor),
+        ),
+        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             color: GSColors.primary,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(20),
           ),
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('CO₂ VERMIEDEN',
-                  style: GSTypography.label(
-                      color: GSColors.cream.withValues(alpha: 0.6),),),
-              const SizedBox(height: 8),
               Text(
                 '${_fmtKg(s.co2SavedKg)} kg',
                 style: GSTypography.headline(
                   color: GSColors.cream,
-                  size: 52,
+                  size: 34,
                   weight: FontWeight.w500,
                 ),
               ),
-              Text(
-                'in Lebensmitteln, die du verwertet\nstatt weggeworfen hast',
-                style: GSTypography.body(
-                  color: GSColors.cream.withValues(alpha: 0.85),
-                  size: 13.5,
-                  height: 1.4,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'in Lebensmitteln, die du kurz vor der Tonne noch gerettet hast',
+                    style: GSTypography.body(
+                      color: GSColors.cream.withValues(alpha: 0.85),
+                      size: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
         // Äquivalente
-        Text('DAS ENTSPRICHT UNGEFÄHR',
-            style: GSTypography.label(color: muteColor),),
+        Text(
+          'DAS ENTSPRICHT UNGEFÄHR',
+          style: GSTypography.label(color: muteColor),
+        ),
         const SizedBox(height: 12),
         if (equivalents.isEmpty)
           Text(
-            'Sobald du etwas verwertest, rechnen wir es hier in Alltags-Dinge um.',
+            'Sobald du etwas kurz vor dem MHD rettest, rechnen wir es hier in Alltags-Dinge um.',
             style: GSTypography.body(color: muteColor, size: 13.5, height: 1.4),
           )
         else ...[
@@ -164,15 +194,10 @@ class ImpactScreen extends ConsumerWidget {
 
         const SizedBox(height: 26),
 
-        // Wegwerf-Bilanz
-        Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
+        // ── 3. Methodik — macht die Zahlen erklärbar und angreifbar-sicher.
+        Text('SO RECHNEN WIR', style: GSTypography.label(color: muteColor)),
         const SizedBox(height: 12),
-        _BalanceCard(stats: s, isDark: isDark, avgWeek: _avgWastePerWeekKg),
-
-        const SizedBox(height: 16),
-
-        // Buzzer-Saves
-        _BuzzerCard(saves: s.buzzerSaves, isDark: isDark),
+        _MethodologyCard(isDark: isDark),
 
         const SizedBox(height: 16),
 
@@ -189,6 +214,77 @@ class ImpactScreen extends ConsumerWidget {
   String _fmtKg(double kg) {
     if (kg >= 10) return kg.toStringAsFixed(0);
     return kg.toStringAsFixed(1);
+  }
+}
+
+/// Erklärt die Kontrafaktik hinter „CO₂ vermieden" in drei Schritten —
+/// bewusst transparent, damit die Zahl nicht nach Greenwashing aussieht.
+class _MethodologyCard extends StatelessWidget {
+  const _MethodologyCard({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
+    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+
+    const steps = [
+      (
+        emoji: '⏳',
+        text:
+            'Nur Rettungen zählen: Lebensmittel, die du in den letzten 3 Tagen vor dem MHD (oder danach) noch verwertet hast.',
+      ),
+      (
+        emoji: '🗑️',
+        text:
+            'Ohne dich wären sie wahrscheinlich im Müll gelandet — ihr Produktions-CO₂ wäre umsonst gewesen und du hättest Ersatz gekauft.',
+      ),
+      (
+        emoji: '🧮',
+        text:
+            'Das CO₂ kommt aus Produktdaten oder einer Kategorie-Schätzung. Normal gegessene Lebensmittel zählen bewusst nicht — die vermeiden nichts.',
+      ),
+      (
+        emoji: '🍽️',
+        text:
+            'Und: Extra warten lohnt sich nicht. Frisch gegessen ist genauso gerettet — nur sicherer. Die Zahl ist ein Anhaltspunkt, kein Highscore.',
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          for (final (i, step) in steps.indexed) ...[
+            if (i > 0) const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(step.emoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    step.text,
+                    style: GSTypography.body(
+                      color: i == 0 ? inkColor : muteColor,
+                      size: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -220,13 +316,19 @@ class _EquivalentRow extends StatelessWidget {
             child: Text(
               e.label,
               style: GSTypography.body(
-                  color: inkColor, size: 14.5, weight: FontWeight.w500,),
+                color: inkColor,
+                size: 14.5,
+                weight: FontWeight.w500,
+              ),
             ),
           ),
           Text(
             e.value,
             style: GSTypography.body(
-                color: muteColor, size: 14, weight: FontWeight.w700,),
+              color: muteColor,
+              size: 14,
+              weight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -274,9 +376,10 @@ class _BalanceCard extends StatelessWidget {
                 Text(
                   '$ratePct %',
                   style: GSTypography.headline(
-                      color: GSColors.primary,
-                      size: 40,
-                      weight: FontWeight.w600,),
+                    color: GSColors.primary,
+                    size: 40,
+                    weight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Padding(
@@ -284,7 +387,10 @@ class _BalanceCard extends StatelessWidget {
                   child: Text(
                     'verwertet statt\nweggeworfen',
                     style: GSTypography.body(
-                        color: muteColor, size: 13, height: 1.3,),
+                      color: muteColor,
+                      size: 13,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
@@ -333,7 +439,10 @@ class _BalanceCard extends StatelessWidget {
                     'Diesen Monat ${_fmt(thisM)} kg weggeworfen '
                     '(${_fmt(lastM)} kg im Vormonat).',
                     style: GSTypography.body(
-                        color: inkColor, size: 13.5, height: 1.35,),
+                      color: inkColor,
+                      size: 13.5,
+                      height: 1.35,
+                    ),
                   ),
                 ),
               ],
@@ -384,13 +493,19 @@ class _BuzzerCard extends StatelessWidget {
                 Text(
                   '$saves× auf den letzten Drücker gerettet',
                   style: GSTypography.body(
-                      color: inkColor, size: 15.5, weight: FontWeight.w700,),
+                    color: inkColor,
+                    size: 15.5,
+                    weight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'So oft hast du etwas noch in den letzten 3 Tagen vor dem MHD verwertet — sonst wär\'s wohl in der Tonne gelandet.',
                   style: GSTypography.body(
-                      color: muteColor, size: 12.5, height: 1.4,),
+                    color: muteColor,
+                    size: 12.5,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),

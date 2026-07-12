@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../main_shell.dart';
+import '../../pantry/domain/pantry_item.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../../scanner/data/product_emoji.dart';
 import '../data/recipe_repository.dart';
@@ -101,7 +102,12 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                 error: (e, _) => SliverFillRemaining(
                   hasScrollBody: false,
                   child: _buildErrorOrEmptyState(
-                      context, ref, e, inkColor, muteColor,),
+                    context,
+                    ref,
+                    e,
+                    inkColor,
+                    muteColor,
+                  ),
                 ),
                 data: (recipes) {
                   if (recipes.isEmpty) {
@@ -155,32 +161,34 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     }
     if (error is RecipeException) {
       return _StatusState(
-          emoji: _emojiForType(error.type),
-          title: _titleForType(error.type),
-          message: _messageForType(error.type),
-          details: error.details,
-          textColor: textColor,
-          subtleColor: subtleColor,
-          onRetry: () {
-            if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-              refreshRecipes(ref);
-            }
-          },);
-    }
-    // Fallback für alles andere (sollte selten passieren)
-    return _StatusState(
-        emoji: '🤔',
-        title: 'Da ist was schiefgelaufen',
-        message:
-            'Irgendwas hat nicht geklappt. Du kannst es nochmal versuchen — wenn\'s bleibt, schreib uns.',
-        details: error.toString(),
+        emoji: _emojiForType(error.type),
+        title: _titleForType(error.type),
+        message: _messageForType(error.type),
+        details: error.details,
         textColor: textColor,
         subtleColor: subtleColor,
         onRetry: () {
           if (ref.read(recipeCooldownProvider.notifier).trigger()) {
             refreshRecipes(ref);
           }
-        },);
+        },
+      );
+    }
+    // Fallback für alles andere (sollte selten passieren)
+    return _StatusState(
+      emoji: '🤔',
+      title: 'Da ist was schiefgelaufen',
+      message:
+          'Irgendwas hat nicht geklappt. Du kannst es nochmal versuchen — wenn\'s bleibt, schreib uns.',
+      details: error.toString(),
+      textColor: textColor,
+      subtleColor: subtleColor,
+      onRetry: () {
+        if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+          refreshRecipes(ref);
+        }
+      },
+    );
   }
 
   String _emojiForType(RecipeErrorType t) {
@@ -217,39 +225,49 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   }
 
   List<Widget> _buildSections(
-      List<Recipe> recipes, Color muteColor, bool isDark, int gen,) {
+    List<Recipe> recipes,
+    Color muteColor,
+    bool isDark,
+    int gen,
+  ) {
     final widgets = <Widget>[];
     var i = 0;
     for (final s in Meal.values) {
       final inSection = recipes.where((r) => r.meal == s).toList();
       if (inSection.isEmpty) continue;
       final mc = _mealColors(s);
-      widgets.add(_Entrance(
-        key: ValueKey('h-$gen-${s.name}'),
-        index: i++,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(26, 14, 26, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration:
-                    BoxDecoration(color: mc.ink, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Text(s.label.toUpperCase(),
-                  style: GSTypography.label(color: mc.ink),),
-            ],
+      widgets.add(
+        _Entrance(
+          key: ValueKey('h-$gen-${s.name}'),
+          index: i++,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(26, 14, 26, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(color: mc.ink, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  s.label.toUpperCase(),
+                  style: GSTypography.label(color: mc.ink),
+                ),
+              ],
+            ),
           ),
         ),
-      ),);
+      );
       for (final r in inSection) {
-        widgets.add(_Entrance(
-          key: ValueKey('card-$gen-${r.meal.name}-${r.title}'),
-          index: i++,
-          child: _RecipeCard(recipe: r),
-        ),);
+        widgets.add(
+          _Entrance(
+            key: ValueKey('card-$gen-${r.meal.name}-${r.title}'),
+            index: i++,
+            child: _RecipeCard(recipe: r),
+          ),
+        );
       }
       widgets.add(const SizedBox(height: 12));
     }
@@ -412,7 +430,9 @@ class _RecipeCardState extends ConsumerState<_RecipeCard>
                     Container(
                       color: mc.tint.withValues(alpha: isDark ? 0.22 : 0.12),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12,),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           _EmojiCluster(
@@ -441,14 +461,14 @@ class _RecipeCardState extends ConsumerState<_RecipeCard>
   }
 
   /// Findet ein bald ablaufendes Vorrats-Item, das dieses Rezept verwertet.
-  String? _rescues(List<dynamic> expiring) {
+  String? _rescues(List<PantryItem> expiring) {
     for (final item in expiring) {
-      final n = (item.name as String).toLowerCase();
+      final n = item.name.toLowerCase();
       for (final u in widget.recipe.uses) {
         final ul = u.toLowerCase();
         if (ul.contains(n) || n.contains(ul)) {
-          final d = item.daysUntilExpiry as int?;
-          if (d == null) return item.name as String;
+          final d = item.daysUntilExpiry;
+          if (d == null) return item.name;
           return '${item.name} · ${d <= 0 ? "heute" : "$d Tg"}';
         }
       }
@@ -746,12 +766,14 @@ class _MetaChip extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: color),
         const SizedBox(width: 5),
-        Text(label,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -870,9 +892,11 @@ class _StatusStateState extends State<_StatusState> {
                   disabledForegroundColor:
                       GSColors.cream.withValues(alpha: 0.7),
                 ),
-                child: Text(onCooldown
-                    ? 'Bitte warten … ${cooldown}s'
-                    : 'Erneut versuchen',),
+                child: Text(
+                  onCooldown
+                      ? 'Bitte warten … ${cooldown}s'
+                      : 'Erneut versuchen',
+                ),
               );
             },
           ),
@@ -1128,6 +1152,7 @@ class _RefreshFooter extends ConsumerWidget {
                 ? null
                 : () {
                     if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+                      HapticFeedback.lightImpact();
                       refreshRecipes(ref);
                     }
                   },

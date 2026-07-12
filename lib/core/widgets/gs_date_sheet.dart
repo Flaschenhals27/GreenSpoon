@@ -85,9 +85,11 @@ class _GSDateSheetState extends State<_GSDateSheet> {
     // Jahr-Range: aktuelles Jahr bis +6 (typisches MHD-Fenster)
     _years = List.generate(7, (i) => nowYear + i);
 
-    _day = widget.initialDay.clamp(1, 31);
     _month = widget.initialMonth.clamp(1, 12);
     _year = _years.contains(widget.initialYear) ? widget.initialYear : nowYear;
+    // Erst nach Monat/Jahr clampen — sonst könnte z.B. Tag 31 im Februar
+    // stehen bleiben und DateTime würde still in den Folgemonat überrollen.
+    _day = widget.initialDay.clamp(1, _daysInMonth);
 
     _dayCtrl = FixedExtentScrollController(initialItem: _day - 1);
     _monthCtrl = FixedExtentScrollController(initialItem: _month - 1);
@@ -121,7 +123,8 @@ class _GSDateSheetState extends State<_GSDateSheet> {
   }
 
   void _confirm() {
-    Navigator.of(context).pop(DateTime(_year, _month, _day));
+    Navigator.of(context)
+        .pop(DateTime(_year, _month, _day.clamp(1, _daysInMonth)));
   }
 
   @override

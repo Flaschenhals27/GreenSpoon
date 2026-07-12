@@ -34,25 +34,30 @@ class Co2Equivalents {
     if (kg <= 0) return const [];
     return [
       Co2Equivalent(
-          emoji: '🚗',
-          label: 'Autofahrt',
-          value: '≈ ${_fmt(kg / _carKgPerKm)} km',),
+        emoji: '🚗',
+        label: 'Autofahrt',
+        value: '≈ ${_fmt(kg / _carKgPerKm)} km',
+      ),
       Co2Equivalent(
-          emoji: '🚌',
-          label: 'Busfahrt',
-          value: '≈ ${_fmt(kg / _busKgPerKm)} km',),
+        emoji: '🚌',
+        label: 'Busfahrt',
+        value: '≈ ${_fmt(kg / _busKgPerKm)} km',
+      ),
       Co2Equivalent(
-          emoji: '📱',
-          label: 'Handy laden',
-          value: '≈ ${_fmt(kg / _phoneChargeKg)}×',),
+        emoji: '📱',
+        label: 'Handy laden',
+        value: '≈ ${_fmt(kg / _phoneChargeKg)}×',
+      ),
       Co2Equivalent(
-          emoji: '🚿',
-          label: 'Warm duschen',
-          value: '≈ ${_fmt(kg / _showerKg)}×',),
+        emoji: '🚿',
+        label: 'Warm duschen',
+        value: '≈ ${_fmt(kg / _showerKg)}×',
+      ),
       Co2Equivalent(
-          emoji: '🌳',
-          label: 'Baum-Arbeit',
-          value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage',),
+        emoji: '🌳',
+        label: 'Baum-Arbeit',
+        value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage',
+      ),
     ];
   }
 

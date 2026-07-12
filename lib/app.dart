@@ -30,9 +30,21 @@ class GreenSpoonApp extends ConsumerWidget {
       ],
       supportedLocales: const [Locale('de'), Locale('en')],
       builder: (context, child) {
+        // Die System-Textgröße wird respektiert, aber auf einen Bereich
+        // geklemmt, den alle Layouts sicher tragen (Headlines bis 52pt,
+        // enge Karten-Zeilen). So bleibt große Schrift nutzbar, ohne dass
+        // Texte clippen oder Buttons aus dem Screen wachsen.
+        final mq = MediaQuery.of(context);
+        final clampedScaler = mq.textScaler.clamp(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.35,
+        );
         // child = der gerouteten Inhalt. Wir legen bei Bedarf das
         // Onboarding darüber, bis es abgeschlossen ist.
-        return _OnboardingGate(child: child ?? const SizedBox.shrink());
+        return MediaQuery(
+          data: mq.copyWith(textScaler: clampedScaler),
+          child: _OnboardingGate(child: child ?? const SizedBox.shrink()),
+        );
       },
     );
   }

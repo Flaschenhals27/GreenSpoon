@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../../core/utils/display_name.dart';
 import '../../../core/widgets/mascot.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/notification_scheduler.dart';
@@ -45,6 +46,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (mounted) setState(() => _appVersion = info.version);
   }
 
+  /// Dialog zum Ändern des Anzeigenamens. Der Name landet in den
+  /// Supabase-User-Metadaten; das `userUpdated`-Event aktualisiert
+  /// [currentUserProvider] und damit Begrüßung + Profil automatisch.
+  ///
+  /// Der Dialog ist ein eigenes StatefulWidget, das seinen
+  /// TextEditingController selbst besitzt — ein dispose() hier draußen
+  /// würde den Controller töten, während die Schließ-Animation des
+  /// Dialogs noch läuft (→ „used after being disposed"-Fehlerscreen).
+  Future<void> _editDisplayName(String current) async {
+    final saved = await showDialog<String>(
+      context: context,
+      builder: (_) => _NameEditDialog(initial: current),
+    );
+    if (saved == null || saved.trim() == current) return;
+    try {
+      await ref.read(authRepositoryProvider).updateDisplayName(saved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              saved.trim().isEmpty
+                  ? 'Name zurückgesetzt'
+                  : 'Alles klar, ${saved.trim()}!',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Name konnte nicht gespeichert werden.'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadNotifSettings() async {
     final enabled = await NotificationSettings.isEnabled();
     final t = await NotificationSettings.getTime();
@@ -68,6 +107,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final email = user?.email ?? 'unbekannt';
     final initial = email.isNotEmpty ? email[0].toUpperCase() : '?';
+    // Anzeigename: selbst gesetzt → sonst aus der E-Mail abgeleitet.
+    // Bearbeitbar direkt am Namen (Stift daneben), keine eigene Kachel.
+    final rawName = user?.userMetadata?['display_name'];
+    final customName = rawName is String ? rawName.trim() : '';
+    final headlineName = customName.isNotEmpty
+        ? customName
+        : (deriveDisplayNameFromEmail(email) ?? email.split('@').first);
     final memberSince = user?.createdAt != null
         ? _formatMonthYear(DateTime.parse(user!.createdAt))
         : '—';
@@ -96,9 +142,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Text('PROFIL', style: GSTypography.label(color: muteColor)),
                     const SizedBox(height: 8),
-                    Text(
-                      email.split('@').first,
-                      style: GSTypography.headline(color: inkColor, size: 34),
+                    // Name + Stift direkt daneben — bearbeiten, wo man liest.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            headlineName,
+                            overflow: TextOverflow.ellipsis,
+                            style: GSTypography.headline(
+                              color: inkColor,
+                              size: 34,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: 'Namen ändern',
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => _editDisplayName(headlineName),
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.edit_outlined,
+                                color: muteColor,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -242,7 +316,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'CO₂ gespart',
+                                      'CO₂ gerettet',
                                       style: GSTypography.body(
                                         color: GSColors.cream
                                             .withValues(alpha: 0.6),
@@ -721,7 +795,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              // Kleiner Abschieds-Gruß unterm Einstellungs-Screen —
+              // Löffel-Wortspiel auf „Frisch gewagt ist halb gewonnen".
+              Center(
+                child: Text(
+                  '„Gut gelöffelt ist halb gerettet." 🥄🌿',
+                  textAlign: TextAlign.center,
+                  style: GSTypography.italicCaption(color: muteColor)
+                      .copyWith(fontSize: 13.5),
+                ),
+              ),
+              const SizedBox(height: 6),
               Center(
                 child: Text(
                   _appVersion.isEmpty
@@ -779,6 +864,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
+            // Endliche Mindestbreite: das Theme-Default (volle Breite)
+            // crasht in den unbegrenzten Dialog-Actions.
+            style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
             child: const Text('Abmelden'),
           ),
         ],
@@ -915,6 +1003,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+
+/// Eingabe-Dialog für den Anzeigenamen. Besitzt seinen Controller selbst
+/// (Disposal erst nach vollständigem Schließen der Route — kein Zugriff
+/// auf einen toten Controller während der Ausblend-Animation).
+class _NameEditDialog extends StatefulWidget {
+  const _NameEditDialog({required this.initial});
+  final String initial;
+
+  @override
+  State<_NameEditDialog> createState() => _NameEditDialogState();
+}
+
+class _NameEditDialogState extends State<_NameEditDialog> {
+  late final TextEditingController _ctrl =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Wie sollen wir dich nennen?'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        maxLength: 30,
+        decoration: const InputDecoration(
+          hintText: 'z.B. Fabian',
+          counterText: '',
+        ),
+        onSubmitted: (v) => Navigator.of(context).pop(v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_ctrl.text),
+          // Das Theme setzt volle Breite (Size.fromHeight) — in den
+          // Dialog-Actions (OverflowBar, unbegrenzte Breite) würde das
+          // eine unendliche Mindestbreite erzwingen → Layout-Crash.
+          style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
+          child: const Text('Speichern'),
+        ),
+      ],
+    );
+  }
+}
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.text, required this.muteColor});

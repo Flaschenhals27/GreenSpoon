@@ -36,6 +36,10 @@ abstract interface class AuthRepository {
   /// Setzt das neue Passwort für den (per Recovery-Session) eingeloggten User.
   Future<UserResponse> updatePassword(String newPassword);
 
+  /// Setzt den Anzeigenamen (User-Metadaten `display_name`).
+  /// Leerer String entfernt den Namen wieder.
+  Future<UserResponse> updateDisplayName(String name);
+
   /// Logout.
   Future<void> signOut();
 }
@@ -108,6 +112,13 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<UserResponse> updatePassword(String newPassword) {
     return _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  @override
+  Future<UserResponse> updateDisplayName(String name) {
+    return _client.auth.updateUser(
+      UserAttributes(data: {'display_name': name.trim()}),
+    );
   }
 
   @override

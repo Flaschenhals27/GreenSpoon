@@ -54,8 +54,10 @@ class GSAppBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (subtitle != null) ...[
-                  Text(subtitle!.toUpperCase(),
-                      style: GSTypography.label(color: subtleColor),),
+                  Text(
+                    subtitle!.toUpperCase(),
+                    style: GSTypography.label(color: subtleColor),
+                  ),
                   const SizedBox(height: 2),
                 ],
                 Text(

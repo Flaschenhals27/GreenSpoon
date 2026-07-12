@@ -26,8 +26,15 @@ final recipeCacheProvider = Provider<RecipeCache>((ref) {
 /// der Vorrat des Users leer ist — dann lohnt sich der API-Call nicht
 /// und das UI zeigt einen passenden Empty-State.
 final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
-  // Erst checken, ob der User überhaupt Vorrat hat.
-  // Wir hören auf den Stream, lesen aber nur den aktuellen Wert.
+  // NUR das Leer-Flag des Vorrats beobachten (select) — nicht den Inhalt.
+  // So heilt sich der „Vorrat leer"-Zustand von selbst, sobald das erste
+  // Item hinzukommt, ohne dass jede normale Vorrats-Änderung einen
+  // teuren Generierungs-Lauf anstößt (Inhalts-Änderungen bei gleichem
+  // Leer-Status lösen dank select-Gleichheit keinen Rebuild aus).
+  ref.watch(
+    pantryStreamProvider.select((async) => async.valueOrNull?.isEmpty),
+  );
+
   final pantry = await ref.read(pantryStreamProvider.future);
   if (pantry.isEmpty) {
     throw const PantryEmptyException();

@@ -25,10 +25,16 @@ class UserStats {
   /// Insgesamt weggeworfene Items.
   final int wastedTotal;
 
-  /// Verwertet ≤ [UserStatsCalculator.buzzerThresholdDays] Tage vor MHD.
+  /// Verwertet ≤ `UserStatsCalculator.buzzerThresholdDays` Tage vor MHD
+  /// (oder danach) — also plausibel vor der Tonne gerettet.
   final int buzzerSaves;
 
+  /// CO₂e (kg) der *geretteten* Items ([buzzerSaves]-Kohorte) — nicht des
+  /// gesamten Konsums. Kontrafaktik siehe `UserStatsCalculator`-Doku.
   final double co2SavedKg;
+
+  /// Geschätzter Warenwert (€) der geretteten Items — der vermiedene
+  /// Ersatzkauf. Gleiche Kohorte wie [co2SavedKg].
   final double eurSaved;
   final double wastedKgThisMonth;
   final double wastedKgLastMonth;

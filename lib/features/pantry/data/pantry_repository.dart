@@ -35,6 +35,22 @@ abstract interface class PantryRepository {
   /// Ändert nur das MHD eines Items.
   Future<void> updateExpiry(String id, DateTime? expiresAt);
 
+  /// Passt Menge (+ anteiliges CO₂) eines Items an — für
+  /// „teilweise verbraucht" (halbe Packung weg, Rest bleibt im Vorrat).
+  Future<void> updateQuantity(String id, {String? quantity, double? co2Kg});
+
+  /// Verbucht einen Teil eines Items als verbraucht: legt für den
+  /// gegessenen Anteil eine `consumed`-Archivzeile an (zählt damit in die
+  /// Statistik — inkl. anteiliger Rettungs-Logik, weil MHD und Entnahme-
+  /// Datum mitkopiert werden) und verkleinert das aktive Item.
+  Future<void> consumePartial({
+    required PantryItem item,
+    required String remainingQuantity,
+    required String consumedQuantity,
+    double? remainingCo2,
+    double? consumedCo2,
+  });
+
   /// Backwards-kompatibler Alias — Default-Grund: 'discarded'.
   Future<void> delete(String id);
 
@@ -87,16 +103,24 @@ class SupabasePantryRepository implements PantryRepository {
           });
           return items;
         })
-        .handleError((error) async {
-          // Token-Probleme: einmalig versuchen zu refreshen, dann signOut
+        .handleError((Object error) {
+          // Token-Probleme behandeln wir selbst; alles andere muss beim
+          // Stream-Konsumenten ankommen (sonst zeigt das UI nie einen Fehler).
           if (error.toString().toLowerCase().contains('jwt')) {
-            try {
-              await _client.auth.refreshSession();
-            } catch (_) {
-              await _client.auth.signOut();
-            }
+            _recoverSession();
+          } else {
+            throw error;
           }
         });
+  }
+
+  /// Einmalig versuchen, die Session zu refreshen — klappt das nicht, signOut.
+  Future<void> _recoverSession() async {
+    try {
+      await _client.auth.refreshSession();
+    } catch (_) {
+      await _client.auth.signOut();
+    }
   }
 
   @override
@@ -150,17 +174,19 @@ class SupabasePantryRepository implements PantryRepository {
     }
 
     final rows = drafts
-        .map((d) => {
-              'user_id': userId,
-              'name': d.name,
-              'brand': d.brand,
-              'quantity': d.quantity,
-              'category': d.category,
-              'barcode': d.barcode,
-              'emoji': d.emoji,
-              'expires_at': d.expiresAt?.toIso8601String().split('T').first,
-              'co2_kg': d.co2Kg,
-            },)
+        .map(
+          (d) => {
+            'user_id': userId,
+            'name': d.name,
+            'brand': d.brand,
+            'quantity': d.quantity,
+            'category': d.category,
+            'barcode': d.barcode,
+            'emoji': d.emoji,
+            'expires_at': d.expiresAt?.toIso8601String().split('T').first,
+            'co2_kg': d.co2Kg,
+          },
+        )
         .toList();
 
     await _client.from(_table).insert(rows).timeout(
@@ -214,6 +240,52 @@ class SupabasePantryRepository implements PantryRepository {
     await _client.from(_table).update({
       'expires_at': expiresAt?.toIso8601String().split('T').first,
     }).eq('id', id);
+  }
+
+  /// Passt Menge und anteiliges CO₂ an („teilweise verbraucht").
+  @override
+  Future<void> updateQuantity(
+    String id, {
+    String? quantity,
+    double? co2Kg,
+  }) async {
+    await _client.from(_table).update({
+      'quantity': quantity,
+      'co2_kg': co2Kg,
+    }).eq('id', id);
+  }
+
+  /// Teil-Verbrauch: erst die Archivzeile für den gegessenen Anteil
+  /// anlegen, dann das aktive Item verkleinern. Schlägt der zweite
+  /// Schritt fehl, ist schlimmstenfalls etwas zu viel verbucht —
+  /// niemals geht Bestand verloren.
+  @override
+  Future<void> consumePartial({
+    required PantryItem item,
+    required String remainingQuantity,
+    required String consumedQuantity,
+    double? remainingCo2,
+    double? consumedCo2,
+  }) async {
+    await _client.from(_table).insert({
+      'user_id': item.userId,
+      'name': item.name,
+      'brand': item.brand,
+      'quantity': consumedQuantity,
+      'category': item.category,
+      'barcode': item.barcode,
+      'emoji': item.emoji,
+      'expires_at': item.expiresAt?.toIso8601String().split('T').first,
+      'co2_kg': consumedCo2,
+      'status': 'consumed',
+      'removed_at': DateTime.now().toUtc().toIso8601String(),
+    });
+
+    await updateQuantity(
+      item.id,
+      quantity: remainingQuantity,
+      co2Kg: remainingCo2,
+    );
   }
 
   /// Backwards-kompatibler Alias — wird vom Dismissible-Wisch aufgerufen.

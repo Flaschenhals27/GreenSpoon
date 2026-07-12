@@ -18,8 +18,11 @@ landet. Inklusive CO₂-Bilanz, lokalen Ablauf-Erinnerungen und Dark/Light-Theme
 - **KI-Rezepte** – Vorschläge passend zum aktuellen Vorrat, generiert über
   eine Supabase Edge Function (API-Key bleibt serverseitig).
 - **Erinnerungen** – lokale Push-Benachrichtigungen, bevor etwas verdirbt.
-- **CO₂-Bilanz** – geschätzte Einsparung & anschauliche Äquivalente, plus
-  persönliche Statistiken.
+- **CO₂-Bilanz** – kontrafaktisch gerechnet: als „vermieden" zählt nur das
+  CO₂ von Lebensmitteln, die ≤ 3 Tage vor dem MHD (oder danach) noch
+  verwertet wurden — die wären sonst plausibel im Müll gelandet. Normaler
+  Konsum zählt bewusst nicht. Dazu anschauliche Äquivalente (Auto-km,
+  Duschen, …) und persönliche Statistiken.
 - **Profil & Auth** – Email/Passwort-Login, Registrierung, In-App-Passwort-
   Reset per Code, lokal wählbares Profilbild.
 - **Onboarding**, **Dark/Light-Mode**, Schriften Fraunces + Inter.
