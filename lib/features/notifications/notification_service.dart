@@ -3,7 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
-import '../main_shell.dart';
 
 /// Kapselt alles rund um lokale Notifications.
 ///
@@ -20,6 +19,11 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  /// Wird beim Tippen auf eine Ablauf-Notification aufgerufen (öffnet in der
+  /// App den Rezepte-Tab). Als Callback injiziert, damit dieser Service die
+  /// UI-Schicht nicht kennen muss (Dependency Inversion).
+  VoidCallback? _onOpenRecipes;
 
   static const _channelId = 'green_spoon_expiry';
   static const _channelName = 'Ablauf-Erinnerungen';
@@ -41,7 +45,8 @@ class NotificationService {
   static int scheduledIdForSlot(int slot) => _scheduledIdBase + slot;
 
   /// Einmal beim App-Start aufrufen.
-  Future<void> initialize() async {
+  Future<void> initialize({VoidCallback? onOpenRecipes}) async {
+    _onOpenRecipes = onOpenRecipes;
     if (_initialized) return;
     _initialized = true;
 
@@ -189,10 +194,7 @@ class NotificationService {
     }
   }
 
-  static void _onTapped(NotificationResponse resp) {
-    if (resp.payload == 'recipes') {
-      // Rezepte-Tab ist Index 1
-      mainShellTabNotifier.value = 1;
-    }
+  void _onTapped(NotificationResponse resp) {
+    if (resp.payload == 'recipes') _onOpenRecipes?.call();
   }
 }

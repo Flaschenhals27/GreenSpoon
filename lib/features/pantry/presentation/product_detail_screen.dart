@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/mascot.dart';
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../../core/widgets/gs_snackbar.dart';
@@ -60,7 +61,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Future<void> _showCelebration() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tone = GSTone.of(context);
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -84,7 +85,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
           ),
           child: Dialog(
-            backgroundColor: isDark ? GSColors.surfaceDark : GSColors.surface,
+            backgroundColor: tone.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
@@ -98,7 +99,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   Text(
                     'Stark, gerettet!',
                     style: GSTypography.headline(
-                      color: isDark ? GSColors.inkDark : GSColors.ink,
+                      color: tone.ink,
                       size: 22,
                     ),
                   ),
@@ -411,12 +412,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final days = _item.daysUntilExpiry;
 
@@ -513,7 +514,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             // Status-Card (Countdown)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: _StatusCard(item: _item, days: days, isDark: isDark),
+              child: _StatusCard(item: _item, days: days),
             ),
             const SizedBox(height: 16),
 
@@ -529,10 +530,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       label: const Text('Verbraucht'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor:
-                            isDark ? GSColors.primaryMid : GSColors.primary,
+                            tone.primary,
                         side: BorderSide(
                           color:
-                              (isDark ? GSColors.primaryMid : GSColors.primary)
+                              (tone.primary)
                                   .withValues(alpha: 0.4),
                         ),
                         minimumSize: const Size.fromHeight(50),
@@ -623,22 +624,21 @@ class _StatusCard extends StatelessWidget {
   const _StatusCard({
     required this.item,
     required this.days,
-    required this.isDark,
   });
   final PantryItem item;
   final int? days;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
     Color bg;
     Color fg;
     String label;
     String big;
 
     if (days == null) {
-      bg = isDark ? GSColors.surfaceDark : GSColors.surface;
-      fg = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+      bg = tone.surface;
+      fg = tone.inkMute;
       label = 'KEIN MHD';
       big = '—';
     } else if (days! < 0) {
@@ -657,10 +657,8 @@ class _StatusCard extends StatelessWidget {
       label = 'LÄUFT BALD AB';
       big = '$days T.';
     } else {
-      bg = isDark
-          ? GSColors.primaryMid.withValues(alpha: 0.15)
-          : GSColors.primary.withValues(alpha: 0.10);
-      fg = isDark ? GSColors.primaryMid : GSColors.primary;
+      bg = tone.primary.withValues(alpha: tone.isDark ? 0.15 : 0.10);
+      fg = tone.primary;
       label = 'NOCH HALTBAR';
       big = '$days T.';
     }
@@ -712,9 +710,9 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/gs_colors.dart';
+import '../theme/gs_tone.dart';
 import '../theme/gs_typography.dart';
 
 /// Zeigt ein Bottom-Sheet mit drei scrollbaren Wheels (Tag, Monat, Jahr).
@@ -129,12 +130,10 @@ class _GSDateSheetState extends State<_GSDateSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? GSColors.cardDark : GSColors.cardLight;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final tone = GSTone.of(context);
+    final bg = tone.surface;
+    final textColor = tone.ink;
+    final subtleColor = tone.ink.withValues(alpha: 0.55);
 
     final fmt = DateFormat('EEEE, d. MMMM y', 'de_DE');
     final preview =

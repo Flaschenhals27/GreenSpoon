@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../scanner/data/co2_estimator.dart';
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../scanner/data/product_emoji.dart';
@@ -121,10 +122,10 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
 
     return Dialog(
       backgroundColor: bgColor,
@@ -190,10 +191,10 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: isDark ? GSColors.surfaceDark : GSColors.surface,
+                  color: tone.surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: isDark ? GSColors.lineDark : GSColors.line,
+                    color: tone.line,
                   ),
                 ),
                 child: Row(
@@ -238,14 +239,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _saving ? null : _save,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      backgroundColor: GSColors.primary,
-                      foregroundColor: GSColors.cream,
-                    ),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                     child: _saving
                         ? const SizedBox(
                             width: 18,
@@ -296,11 +290,11 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       decoration: BoxDecoration(
@@ -351,11 +345,11 @@ class _UnitField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       width: 108,
@@ -407,11 +401,11 @@ class _CategoryField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       decoration: BoxDecoration(

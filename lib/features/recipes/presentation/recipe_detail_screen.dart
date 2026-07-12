@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_snackbar.dart';
 import '../../../core/widgets/mascot.dart';
@@ -31,14 +32,14 @@ class RecipeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Scaffold(
-      backgroundColor: isDark ? GSColors.bgAppDark : GSColors.bgApp,
+      backgroundColor: tone.bg,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.only(bottom: 40),
@@ -151,7 +152,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                           t,
                           style: TextStyle(
                             color:
-                                isDark ? GSColors.primaryMid : GSColors.primary,
+                                tone.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -203,7 +204,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                           '${i + 1}',
                           style: TextStyle(
                             color:
-                                isDark ? GSColors.primaryMid : GSColors.primary,
+                                tone.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -237,14 +238,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                   onPressed: () => _openCookedSheet(context),
                   icon: const Icon(Icons.restaurant, size: 18),
                   label: const Text('Gekocht! Zutaten verbuchen'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    backgroundColor: GSColors.primary,
-                    foregroundColor: GSColors.cream,
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                 ),
               ),
           ],
@@ -370,12 +364,12 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final rows = _rows;
     final selectedCount = rows?.where((r) => r.selected).length ?? 0;
@@ -502,18 +496,7 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: (_saving || selectedCount == 0) ? null : _consume,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    backgroundColor: GSColors.primary,
-                    foregroundColor: GSColors.cream,
-                    disabledBackgroundColor:
-                        GSColors.primary.withValues(alpha: 0.4),
-                    disabledForegroundColor:
-                        GSColors.cream.withValues(alpha: 0.7),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   child: _saving
                       ? const SizedBox(
                           width: 18,
@@ -585,11 +568,11 @@ class _IngredientBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),

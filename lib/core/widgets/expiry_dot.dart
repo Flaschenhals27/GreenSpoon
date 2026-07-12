@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/gs_colors.dart';
+import '../theme/gs_tone.dart';
 
 /// Pille mit farbigem Punkt + Label für den Ablauf-Status eines Items.
 ///
@@ -30,13 +31,13 @@ class ExpiryDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tone = GSTone.of(context);
 
     if (days == null) {
       return _build(
-        textColor: isDark ? GSColors.inkMuteDark : GSColors.inkMute,
+        textColor: tone.inkMute,
         bg: Colors.transparent,
-        dotColor: isDark ? GSColors.inkMuteDark : GSColors.inkMute,
+        dotColor: tone.inkMute,
         label: 'kein MHD',
       );
     }
@@ -68,23 +69,22 @@ class ExpiryDot extends StatelessWidget {
     }
     if (d <= 7) {
       return _build(
-        textColor: isDark ? GSColors.primaryMid : GSColors.primary,
-        bg: (isDark ? GSColors.primaryMid : GSColors.primary)
-            .withValues(alpha: 0.10),
-        dotColor: isDark ? GSColors.primaryMid : GSColors.primary,
+        textColor: tone.primary,
+        bg: tone.primary.withValues(alpha: 0.10),
+        dotColor: tone.primary,
         label: '$d Tage',
       );
     }
     if (d < 60) {
       return _build(
-        textColor: isDark ? GSColors.inkMuteDark : GSColors.inkMute,
+        textColor: tone.inkMute,
         bg: Colors.transparent,
         dotColor: const Color(0xFFA7B1A8),
         label: '$d T.',
       );
     }
     return _build(
-      textColor: isDark ? GSColors.inkMuteDark : GSColors.inkMute,
+      textColor: tone.inkMute,
       bg: Colors.transparent,
       dotColor: const Color(0xFFA7B1A8),
       label: '${(d / 30).round()} Mon.',

@@ -96,6 +96,8 @@ class GSTheme {
         style: FilledButton.styleFrom(
           backgroundColor: GSColors.primary,
           foregroundColor: GSColors.cream,
+          disabledBackgroundColor: GSColors.primary.withValues(alpha: 0.4),
+          disabledForegroundColor: GSColors.cream.withValues(alpha: 0.7),
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999),
@@ -217,6 +219,8 @@ class GSTheme {
         style: FilledButton.styleFrom(
           backgroundColor: GSColors.primaryMid,
           foregroundColor: GSColors.bgAppDark,
+          disabledBackgroundColor: GSColors.primaryMid.withValues(alpha: 0.4),
+          disabledForegroundColor: GSColors.bgAppDark.withValues(alpha: 0.7),
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999),

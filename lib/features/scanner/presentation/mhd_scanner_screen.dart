@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart'
     show openAppSettings;
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../data/mhd_parser.dart';
 
@@ -250,12 +251,12 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final c = _controller;
 
@@ -408,14 +409,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () => _finish(_stickyDate),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          backgroundColor: GSColors.primary,
-                          foregroundColor: GSColors.cream,
-                        ),
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                         child: Text(
                           'Datum übernehmen · ${_format(_stickyDate!)}',
                           style: GSTypography.body(
@@ -494,14 +488,7 @@ class _CameraProblemInfo extends StatelessWidget {
             const SizedBox(height: 14),
             FilledButton(
               onPressed: onButton,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(190, 42),
-                backgroundColor: GSColors.primary,
-                foregroundColor: GSColors.cream,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
+              style: FilledButton.styleFrom(minimumSize: const Size(190, 42)),
               child: Text(buttonLabel!),
             ),
           ],

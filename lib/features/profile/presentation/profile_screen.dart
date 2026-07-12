@@ -3,24 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/utils/display_name.dart';
-import '../../../core/widgets/mascot.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../../notifications/notification_scheduler.dart';
-import '../../notifications/notification_service.dart';
-import '../../notifications/notification_settings.dart';
-import '../../pantry/providers/pantry_providers.dart';
 import '../../recipes/presentation/saved_recipes_screen.dart';
 import '../../recipes/providers/saved_recipe_providers.dart';
-import '../../settings/theme_providers.dart';
-import '../providers/profile_providers.dart';
-import 'dietary_prefs_sheet.dart';
-import 'impact_screen.dart';
-import 'profile_avatar.dart';
 import '../providers/avatar_providers.dart';
 import '../providers/dietary_prefs_providers.dart';
+import '../providers/profile_providers.dart';
+import 'dietary_prefs_sheet.dart';
+import 'profile_avatar.dart';
+import 'widgets/impact_hero_card.dart';
+import 'widgets/name_edit_dialog.dart';
+import 'widgets/reminder_settings_card.dart';
+import 'widgets/settings_tiles.dart';
+import 'widgets/theme_section.dart';
 
+/// Profil-Tab: Nutzerdaten, Impact-Statistiken und alle Einstellungen.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -29,15 +29,11 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _notifEnabled = false;
-  int _notifHour = 8;
-  int _notifMinute = 0;
   String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
-    _loadNotifSettings();
     _loadVersion();
   }
 
@@ -49,15 +45,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Dialog zum Ändern des Anzeigenamens. Der Name landet in den
   /// Supabase-User-Metadaten; das `userUpdated`-Event aktualisiert
   /// [currentUserProvider] und damit Begrüßung + Profil automatisch.
-  ///
-  /// Der Dialog ist ein eigenes StatefulWidget, das seinen
-  /// TextEditingController selbst besitzt — ein dispose() hier draußen
-  /// würde den Controller töten, während die Schließ-Animation des
-  /// Dialogs noch läuft (→ „used after being disposed"-Fehlerscreen).
   Future<void> _editDisplayName(String current) async {
     final saved = await showDialog<String>(
       context: context,
-      builder: (_) => _NameEditDialog(initial: current),
+      builder: (_) => NameEditDialog(initial: current),
     );
     if (saved == null || saved.trim() == current) return;
     try {
@@ -84,24 +75,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _loadNotifSettings() async {
-    final enabled = await NotificationSettings.isEnabled();
-    final t = await NotificationSettings.getTime();
-    if (mounted) {
-      setState(() {
-        _notifEnabled = enabled;
-        _notifHour = t.hour;
-        _notifMinute = t.minute;
-      });
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Wirklich abmelden?'),
+        content: const Text('Du wirst zum Login-Screen zurückgeleitet.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            // Endliche Mindestbreite: das Theme-Default (volle Breite)
+            // crasht in den unbegrenzten Dialog-Actions.
+            style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
+            child: const Text('Abmelden'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(authRepositoryProvider).signOut();
     }
+  }
+
+  String _formatMonthYear(DateTime d) {
+    const months = [
+      'Januar',
+      'Februar',
+      'März',
+      'April',
+      'Mai',
+      'Juni',
+      'Juli',
+      'August',
+      'September',
+      'Oktober',
+      'November',
+      'Dezember',
+    ];
+    return '${months[d.month - 1]} ${d.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-
+    final tone = GSTone.of(context);
     final user = ref.watch(currentUserProvider);
     final stats = ref.watch(userStatsProvider);
 
@@ -134,236 +154,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 40),
             children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('PROFIL', style: GSTypography.label(color: muteColor)),
-                    const SizedBox(height: 8),
-                    // Name + Stift direkt daneben — bearbeiten, wo man liest.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            headlineName,
-                            overflow: TextOverflow.ellipsis,
-                            style: GSTypography.headline(
-                              color: inkColor,
-                              size: 34,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Namen ändern',
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () => _editDisplayName(headlineName),
-                            child: Padding(
-                              padding: const EdgeInsets.all(6),
-                              child: Icon(
-                                Icons.edit_outlined,
-                                color: muteColor,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              _header(tone, headlineName),
+              _identityRow(tone, initial, email, memberSince),
 
-              // Avatar + Meta
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        final hasAvatar =
-                            ref.read(avatarProvider).valueOrNull != null;
-                        showAvatarPicker(context, ref, hasAvatar: hasAvatar);
-                      },
-                      child: ProfileAvatar(
-                        initial: initial,
-                        size: 64,
-                        showEditBadge: true,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            email,
-                            style: GSTypography.body(
-                              color: inkColor,
-                              size: 14.5,
-                              weight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Mitglied seit $memberSince',
-                            style: GSTypography.body(
-                              color: muteColor,
-                              size: 12.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               // Großer Impact-Block
               stats.maybeWhen(
-                data: (s) => Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ImpactScreen()),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: GSColors.primary,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'DEIN IMPACT',
-                                      style: GSTypography.label(
-                                        color: GSColors.cream
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      s.hasHistory
-                                          ? '${(s.useRate * 100).round()} %'
-                                          : '—',
-                                      style: GSTypography.headline(
-                                        color: GSColors.cream,
-                                        size: 52,
-                                        weight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      s.hasHistory
-                                          ? 'verwertet statt weggeworfen'
-                                          : 'Verbrauche Items, um deine Quote zu sehen',
-                                      style: GSTypography.body(
-                                        color: GSColors.cream
-                                            .withValues(alpha: 0.85),
-                                        size: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Mascot(
-                                pose: MascotPose.celebrating,
-                                size: 96,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Diese Woche',
-                                      style: GSTypography.body(
-                                        color: GSColors.cream
-                                            .withValues(alpha: 0.6),
-                                        size: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${s.cookedThisWeek}',
-                                      style: GSTypography.headline(
-                                        color: GSColors.cream,
-                                        size: 24,
-                                        weight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'CO₂ gerettet',
-                                      style: GSTypography.body(
-                                        color: GSColors.cream
-                                            .withValues(alpha: 0.6),
-                                        size: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${_formatCo2(s.co2SavedKg)} kg',
-                                      style: GSTypography.headline(
-                                        color: GSColors.cream,
-                                        size: 24,
-                                        weight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Details ansehen',
-                                style: GSTypography.body(
-                                  color: GSColors.cream.withValues(alpha: 0.9),
-                                  size: 13,
-                                  weight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward,
-                                color: GSColors.cream.withValues(alpha: 0.9),
-                                size: 16,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                data: (s) => ImpactHeroCard(stats: s),
                 orElse: () => const SizedBox.shrink(),
               ),
+
               // Stats
               stats.when(
                 loading: () => const Padding(
@@ -374,38 +173,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Text(
                     'Stats konnten nicht geladen werden.',
-                    style: GSTypography.body(color: muteColor, size: 13),
+                    style: GSTypography.body(color: tone.inkMute, size: 13),
                   ),
                 ),
-                data: (s) => _Card(
-                  isDark: isDark,
+                data: (s) => SettingsCard(
                   children: [
-                    _StatRow(
-                      label: 'Im Vorrat',
-                      value: '${s.inPantry}',
-                    ),
-                    _Divider(isDark: isDark),
-                    _StatRow(
+                    StatRow(label: 'Im Vorrat', value: '${s.inPantry}'),
+                    const SettingsDivider(),
+                    StatRow(
                       label: 'Diese Woche verwertet',
                       value: '${s.cookedThisWeek}',
                     ),
-                    _Divider(isDark: isDark),
-                    _StatRow(
+                    const SettingsDivider(),
+                    StatRow(
                       label: 'Verwertet gesamt',
                       value: '${s.consumedTotal}',
                     ),
-                    _Divider(isDark: isDark),
-                    _StatRow(
+                    const SettingsDivider(),
+                    StatRow(
                       label: 'Weggeworfen gesamt',
                       value: '${s.wastedTotal}',
                     ),
-                    _Divider(isDark: isDark),
-                    _StatRow(
+                    const SettingsDivider(),
+                    StatRow(
                       label: 'Auf den letzten Drücker',
                       value: '${s.buzzerSaves}',
                     ),
-                    _Divider(isDark: isDark),
-                    _StatRow(
+                    const SettingsDivider(),
+                    StatRow(
                       label: 'Eingespart (Schätzung)',
                       value: '${s.eurSaved.toStringAsFixed(0)} €',
                     ),
@@ -415,385 +210,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
               const SizedBox(height: 24),
 
-              // MEINE REZEPTE
-              _SectionLabel(text: 'MEINE REZEPTE', muteColor: muteColor),
-              Consumer(
-                builder: (context, ref, _) {
-                  final saved = ref.watch(savedRecipesProvider);
-                  final count = saved.maybeWhen(
-                    data: (r) => r.length,
-                    orElse: () => null,
-                  );
-                  final subtitle = count == null
-                      ? 'Deine Sammlung'
-                      : count == 0
-                          ? 'Noch nichts gespeichert'
-                          : '$count gespeichert';
-                  return _Card(
-                    isDark: isDark,
-                    children: [
-                      InkWell(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SavedRecipesScreen(),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.bookmark_outline,
-                                color: muteColor,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Gespeicherte Rezepte',
-                                      style: GSTypography.body(
-                                        color: inkColor,
-                                        size: 14.5,
-                                        weight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      subtitle,
-                                      style: GSTypography.body(
-                                        color: muteColor,
-                                        size: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: muteColor,
-                                size: 22,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+              const SectionLabel(text: 'MEINE REZEPTE'),
+              _savedRecipesCard(),
 
               const SizedBox(height: 24),
 
-              // ERNÄHRUNG
-              _SectionLabel(text: 'ERNÄHRUNG', muteColor: muteColor),
-              Consumer(
-                builder: (context, ref, _) {
-                  final prefs = ref.watch(dietaryPrefsProvider);
-                  final tags = prefs.maybeWhen(
-                    data: (t) => t,
-                    orElse: () => const <String>[],
-                  );
-                  return _Card(
-                    isDark: isDark,
-                    children: [
-                      InkWell(
-                        onTap: () async {
-                          await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => DietaryPrefsSheet(initial: tags),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.restaurant_outlined,
-                                color: muteColor,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Ernährungsweise',
-                                      style: GSTypography.body(
-                                        color: inkColor,
-                                        size: 14.5,
-                                        weight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      tags.isEmpty
-                                          ? 'Keine Vorgaben — alles ist ok'
-                                          : tags.join(' · '),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GSTypography.body(
-                                        color: muteColor,
-                                        size: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: muteColor,
-                                size: 22,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+              const SectionLabel(text: 'ERNÄHRUNG'),
+              _dietaryPrefsCard(),
 
               const SizedBox(height: 24),
 
-              // DARSTELLUNG
-              _SectionLabel(text: 'DARSTELLUNG', muteColor: muteColor),
-              _Card(
-                isDark: isDark,
-                children: [
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final current = ref.watch(themeModeProvider).value ??
-                          ThemeMode.system;
-                      return Column(
-                        children: [
-                          _ThemeOption(
-                            mode: ThemeMode.system,
-                            current: current,
-                            icon: Icons.brightness_auto,
-                            label: 'System',
-                            sub: 'Folgt der Geräte-Einstellung',
-                            onSelect: (m) =>
-                                ref.read(themeModeProvider.notifier).setMode(m),
-                            isDark: isDark,
-                            textColor: inkColor,
-                            subtleColor: muteColor,
-                            isFirst: true,
-                          ),
-                          _ThemeOption(
-                            mode: ThemeMode.light,
-                            current: current,
-                            icon: Icons.light_mode_outlined,
-                            label: 'Hell',
-                            sub: 'Warmes Cream',
-                            onSelect: (m) =>
-                                ref.read(themeModeProvider.notifier).setMode(m),
-                            isDark: isDark,
-                            textColor: inkColor,
-                            subtleColor: muteColor,
-                          ),
-                          _ThemeOption(
-                            mode: ThemeMode.dark,
-                            current: current,
-                            icon: Icons.dark_mode_outlined,
-                            label: 'Dunkel',
-                            sub: 'Tiefes Tannengrün',
-                            onSelect: (m) =>
-                                ref.read(themeModeProvider.notifier).setMode(m),
-                            isDark: isDark,
-                            textColor: inkColor,
-                            subtleColor: muteColor,
-                            isLast: true,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
+              const SectionLabel(text: 'DARSTELLUNG'),
+              const ThemeSection(),
 
               const SizedBox(height: 24),
 
-              // BENACHRICHTIGUNGEN
-              _SectionLabel(text: 'BENACHRICHTIGUNGEN', muteColor: muteColor),
-              _Card(
-                isDark: isDark,
-                children: [
-                  // Toggle
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.notifications_outlined,
-                          color:
-                              isDark ? GSColors.primaryMid : GSColors.primary,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tägliche Erinnerung',
-                                style: GSTypography.body(
-                                  color: inkColor,
-                                  size: 14.5,
-                                  weight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                _notifEnabled
-                                    ? 'Aktiv um ${_formatTime(_notifHour, _notifMinute)}'
-                                    : 'Aus',
-                                style: GSTypography.body(
-                                  color: muteColor,
-                                  size: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _notifEnabled,
-                          activeThumbColor: GSColors.primary,
-                          onChanged: _onToggle,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_notifEnabled) ...[
-                    _Divider(isDark: isDark),
-                    InkWell(
-                      onTap: _pickTime,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              color: isDark
-                                  ? GSColors.primaryMid
-                                  : GSColors.primary,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                'Uhrzeit',
-                                style: GSTypography.body(
-                                  color: inkColor,
-                                  size: 14.5,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              _formatTime(_notifHour, _notifMinute),
-                              style: GSTypography.body(
-                                color: inkColor,
-                                size: 14,
-                                weight: FontWeight.w600,
-                              ),
-                            ),
-                            Icon(Icons.chevron_right, color: muteColor),
-                          ],
-                        ),
-                      ),
-                    ),
-                    _Divider(isDark: isDark),
-                    InkWell(
-                      onTap: () => _testNotification(context, ref),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.notifications_active_outlined,
-                              color: isDark
-                                  ? GSColors.primaryMid
-                                  : GSColors.primary,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                'Test senden',
-                                style: GSTypography.body(
-                                  color: inkColor,
-                                  size: 14.5,
-                                ),
-                              ),
-                            ),
-                            Icon(Icons.chevron_right, color: muteColor),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              const SectionLabel(text: 'BENACHRICHTIGUNGEN'),
+              const ReminderSettingsCard(),
 
               const SizedBox(height: 24),
 
-              // KONTO
-              _SectionLabel(text: 'KONTO', muteColor: muteColor),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-                child: Material(
-                  color: isDark ? GSColors.surfaceDark : GSColors.surface,
-                  borderRadius: BorderRadius.circular(18),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () => _confirmLogout(context, ref),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isDark ? GSColors.lineDark : GSColors.line,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.logout,
-                            color: GSColors.accent,
-                            size: 22,
-                          ),
-                          const SizedBox(width: 14),
-                          Text(
-                            'Abmelden',
-                            style: GSTypography.body(
-                              color: GSColors.accent,
-                              size: 14.5,
-                              weight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              const SectionLabel(text: 'KONTO'),
+              _logoutCard(tone),
 
               const SizedBox(height: 20),
               // Kleiner Abschieds-Gruß unterm Einstellungs-Screen —
@@ -802,7 +240,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Text(
                   '„Gut gelöffelt ist halb gerettet." 🥄🌿',
                   textAlign: TextAlign.center,
-                  style: GSTypography.italicCaption(color: muteColor)
+                  style: GSTypography.italicCaption(color: tone.inkMute)
                       .copyWith(fontSize: 13.5),
                 ),
               ),
@@ -812,7 +250,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _appVersion.isEmpty
                       ? 'GreenSpoon'
                       : 'GreenSpoon · Version $_appVersion (Beta)',
-                  style: GSTypography.italicCaption(color: muteColor),
+                  style: GSTypography.italicCaption(color: tone.inkMute),
                 ),
               ),
             ],
@@ -822,396 +260,188 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  String _formatMonthYear(DateTime d) {
-    const months = [
-      'Januar',
-      'Februar',
-      'März',
-      'April',
-      'Mai',
-      'Juni',
-      'Juli',
-      'August',
-      'September',
-      'Oktober',
-      'November',
-      'Dezember',
-    ];
-    return '${months[d.month - 1]} ${d.year}';
-  }
-
-  String _formatTime(int hour, int minute) {
-    final h = hour.toString().padLeft(2, '0');
-    final m = minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  String _formatCo2(double kg) {
-    if (kg >= 10) return kg.toStringAsFixed(0);
-    return kg.toStringAsFixed(1);
-  }
-
-  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Wirklich abmelden?'),
-        content: const Text('Du wirst zum Login-Screen zurückgeleitet.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            // Endliche Mindestbreite: das Theme-Default (volle Breite)
-            // crasht in den unbegrenzten Dialog-Actions.
-            style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
-            child: const Text('Abmelden'),
+  Widget _header(GSTone tone, String headlineName) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('PROFIL', style: GSTypography.label(color: tone.inkMute)),
+          const SizedBox(height: 8),
+          // Name + Stift direkt daneben — bearbeiten, wo man liest.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  headlineName,
+                  overflow: TextOverflow.ellipsis,
+                  style: GSTypography.headline(color: tone.ink, size: 34),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Namen ändern',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => _editDisplayName(headlineName),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: tone.inkMute,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-    if (confirmed == true) {
-      await ref.read(authRepositoryProvider).signOut();
-    }
   }
 
-  Future<void> _onToggle(bool value) async {
-    if (value) {
-      final granted = await NotificationService.instance.requestPermission();
-      if (!granted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-      await NotificationSettings.setEnabled(true);
-      await NotificationScheduler.reschedule(
-        ref.read(pantryStreamProvider).valueOrNull ?? const [],
-      );
-      // Für zuverlässige Auslösung auf OEM-ROMs: einmalig um Ausnahme von der
-      // Akkuoptimierung bitten (best effort — Erinnerungen laufen auch ohne).
-      await NotificationService.instance.requestBatteryOptimizationExemption();
-      if (mounted) {
-        setState(() => _notifEnabled = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Tägliche Erinnerung um ${_formatTime(_notifHour, _notifMinute)} aktiviert',
-            ),
-          ),
-        );
-      }
-    } else {
-      await NotificationSettings.setEnabled(false);
-      await NotificationScheduler.cancel();
-      if (mounted) {
-        setState(() => _notifEnabled = false);
-      }
-    }
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: _notifHour, minute: _notifMinute),
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      await NotificationSettings.setTime(
-        hour: picked.hour,
-        minute: picked.minute,
-      );
-      await NotificationScheduler.reschedule(
-        ref.read(pantryStreamProvider).valueOrNull ?? const [],
-      );
-      if (mounted) {
-        setState(() {
-          _notifHour = picked.hour;
-          _notifMinute = picked.minute;
-        });
-      }
-    }
-  }
-
-  Future<void> _testNotification(BuildContext context, WidgetRef ref) async {
-    final granted = await NotificationService.instance.requestPermission();
-    if (!granted) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Bitte erlaube Benachrichtigungen in den Einstellungen.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Frisch aus der DB lesen — nie aus einem evtl. veralteten Provider und
-    // ohne Beispiel-Daten. So bezieht sich der Test ausschließlich auf
-    // tatsächlich vorhandene, bald ablaufende Lebensmittel.
-    final names = <String>[];
-    try {
-      final expiring =
-          await ref.read(pantryRepositoryProvider).fetchExpiringSoon();
-      names.addAll(expiring.map((e) => e.name));
-    } catch (_) {
-      // Netzwerk-/Auth-Fehler behandeln wir wie „nichts läuft bald ab".
-    }
-
-    if (names.isEmpty) {
-      await NotificationService.instance.showInfoNotification(
-        title: 'Alles frisch 🥬',
-        body: 'Aktuell läuft in den nächsten Tagen nichts ab.',
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Test gesendet — aktuell läuft nichts bald ab.',
-            ),
-          ),
-        );
-      }
-    } else {
-      await NotificationService.instance.showExpiryNotification(
-        itemNames: names,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${names.length} ablaufendes Item${names.length == 1 ? "" : "s"} → Test gesendet.',
-            ),
-          ),
-        );
-      }
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────
-
-/// Eingabe-Dialog für den Anzeigenamen. Besitzt seinen Controller selbst
-/// (Disposal erst nach vollständigem Schließen der Route — kein Zugriff
-/// auf einen toten Controller während der Ausblend-Animation).
-class _NameEditDialog extends StatefulWidget {
-  const _NameEditDialog({required this.initial});
-  final String initial;
-
-  @override
-  State<_NameEditDialog> createState() => _NameEditDialogState();
-}
-
-class _NameEditDialogState extends State<_NameEditDialog> {
-  late final TextEditingController _ctrl =
-      TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Wie sollen wir dich nennen?'),
-      content: TextField(
-        controller: _ctrl,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        maxLength: 30,
-        decoration: const InputDecoration(
-          hintText: 'z.B. Fabian',
-          counterText: '',
-        ),
-        onSubmitted: (v) => Navigator.of(context).pop(v),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Abbrechen'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(_ctrl.text),
-          // Das Theme setzt volle Breite (Size.fromHeight) — in den
-          // Dialog-Actions (OverflowBar, unbegrenzte Breite) würde das
-          // eine unendliche Mindestbreite erzwingen → Layout-Crash.
-          style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
-          child: const Text('Speichern'),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text, required this.muteColor});
-  final String text;
-  final Color muteColor;
-  @override
-  Widget build(BuildContext context) {
+  Widget _identityRow(
+    GSTone tone,
+    String initial,
+    String email,
+    String memberSince,
+  ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 4, 26, 10),
-      child: Text(text, style: GSTypography.label(color: muteColor)),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.children, required this.isDark});
-  final List<Widget> children;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? GSColors.surfaceDark : GSColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDark ? GSColors.lineDark : GSColors.line,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(children: children),
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: GSTypography.body(color: inkColor, size: 14),
+          GestureDetector(
+            onTap: () {
+              final hasAvatar = ref.read(avatarProvider).valueOrNull != null;
+              showAvatarPicker(context, ref, hasAvatar: hasAvatar);
+            },
+            child: ProfileAvatar(
+              initial: initial,
+              size: 64,
+              showEditBadge: true,
             ),
           ),
-          Text(
-            value,
-            style: GSTypography.headline(
-              color: inkColor,
-              size: 22,
-              weight: FontWeight.w500,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  email,
+                  style: GSTypography.body(
+                    color: tone.ink,
+                    size: 14.5,
+                    weight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Mitglied seit $memberSince',
+                  style: GSTypography.body(color: tone.inkMute, size: 12.5),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _Divider extends StatelessWidget {
-  const _Divider({required this.isDark});
-  final bool isDark;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 1,
-      color: isDark ? GSColors.lineDark : GSColors.line,
+  Widget _savedRecipesCard() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final saved = ref.watch(savedRecipesProvider);
+        final count = saved.maybeWhen(
+          data: (r) => r.length,
+          orElse: () => null,
+        );
+        final subtitle = count == null
+            ? 'Deine Sammlung'
+            : count == 0
+                ? 'Noch nichts gespeichert'
+                : '$count gespeichert';
+        return SettingsCard(
+          children: [
+            SettingsNavTile(
+              icon: Icons.bookmark_outline,
+              title: 'Gespeicherte Rezepte',
+              subtitle: subtitle,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SavedRecipesScreen()),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
-}
 
-class _ThemeOption extends StatelessWidget {
-  const _ThemeOption({
-    required this.mode,
-    required this.current,
-    required this.icon,
-    required this.label,
-    required this.sub,
-    required this.onSelect,
-    required this.isDark,
-    required this.textColor,
-    required this.subtleColor,
-    this.isFirst = false,
-    this.isLast = false,
-  });
+  Widget _dietaryPrefsCard() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final prefs = ref.watch(dietaryPrefsProvider);
+        final tags = prefs.maybeWhen(
+          data: (t) => t,
+          orElse: () => const <String>[],
+        );
+        return SettingsCard(
+          children: [
+            SettingsNavTile(
+              icon: Icons.restaurant_outlined,
+              title: 'Ernährungsweise',
+              subtitle: tags.isEmpty
+                  ? 'Keine Vorgaben — alles ist ok'
+                  : tags.join(' · '),
+              onTap: () async {
+                await showModalBottomSheet<bool>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => DietaryPrefsSheet(initial: tags),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-  final ThemeMode mode;
-  final ThemeMode current;
-  final IconData icon;
-  final String label;
-  final String sub;
-  final ValueChanged<ThemeMode> onSelect;
-  final bool isDark;
-  final Color textColor;
-  final Color subtleColor;
-  final bool isFirst;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = mode == current;
-    final primaryColor = isDark ? GSColors.primaryMid : GSColors.primary;
-    return Column(
-      children: [
-        if (!isFirst) _Divider(isDark: isDark),
-        InkWell(
-          onTap: () => onSelect(mode),
-          child: Padding(
+  Widget _logoutCard(GSTone tone) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+      child: Material(
+        color: tone.surface,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: _confirmLogout,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: tone.line),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: selected ? primaryColor : subtleColor,
-                  size: 22,
-                ),
+                const Icon(Icons.logout, color: GSColors.accent, size: 22),
                 const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: GSTypography.body(
-                          color: textColor,
-                          size: 14.5,
-                          weight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        sub,
-                        style: GSTypography.body(color: subtleColor, size: 12),
-                      ),
-                    ],
+                Text(
+                  'Abmelden',
+                  style: GSTypography.body(
+                    color: GSColors.accent,
+                    size: 14.5,
+                    weight: FontWeight.w600,
                   ),
                 ),
-                if (selected)
-                  Icon(Icons.check_circle, color: primaryColor, size: 22),
               ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

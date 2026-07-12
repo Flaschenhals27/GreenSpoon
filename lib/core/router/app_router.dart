@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
-import '../../features/main_shell.dart';
+import '../../features/shell/main_shell.dart';
 import '../supabase/supabase_providers.dart';
 
 /// Listenable, das go_router neu evaluiert, sobald Supabase einen

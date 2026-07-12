@@ -82,44 +82,4 @@ class GSColors {
 
   /// Gedämpfter Text Dark.
   static const Color inkMuteDark = Color(0xFF7E8B83);
-
-  // ─── Legacy-Aliase (für sanften Übergang) ──────────────────
-  // Diese werden im Code noch referenziert. Nach und nach durch neue
-  // Tokens ersetzen. Verweisen jetzt auf passende neue Werte.
-
-  /// War: tiefes Tannengrün für Headlines hell. Jetzt: ink.
-  static const Color forest = ink;
-
-  /// War: dunkles Waldgrün (App-Hintergrund dark). Jetzt: bgAppDark.
-  static const Color forestDeep = bgAppDark;
-
-  /// War: helles Cream. Jetzt: bgApp.
-  static const Color cream2 = bgApp;
-
-  /// War: Beige für Akzentflächen. Jetzt: surface2.
-  static const Color sand = surface2;
-
-  /// War: Off-White auf dark. Jetzt: inkDark.
-  static const Color paper = inkDark;
-
-  /// War: Card-Weiß hell. Jetzt: surface.
-  static const Color cardLight = surface;
-
-  /// War: Card dunkel. Jetzt: surfaceDark.
-  static const Color cardDark = surfaceDark;
-
-  /// War: Helles Salbeigrün. Jetzt: primaryMid.
-  static const Color primaryLight = primaryMid;
-
-  /// Status: läuft ab — gleicher Wert wie accent.
-  static const Color expiryUrgent = accent;
-
-  /// Status: läuft bald ab — Honey-Gold.
-  static const Color expirySoon = honey;
-
-  /// Status: frisch — primary.
-  static const Color expiryFresh = primary;
-
-  /// Status: frisch (Dark) — primaryMid.
-  static const Color expiryFreshDark = primaryMid;
 }

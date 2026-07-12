@@ -1,30 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/theme/gs_colors.dart';
-import '../core/theme/gs_typography.dart';
-import 'notifications/notification_scheduler.dart';
-import 'notifications/notification_service.dart';
-import 'notifications/notification_settings.dart';
-import 'pantry/domain/pantry_item.dart';
-import 'pantry/presentation/add_item_dialog.dart';
-import 'pantry/presentation/pantry_screen.dart';
-import 'pantry/providers/pantry_providers.dart';
-import 'profile/presentation/profile_screen.dart';
-import 'recipes/presentation/recipes_screen.dart';
-import 'scanner/presentation/grocery_photo_screen.dart';
-import 'scanner/presentation/scanner_screen.dart';
-import 'widget/pantry_widget_updater.dart';
-
-/// Globaler ValueNotifier für Notification-Tap-Handler.
-/// Indexe: 0 = Vorrat, 1 = Rezepte, 2 = Profil
-final mainShellTabNotifier = ValueNotifier<int>(0);
-
-/// Signal an die MainShell, das Scan-Sheet zu öffnen (z.B. vom CTA im
-/// leeren Vorrat). Zähler statt bool, damit jedes Anstoßen feuert.
-final mainShellScanRequest = ValueNotifier<int>(0);
+import '../../core/theme/gs_colors.dart';
+import '../../core/theme/gs_tone.dart';
+import '../../core/theme/gs_typography.dart';
+import '../notifications/expiry_reminder_prompt.dart';
+import '../notifications/notification_scheduler.dart';
+import '../pantry/presentation/add_item_dialog.dart';
+import '../pantry/presentation/pantry_screen.dart';
+import '../pantry/providers/pantry_providers.dart';
+import '../profile/presentation/profile_screen.dart';
+import '../recipes/presentation/recipes_screen.dart';
+import '../scanner/presentation/grocery_photo_screen.dart';
+import '../scanner/presentation/scanner_screen.dart';
+import '../widget/pantry_widget_updater.dart';
+import 'shell_providers.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
@@ -35,44 +26,22 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell>
     with WidgetsBindingObserver {
-  int _index = 0;
-
   static const _screens = [
     PantryScreen(),
     RecipesScreen(),
     ProfileScreen(),
   ];
 
-  /// Session-Guard: Der Erinnerungs-Prompt wird höchstens einmal pro
-  /// App-Lauf geprüft (persistent zusätzlich via SharedPreferences).
-  bool _notifPromptChecked = false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    mainShellTabNotifier.addListener(_onTabRequest);
-    mainShellScanRequest.addListener(_onScanRequest);
-    // Der Notifier ist global und kann schon vor dem ersten Build gesetzt
-    // worden sein (z.B. Kaltstart über einen Notification-Tap).
-    _index = mainShellTabNotifier.value;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    mainShellTabNotifier.removeListener(_onTabRequest);
-    mainShellScanRequest.removeListener(_onScanRequest);
     super.dispose();
-  }
-
-  void _onScanRequest() {
-    if (mounted) _openScanOptions();
-  }
-
-  void _onTabRequest() {
-    if (!mounted) return;
-    setState(() => _index = mainShellTabNotifier.value);
   }
 
   @override
@@ -84,12 +53,10 @@ class _MainShellState extends ConsumerState<MainShell>
 
   void _openScanOptions() {
     HapticFeedback.lightImpact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _ScanOptionsSheet(
-        isDark: isDark,
         onSingle: () {
           Navigator.of(context).pop();
           Navigator.of(context).push(
@@ -113,19 +80,15 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
-  /// Kontextueller Erinnerungs-Prompt: Sobald das erste Item mit MHD im
-  /// Vorrat liegt, ist der richtige Moment zu fragen — nicht versteckt im
-  /// Profil. Erscheint genau EINMAL (persistentes Flag); wer ablehnt,
-  /// kann Erinnerungen jederzeit im Profil aktivieren.
-  Future<void> _maybeShowNotifPrompt(List<PantryItem> items) async {
-    if (_notifPromptChecked) return;
-    if (!items.any((i) => i.expiresAt != null)) return;
-    _notifPromptChecked = true;
+  /// Zeigt den einmaligen Erinnerungs-Prompt, wenn der richtige Moment
+  /// gekommen ist. Ob und wann entscheidet [ExpiryReminderPrompt] —
+  /// hier lebt nur der Dialog.
+  Future<void> _maybeShowNotifPrompt() async {
+    final items = ref.read(pantryStreamProvider).valueOrNull;
+    if (items == null) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('notif_prompt_shown') ?? false) return;
-    if (await NotificationSettings.isEnabled()) return;
-    await prefs.setBool('notif_prompt_shown', true);
+    final prompt = ref.read(expiryReminderPromptProvider);
+    if (!await prompt.shouldAsk(items)) return;
     if (!mounted) return;
 
     final wants = await showDialog<bool>(
@@ -154,11 +117,8 @@ class _MainShellState extends ConsumerState<MainShell>
     );
 
     if (wants != true || !mounted) return;
-    final granted = await NotificationService.instance.requestPermission();
-    if (!granted) return;
-    await NotificationSettings.setEnabled(true);
     final current = ref.read(pantryStreamProvider).valueOrNull;
-    if (current != null) await NotificationScheduler.reschedule(current);
+    if (current != null) await prompt.enable(current);
   }
 
   void _openAddDialog() {
@@ -173,7 +133,8 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tone = GSTone.of(context);
+    final tab = ref.watch(shellTabProvider);
 
     // Hält die geplanten Ablauf-Erinnerungen aktuell: bei jeder Vorrats-
     // Änderung (Hinzufügen, Verwerten, MHD-Edit) und beim Resume neu planen.
@@ -184,16 +145,19 @@ class _MainShellState extends ConsumerState<MainShell>
         NotificationScheduler.reschedule(items);
         // Homescreen-Widget mit denselben Daten aktuell halten.
         PantryWidgetUpdater.update(items);
-        _maybeShowNotifPrompt(items);
+        _maybeShowNotifPrompt();
       }
     });
+
+    // Scan-Anfragen anderer Screens (z.B. CTA im leeren Vorrat).
+    ref.listen(scanRequestProvider, (_, __) => _openScanOptions());
 
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
           center: const Alignment(-0.6, -0.8),
           radius: 1.4,
-          colors: isDark
+          colors: tone.isDark
               ? [
                   const Color(0xFF1E2A24),
                   const Color(0xFF14201A),
@@ -207,17 +171,14 @@ class _MainShellState extends ConsumerState<MainShell>
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: IndexedStack(
-          index: _index,
+          index: tab.index,
           children: _screens,
         ),
         bottomNavigationBar: _CustomNavBar(
-          currentIndex: _index,
-          isDark: isDark,
-          // _onTabRequest übernimmt das setState; erneutes Tippen auf den
-          // aktiven Tab löst keine Notification aus — dann stimmt _index eh.
-          onTabChanged: (i) {
-            if (i != _index) HapticFeedback.selectionClick();
-            mainShellTabNotifier.value = i;
+          currentTab: tab,
+          onTabChanged: (t) {
+            if (t != tab) HapticFeedback.selectionClick();
+            ref.read(shellTabProvider.notifier).open(t);
           },
           onScanTap: _openScanOptions,
           onScanLongPress: _openAddDialog,
@@ -231,29 +192,26 @@ class _MainShellState extends ConsumerState<MainShell>
 
 class _CustomNavBar extends StatelessWidget {
   const _CustomNavBar({
-    required this.currentIndex,
-    required this.isDark,
+    required this.currentTab,
     required this.onTabChanged,
     required this.onScanTap,
     required this.onScanLongPress,
   });
 
-  final int currentIndex;
-  final bool isDark;
-  final ValueChanged<int> onTabChanged;
+  final ShellTab currentTab;
+  final ValueChanged<ShellTab> onTabChanged;
   final VoidCallback onScanTap;
   final VoidCallback onScanLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        color: surfaceColor.withValues(alpha: 0.97),
+        color: tone.surface.withValues(alpha: 0.97),
         border: Border(
-          top: BorderSide(color: lineColor),
+          top: BorderSide(color: tone.line),
         ),
       ),
       child: SafeArea(
@@ -269,9 +227,8 @@ class _CustomNavBar extends StatelessWidget {
                     icon: Icons.kitchen_outlined,
                     selectedIcon: Icons.kitchen,
                     label: 'Vorrat',
-                    selected: currentIndex == 0,
-                    isDark: isDark,
-                    onTap: () => onTabChanged(0),
+                    selected: currentTab == ShellTab.pantry,
+                    onTap: () => onTabChanged(ShellTab.pantry),
                   ),
                 ),
                 // Zentraler Scan-Button (Position 2 — getauscht mit Rezepte)
@@ -286,9 +243,8 @@ class _CustomNavBar extends StatelessWidget {
                     icon: Icons.restaurant_menu_outlined,
                     selectedIcon: Icons.restaurant_menu,
                     label: 'Rezepte',
-                    selected: currentIndex == 1,
-                    isDark: isDark,
-                    onTap: () => onTabChanged(1),
+                    selected: currentTab == ShellTab.recipes,
+                    onTap: () => onTabChanged(ShellTab.recipes),
                   ),
                 ),
                 Expanded(
@@ -296,9 +252,8 @@ class _CustomNavBar extends StatelessWidget {
                     icon: Icons.person_outline,
                     selectedIcon: Icons.person,
                     label: 'Profil',
-                    selected: currentIndex == 2,
-                    isDark: isDark,
-                    onTap: () => onTabChanged(2),
+                    selected: currentTab == ShellTab.profile,
+                    onTap: () => onTabChanged(ShellTab.profile),
                   ),
                 ),
               ],
@@ -318,7 +273,6 @@ class _NavItem extends StatelessWidget {
     required this.selectedIcon,
     required this.label,
     required this.selected,
-    required this.isDark,
     required this.onTap,
   });
 
@@ -326,15 +280,12 @@ class _NavItem extends StatelessWidget {
   final IconData selectedIcon;
   final String label;
   final bool selected;
-  final bool isDark;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final primaryColor = isDark ? GSColors.primaryMid : GSColors.primary;
-    final activeColor = selected ? primaryColor : muteColor;
+    final tone = GSTone.of(context);
+    final activeColor = selected ? tone.primary : tone.inkMute;
 
     // `selected` macht den aktiven Tab für Screenreader erkennbar
     // („Vorrat, Tab, ausgewählt").
@@ -359,7 +310,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? inkColor : muteColor,
+                color: selected ? tone.ink : tone.inkMute,
               ),
             ),
           ],
@@ -424,25 +375,22 @@ class _ScanButton extends StatelessWidget {
 /// (auch als Shortcut per Long-Press auf den Scan-Button erreichbar).
 class _ScanOptionsSheet extends StatelessWidget {
   const _ScanOptionsSheet({
-    required this.isDark,
     required this.onSingle,
     required this.onPhoto,
     required this.onManual,
   });
 
-  final bool isDark;
   final VoidCallback onSingle;
   final VoidCallback onPhoto;
   final VoidCallback onManual;
 
   @override
   Widget build(BuildContext context) {
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final tone = GSTone.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
+        color: tone.bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -458,16 +406,15 @@ class _ScanOptionsSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: muteColor.withValues(alpha: 0.4),
+                    color: tone.inkMute.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-              Text('HINZUFÜGEN', style: GSTypography.label(color: muteColor)),
+              Text('HINZUFÜGEN', style: GSTypography.label(color: tone.inkMute)),
               const SizedBox(height: 12),
               _ScanOption(
-                isDark: isDark,
                 icon: Icons.qr_code_scanner,
                 title: 'Einzeln scannen',
                 subtitle: 'Barcode & MHD von verpackter Ware',
@@ -475,7 +422,6 @@ class _ScanOptionsSheet extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _ScanOption(
-                isDark: isDark,
                 icon: Icons.photo_camera_outlined,
                 title: 'Einkauf fotografieren',
                 subtitle: 'Obst, Gemüse & mehr auf einmal erkennen',
@@ -483,7 +429,6 @@ class _ScanOptionsSheet extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _ScanOption(
-                isDark: isDark,
                 icon: Icons.edit_outlined,
                 title: 'Selbst eintragen',
                 subtitle: 'Ohne Kamera — Name, Menge & MHD eintippen',
@@ -499,14 +444,12 @@ class _ScanOptionsSheet extends StatelessWidget {
 
 class _ScanOption extends StatelessWidget {
   const _ScanOption({
-    required this.isDark,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final bool isDark;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -514,13 +457,10 @@ class _ScanOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
 
     return Material(
-      color: surfaceColor,
+      color: tone.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -528,7 +468,7 @@ class _ScanOption extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: lineColor),
+            border: Border.all(color: tone.line),
           ),
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -552,7 +492,7 @@ class _ScanOption extends StatelessWidget {
                       title,
                       overflow: TextOverflow.ellipsis,
                       style: GSTypography.body(
-                        color: inkColor,
+                        color: tone.ink,
                         size: 15.5,
                         weight: FontWeight.w700,
                       ),
@@ -560,12 +500,12 @@ class _ScanOption extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: GSTypography.body(color: muteColor, size: 12.5),
+                      style: GSTypography.body(color: tone.inkMute, size: 12.5),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: muteColor, size: 22),
+              Icon(Icons.chevron_right, color: tone.inkMute, size: 22),
             ],
           ),
         ),

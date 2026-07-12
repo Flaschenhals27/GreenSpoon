@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/mascot.dart';
 import '../../pantry/domain/user_stats.dart';
@@ -19,12 +20,12 @@ class ImpactScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final async = ref.watch(userStatsProvider);
 
@@ -89,7 +90,7 @@ class ImpactScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                data: (s) => _body(context, s, isDark),
+                data: (s) => _body(context, s),
               ),
             ),
           ],
@@ -98,9 +99,10 @@ class ImpactScreen extends ConsumerWidget {
     );
   }
 
-  Widget _body(BuildContext context, UserStats s, bool isDark) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+  Widget _body(BuildContext context, UserStats s) {
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
     final equivalents = Co2Equivalents.forKg(s.co2SavedKg);
     final flightShare = Co2Equivalents.flightShare(s.co2SavedKg);
 
@@ -112,12 +114,12 @@ class ImpactScreen extends ConsumerWidget {
         // Kontrafaktik). CO₂ folgt bewusst erst danach als Schätzung.
         Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
         const SizedBox(height: 12),
-        _BalanceCard(stats: s, isDark: isDark, avgWeek: _avgWastePerWeekKg),
+        _BalanceCard(stats: s, avgWeek: _avgWastePerWeekKg),
 
         const SizedBox(height: 16),
 
         // Buzzer-Saves
-        _BuzzerCard(saves: s.buzzerSaves, isDark: isDark),
+        _BuzzerCard(saves: s.buzzerSaves),
 
         const SizedBox(height: 26),
 
@@ -176,7 +178,7 @@ class ImpactScreen extends ConsumerWidget {
             style: GSTypography.body(color: muteColor, size: 13.5, height: 1.4),
           )
         else ...[
-          ...equivalents.map((e) => _EquivalentRow(e: e, isDark: isDark)),
+          ...equivalents.map((e) => _EquivalentRow(e: e)),
           const SizedBox(height: 6),
           Text(
             flightShare >= 0.01
@@ -197,7 +199,7 @@ class ImpactScreen extends ConsumerWidget {
         // ── 3. Methodik — macht die Zahlen erklärbar und angreifbar-sicher.
         Text('SO RECHNEN WIR', style: GSTypography.label(color: muteColor)),
         const SizedBox(height: 12),
-        _MethodologyCard(isDark: isDark),
+        const _MethodologyCard(),
 
         const SizedBox(height: 16),
 
@@ -220,15 +222,15 @@ class ImpactScreen extends ConsumerWidget {
 /// Erklärt die Kontrafaktik hinter „CO₂ vermieden" in drei Schritten —
 /// bewusst transparent, damit die Zahl nicht nach Greenwashing aussieht.
 class _MethodologyCard extends StatelessWidget {
-  const _MethodologyCard({required this.isDark});
-  final bool isDark;
+  const _MethodologyCard();
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     const steps = [
       (
@@ -289,16 +291,16 @@ class _MethodologyCard extends StatelessWidget {
 }
 
 class _EquivalentRow extends StatelessWidget {
-  const _EquivalentRow({required this.e, required this.isDark});
+  const _EquivalentRow({required this.e});
   final Co2Equivalent e;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -339,19 +341,18 @@ class _EquivalentRow extends StatelessWidget {
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.stats,
-    required this.isDark,
     required this.avgWeek,
   });
   final UserStats stats;
-  final bool isDark;
   final double avgWeek;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final ratePct = (stats.useRate * 100).round();
     final thisM = stats.wastedKgThisMonth;
@@ -464,16 +465,16 @@ class _BalanceCard extends StatelessWidget {
 }
 
 class _BuzzerCard extends StatelessWidget {
-  const _BuzzerCard({required this.saves, required this.isDark});
+  const _BuzzerCard({required this.saves});
   final int saves;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       decoration: BoxDecoration(

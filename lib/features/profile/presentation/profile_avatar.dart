@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../providers/avatar_providers.dart';
 
@@ -101,11 +102,11 @@ Future<void> showAvatarPicker(
   WidgetRef ref, {
   required bool hasAvatar,
 }) async {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  final surface = isDark ? GSColors.surfaceDark : GSColors.surface;
-  final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-  final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-  final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+  final tone = GSTone.of(context);
+  final surface = tone.surface;
+  final inkColor = tone.ink;
+  final muteColor = tone.inkMute;
+  final lineColor = tone.line;
 
   final messenger = ScaffoldMessenger.of(context);
 

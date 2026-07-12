@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../domain/scanned_product.dart';
 import '../providers/scanner_providers.dart';
@@ -168,12 +169,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -329,13 +330,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       icon: Icon(
                         Icons.event_outlined,
                         size: 18,
-                        color: isDark ? GSColors.primaryMid : GSColors.primary,
+                        color: tone.primary,
                       ),
                       label: Text(
                         'MHD zuerst scannen',
                         style: GSTypography.body(
                           color:
-                              isDark ? GSColors.primaryMid : GSColors.primary,
+                              tone.primary,
                           size: 14,
                           weight: FontWeight.w600,
                         ),
@@ -345,7 +346,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     Container(
                       padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
                       decoration: BoxDecoration(
-                        color: (isDark ? GSColors.primaryMid : GSColors.primary)
+                        color: (tone.primary)
                             .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -356,15 +357,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             Icons.event_available,
                             size: 16,
                             color:
-                                isDark ? GSColors.primaryMid : GSColors.primary,
+                                tone.primary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'MHD gemerkt: ${_formatDate(_pendingExpiry!)}',
                             style: GSTypography.body(
-                              color: isDark
-                                  ? GSColors.primaryMid
-                                  : GSColors.primary,
+                              color: tone.primary,
                               size: 13,
                               weight: FontWeight.w600,
                             ),
@@ -398,11 +397,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(220, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        backgroundColor: GSColors.primary,
-                        foregroundColor: GSColors.cream,
                       ),
                       child: Text(
                         _addedCount == 1

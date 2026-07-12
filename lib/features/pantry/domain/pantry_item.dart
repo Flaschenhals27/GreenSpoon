@@ -30,6 +30,9 @@ class PantryItem {
   final DateTime createdAt;
   final double? co2Kg;
 
+  /// Ab wie vielen Tagen bis Ablauf ein Item als „läuft bald ab" gilt.
+  static const int expiringSoonThresholdDays = 3;
+
   /// Tage bis Ablauf (negative Werte = bereits abgelaufen, null = kein MHD).
   int? get daysUntilExpiry {
     if (expiresAt == null) return null;
@@ -37,6 +40,14 @@ class PantryItem {
     final todayDate = DateTime(today.year, today.month, today.day);
     final expDate = DateTime(expiresAt!.year, expiresAt!.month, expiresAt!.day);
     return expDate.difference(todayDate).inDays;
+  }
+
+  /// True, wenn das Item in den nächsten [expiringSoonThresholdDays] Tagen
+  /// abläuft (oder schon abgelaufen ist). Zentrale Definition für
+  /// Ablauf-Alert, Filter und Rezept-Hinweise.
+  bool get isExpiringSoon {
+    final d = daysUntilExpiry;
+    return d != null && d <= expiringSoonThresholdDays;
   }
 
   factory PantryItem.fromJson(Map<String, dynamic> json) {

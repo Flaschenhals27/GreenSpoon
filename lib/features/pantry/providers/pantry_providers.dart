@@ -13,11 +13,8 @@ final pantryStreamProvider = StreamProvider<List<PantryItem>>((ref) {
   return ref.watch(pantryRepositoryProvider).watchAll();
 });
 
-/// Items, die in <= 3 Tagen ablaufen, sortiert nach Dringlichkeit.
+/// Items, die bald ablaufen (siehe [PantryItem.isExpiringSoon]).
 final expiringSoonProvider = Provider<List<PantryItem>>((ref) {
   final all = ref.watch(pantryStreamProvider).valueOrNull ?? [];
-  return all.where((p) {
-    final d = p.daysUntilExpiry;
-    return d != null && d <= 3;
-  }).toList();
+  return all.where((p) => p.isExpiringSoon).toList();
 });

@@ -21,7 +21,9 @@ class SupabaseService {
 
     await Supabase.initialize(
       url: url,
-      anonKey: anonKey,
+      // Der Wert aus SUPABASE_ANON_KEY — Supabase nennt den öffentlichen
+      // Client-Key inzwischen „publishable key".
+      publishableKey: anonKey,
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
       ),

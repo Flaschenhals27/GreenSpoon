@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../../core/widgets/mascot.dart';
@@ -142,10 +143,10 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
 
     final newRows = _newRows;
     final existingRows = _existingRows;
@@ -215,7 +216,6 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                             for (final r in newRows)
                               _NewItemCard(
                                 row: r,
-                                isDark: isDark,
                                 onToggle: () =>
                                     setState(() => r.selected = !r.selected),
                                 onEditDate: () => _editDate(r),
@@ -231,7 +231,6 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                             for (final r in existingRows)
                               _ExistingItemCard(
                                 row: r,
-                                isDark: isDark,
                                 canUpdateDate: r.item.expiresAt != null &&
                                     _matchedItem(r) != null,
                                 onAction: (a) => setState(() => r.action = a),
@@ -251,7 +250,7 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: isDark ? GSColors.lineDark : GSColors.line,
+                      color: tone.line,
                     ),
                   ),
                 ),
@@ -267,18 +266,7 @@ class _GroceryReviewSheetState extends ConsumerState<GroceryReviewSheet> {
                     const Spacer(),
                     FilledButton(
                       onPressed: (_saving || _addCount == 0) ? null : _save,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(200, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        backgroundColor: GSColors.primary,
-                        foregroundColor: GSColors.cream,
-                        disabledBackgroundColor:
-                            GSColors.primary.withValues(alpha: 0.4),
-                        disabledForegroundColor:
-                            GSColors.cream.withValues(alpha: 0.7),
-                      ),
+                      style: FilledButton.styleFrom(minimumSize: const Size(200, 50)),
                       child: _saving
                           ? const SizedBox(
                               width: 18,
@@ -329,24 +317,23 @@ class _GroupLabel extends StatelessWidget {
 class _NewItemCard extends StatelessWidget {
   const _NewItemCard({
     required this.row,
-    required this.isDark,
     required this.onToggle,
     required this.onEditDate,
     required this.onEdit,
   });
 
   final _Row row;
-  final bool isDark;
   final VoidCallback onToggle;
   final VoidCallback onEditDate;
   final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
     final selected = row.selected;
     final it = row.item;
 
@@ -432,22 +419,21 @@ class _NewItemCard extends StatelessWidget {
 class _ExistingItemCard extends StatelessWidget {
   const _ExistingItemCard({
     required this.row,
-    required this.isDark,
     required this.canUpdateDate,
     required this.onAction,
   });
 
   final _Row row;
-  final bool isDark;
   final bool canUpdateDate;
   final ValueChanged<_ExistingAction> onAction;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
     final it = row.item;
 
     return Padding(
@@ -530,9 +516,9 @@ class _ActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final muteColor = tone.inkMute;
+    final lineColor = tone.line;
 
     return InkWell(
       borderRadius: BorderRadius.circular(999),
@@ -616,8 +602,8 @@ class _CheckCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final lineColor = tone.line;
     return InkWell(
       customBorder: const CircleBorder(),
       onTap: onTap,
@@ -705,13 +691,13 @@ class _EditItemDialogState extends State<_EditItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
 
     return AlertDialog(
-      backgroundColor: isDark ? GSColors.surfaceDark : GSColors.bgApp,
+      backgroundColor: tone.isDark ? GSColors.surfaceDark : GSColors.bgApp,
       title: Text(
         'Bearbeiten',
         style: GSTypography.headline(color: inkColor, size: 20),
@@ -760,10 +746,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
           child: Text('Abbrechen', style: TextStyle(color: muteColor)),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: GSColors.primary,
-            foregroundColor: GSColors.cream,
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
           onPressed: () {
             final name = _nameCtrl.text.trim();
             Navigator.of(context).pop(

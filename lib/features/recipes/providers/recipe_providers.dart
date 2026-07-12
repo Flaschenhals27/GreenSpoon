@@ -6,6 +6,7 @@ import '../data/recipe_cache.dart';
 import '../data/recipe_repository.dart';
 import '../domain/meal.dart';
 import '../domain/recipe.dart';
+import 'recipe_cooldown_provider.dart';
 
 final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
   return SupabaseRecipeRepository(ref.watch(supabaseClientProvider));
@@ -63,6 +64,14 @@ Future<void> refreshRecipes(WidgetRef ref) async {
   await ref.read(recipeCacheProvider).clear();
   ref.read(recipeOverridesProvider.notifier).clear();
   ref.invalidate(recipesProvider);
+}
+
+/// [refreshRecipes], aber nur wenn der Reload-Cooldown es gerade erlaubt —
+/// die gemeinsame Aktion aller Retry-/Refresh-Buttons.
+void refreshRecipesIfAllowed(WidgetRef ref) {
+  if (ref.read(recipeCooldownProvider.notifier).trigger()) {
+    refreshRecipes(ref);
+  }
 }
 
 /// Generiert [count] alternative Rezepte für genau eine [Meal]. Wird vom

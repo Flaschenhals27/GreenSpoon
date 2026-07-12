@@ -60,6 +60,11 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // ML-Kit-Ausnahmen für R8 (nicht gebundelte Sprachpakete).
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
