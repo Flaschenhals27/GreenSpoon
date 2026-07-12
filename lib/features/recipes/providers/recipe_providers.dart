@@ -16,22 +16,12 @@ final recipeCacheProvider = Provider<RecipeCache>((ref) {
   return RecipeCache(ref.watch(supabaseClientProvider));
 });
 
-/// Liefert die Rezepte für den aktuellen Vorrat.
-///
-/// Greift zuerst auf den persistenten [RecipeCache] zu, damit nicht bei jedem
-/// App-Start erneut die Edge Function aufgerufen wird. Nur wenn sich Tag,
-/// Vorrat oder User geändert haben (= andere Signatur) wird frisch generiert.
-/// Ein manueller Reload läuft über [refreshRecipes].
-///
-/// Wirft [PantryEmptyException] (statt einer normalen Exception), wenn
-/// der Vorrat des Users leer ist — dann lohnt sich der API-Call nicht
-/// und das UI zeigt einen passenden Empty-State.
+/// Rezepte für den aktuellen Vorrat — aus dem [RecipeCache], solange sich
+/// Tag/Vorrat/User nicht geändert haben; bei leerem Vorrat fliegt
+/// [PantryEmptyException] (UI zeigt dann einen Empty-State).
 final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
-  // NUR das Leer-Flag des Vorrats beobachten (select) — nicht den Inhalt.
-  // So heilt sich der „Vorrat leer"-Zustand von selbst, sobald das erste
-  // Item hinzukommt, ohne dass jede normale Vorrats-Änderung einen
-  // teuren Generierungs-Lauf anstößt (Inhalts-Änderungen bei gleichem
-  // Leer-Status lösen dank select-Gleichheit keinen Rebuild aus).
+  // Nur das Leer-Flag beobachten — normale Vorrats-Änderungen sollen keinen
+  // teuren Generierungs-Lauf anstoßen.
   ref.watch(
     pantryStreamProvider.select((async) => async.valueOrNull?.isEmpty),
   );
@@ -58,28 +48,22 @@ final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
   return recipes;
 });
 
-/// Erzwingt eine frische Rezept-Generierung: leert den Cache und lädt neu.
-/// Wird von den Refresh-/Retry-Aktionen im UI genutzt.
+/// Erzwingt eine frische Generierung: Cache leeren, neu laden.
 Future<void> refreshRecipes(WidgetRef ref) async {
   await ref.read(recipeCacheProvider).clear();
   ref.read(recipeOverridesProvider.notifier).clear();
   ref.invalidate(recipesProvider);
 }
 
-/// [refreshRecipes], aber nur wenn der Reload-Cooldown es gerade erlaubt —
-/// die gemeinsame Aktion aller Retry-/Refresh-Buttons.
+/// [refreshRecipes], sofern der Cooldown es erlaubt (alle Retry-Buttons).
 void refreshRecipesIfAllowed(WidgetRef ref) {
   if (ref.read(recipeCooldownProvider.notifier).trigger()) {
     refreshRecipes(ref);
   }
 }
 
-/// Generiert [count] alternative Rezepte für genau eine [Meal]. Wird vom
-/// Long-Press auf einer Rezeptkarte genutzt, um diese Mahlzeit einzeln neu
-/// vorschlagen zu lassen.
-///
-/// autoDispose: Jedes Öffnen des Auswahl-Sheets generiert frisch; beim
-/// Schließen wird der Provider verworfen.
+/// [count] Alternativen für eine [Meal] (Long-Press auf einer Karte).
+/// autoDispose: jedes Öffnen des Sheets generiert frisch.
 final mealAlternativesProvider =
     FutureProvider.autoDispose.family<List<Recipe>, Meal>((ref, meal) async {
   final repo = ref.watch(recipeRepositoryProvider);
@@ -89,9 +73,8 @@ final mealAlternativesProvider =
   return filtered.isNotEmpty ? filtered : recipes;
 });
 
-/// Hält die vom User über das Auswahl-Sheet gewählten Ersatz-Rezepte,
-/// je Mahlzeit eines. Die Rezept-Liste im UI wird damit überlagert, ohne
-/// den Cache anzufassen. Ein „Alle neu" leert diese Auswahl wieder.
+/// Vom User gewählte Ersatz-Rezepte (eines je Mahlzeit) — überlagern die
+/// Liste, ohne den Cache anzufassen; „Alle neu" leert sie.
 class RecipeOverrides extends Notifier<Map<Meal, Recipe>> {
   @override
   Map<Meal, Recipe> build() => const {};
@@ -110,8 +93,7 @@ final recipeOverridesProvider =
   RecipeOverrides.new,
 );
 
-/// Wird vom recipesProvider geworfen, wenn der Vorrat leer ist.
-/// Das UI behandelt das nicht als Fehler, sondern als Empty-State.
+/// „Vorrat leer" — vom UI als Empty-State behandelt, nicht als Fehler.
 class PantryEmptyException implements Exception {
   const PantryEmptyException();
   @override

@@ -1,12 +1,8 @@
 import '../../pantry/domain/pantry_item.dart';
 
-/// Findet das erste bald ablaufende Vorrats-Item, das eine der
-/// Rezept-Zutaten [uses] verwertet — Grundlage für den „Rettet …"-Hinweis
-/// auf Rezeptkarten.
-///
-/// Der Abgleich ist bewusst unscharf (beidseitiges `contains`), weil die
-/// KI-generierten Zutatennamen selten exakt den Vorratsnamen entsprechen
-/// („Tomaten" vs. „Cherry-Tomaten").
+/// Erstes bald ablaufendes Item, das eine Rezept-Zutat [uses] verwertet
+/// („Rettet …"-Hinweis). Bewusst unscharfes beidseitiges `contains`,
+/// weil KI-Zutatennamen selten exakt den Vorratsnamen entsprechen.
 PantryItem? findRescuedItem(List<PantryItem> expiring, List<String> uses) {
   for (final item in expiring) {
     final itemName = item.name.toLowerCase();

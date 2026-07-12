@@ -3,17 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/gs_colors.dart';
 import '../theme/gs_tone.dart';
 
-/// Pille mit farbigem Punkt + Label für den Ablauf-Status eines Items.
-///
-/// Vier Töne abhängig von den Tagen bis Ablauf:
-/// - `danger` (Terracotta): heute/morgen oder bereits abgelaufen
-/// - `warn` (Honey): 1-2 Tage
-/// - `ok` (Waldgrün): 3-7 Tage
-/// - `mute` (gedämpft): mehr als 7 Tage
-///
-/// Heißt aus historischen Gründen noch `ExpiryDot` — der ursprüngliche
-/// Name wird im Codebase noch verwendet. Funktional ist's der FreshChip
-/// aus dem Redesign.
+/// Pille mit Punkt + Label für den Ablauf-Status — Farbe je nach
+/// Tagen bis Ablauf (Terracotta/Honey/Grün/gedämpft).
 class ExpiryDot extends StatelessWidget {
   const ExpiryDot({super.key, required this.days});
   final int? days;

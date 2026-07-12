@@ -12,11 +12,8 @@ class Co2Equivalent {
   final String value;
 }
 
-/// Übersetzt eine CO₂e-Menge (kg) in greifbare Alltags-Vergleiche.
-///
-/// ⚠️ Grobe Richtwerte — bewusst illustrativ, nicht exakt: der zugrunde
-/// liegende CO₂-Wert ist selbst schon eine Kategorie-Schätzung, hier kommt
-/// also Schätzung auf Schätzung. Im UI als „ungefähr" rahmen.
+/// Übersetzt CO₂e (kg) in Alltags-Vergleiche — grobe Richtwerte,
+/// im UI als „ungefähr" rahmen.
 class Co2Equivalents {
   Co2Equivalents._();
 

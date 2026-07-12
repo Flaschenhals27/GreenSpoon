@@ -1,13 +1,5 @@
-/// Schätzt die Haltbarkeit von Lebensmitteln ohne aufgedrucktes MHD
-/// (Obst, Gemüse, Frischware). Grobe Richtwerte ab Kauf, bewusst eher
-/// knapp — lieber einen Tag zu früh erinnern als Verschwendung.
-///
-/// Genutzt als Fallback, wenn:
-///  - die KI beim Foto-Scan kein `expiry_days` liefert,
-///  - beim manuellen Eintragen kein MHD gewählt wird.
-///
-/// `null` = lange haltbar (Salz, Nudeln, Konserven …) → bewusst KEIN
-/// Datum-Tracking, sonst spammen wir mit sinnlosen Erinnerungen.
+/// Haltbarkeits-Schätzung für Frischware ohne MHD (Fallback bei Foto-Scan
+/// und manueller Eingabe); `null` = lange haltbar → kein Datum-Tracking.
 class ShelfLife {
   ShelfLife._();
 
@@ -33,9 +25,7 @@ class ShelfLife {
     'sellerie': 14, 'lauch': 10, 'porree': 10, 'ingwer': 21,
     'milch': 7, 'joghurt': 14, 'quark': 10, 'sahne': 7,
     'frischkäse': 10, 'mozzarella': 7, 'feta': 14, 'butter': 21,
-    // Bewusst 'eier', nicht 'ei' — als Teilstring würde 'ei' auch
-    // „Reis", „Wein" oder „Eis" treffen. Einzelne Eier fängt die
-    // Kategorie „Eier" (21 Tage) ab.
+    // Bewusst 'eier', nicht 'ei' — 'ei' träfe auch „Reis"/„Wein"/„Eis".
     'tofu': 7, 'eier': 21,
   };
 

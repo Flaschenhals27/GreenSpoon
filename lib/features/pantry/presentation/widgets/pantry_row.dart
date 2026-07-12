@@ -18,23 +18,16 @@ class PantryRow extends ConsumerWidget {
   const PantryRow({super.key, required this.item});
   final PantryItem item;
 
-  /// Archiviert das Item (verbraucht/weggeworfen) und zeigt die
-  /// Undo-SnackBar. Gibt zurück, ob das Archivieren geklappt hat.
-  ///
-  /// Wird vom Swipe (confirmDismiss) UND von den Screenreader-Aktionen
-  /// genutzt — Wischgesten sind für TalkBack/VoiceOver unsichtbar, die
-  /// CustomSemanticsActions machen beide Wege ohne Geste erreichbar.
+  /// Archiviert das Item und zeigt die Undo-SnackBar — genutzt vom Swipe
+  /// UND den Screenreader-Aktionen (Wischgesten sind für TalkBack unsichtbar).
   Future<bool> _archive(
     BuildContext context,
     WidgetRef ref, {
     required bool consumed,
   }) async {
     final status = consumed ? 'consumed' : 'discarded';
-    // Repository jetzt auslesen, solange die Row noch im Baum hängt.
-    // Nach dem Dismiss wird dieses ConsumerWidget disposed, womit `ref`
-    // ungültig wird — die SnackBar (und damit der „Rückgängig"-Button)
-    // lebt aber höher im Baum weiter. Würde der Button `ref` benutzen,
-    // liefe der restore()-Aufruf auf einem toten WidgetRef ins Leere.
+    // Repo VOR dem Dismiss lesen — danach ist `ref` disposed, der
+    // Undo-Button der SnackBar lebt aber weiter.
     final repo = ref.read(pantryRepositoryProvider);
     try {
       await repo.archive(item.id, status: status);
@@ -105,9 +98,8 @@ class PantryRow extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Hero fliegt beim Öffnen der Details zum großen Emoji-Tile.
-                // Material(transparency) verhindert den „no Material"-Look
-                // des Textes während des Flugs.
+                // Hero-Flug zum Detail-Screen; Material(transparency)
+                // verhindert den „no Material"-Look unterwegs.
                 Hero(
                   tag: 'pantry-emoji-${item.id}',
                   child: Material(

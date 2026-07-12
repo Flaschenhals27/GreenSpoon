@@ -35,14 +35,11 @@ abstract interface class PantryRepository {
   /// Ändert nur das MHD eines Items.
   Future<void> updateExpiry(String id, DateTime? expiresAt);
 
-  /// Passt Menge (+ anteiliges CO₂) eines Items an — für
-  /// „teilweise verbraucht" (halbe Packung weg, Rest bleibt im Vorrat).
+  /// Passt Menge + anteiliges CO₂ an („teilweise verbraucht").
   Future<void> updateQuantity(String id, {String? quantity, double? co2Kg});
 
-  /// Verbucht einen Teil eines Items als verbraucht: legt für den
-  /// gegessenen Anteil eine `consumed`-Archivzeile an (zählt damit in die
-  /// Statistik — inkl. anteiliger Rettungs-Logik, weil MHD und Entnahme-
-  /// Datum mitkopiert werden) und verkleinert das aktive Item.
+  /// Teil-Verbrauch: `consumed`-Archivzeile für den gegessenen Anteil
+  /// (zählt in die Statistik) + aktives Item verkleinern.
   Future<void> consumePartial({
     required PantryItem item,
     required String remainingQuantity,
@@ -61,11 +58,8 @@ abstract interface class PantryRepository {
   Future<UserStats> fetchStats();
 }
 
-/// Supabase-gestützte Umsetzung von [PantryRepository].
-///
-/// Der [SupabaseClient] wird injiziert; die Aggregation der Statistik ist an
-/// den reinen [UserStatsCalculator] delegiert (SRP) — dieses Repository
-/// kümmert sich nur um Laden, Mappen und Schreiben.
+/// Supabase-Umsetzung von [PantryRepository]; Client injiziert,
+/// Statistik-Aggregation an [UserStatsCalculator] delegiert (SRP).
 class SupabasePantryRepository implements PantryRepository {
   SupabasePantryRepository(
     this._client, {
@@ -77,8 +71,7 @@ class SupabasePantryRepository implements PantryRepository {
 
   static const _table = 'pantry_items';
 
-  /// Live-Stream aller Items des aktuellen Users, sortiert nach Ablaufdatum.
-  /// `null`-Ablaufdaten landen am Ende.
+  /// Live-Stream der Items, sortiert nach Ablaufdatum (null am Ende).
   @override
   Stream<List<PantryItem>> watchAll() {
     final userId = _client.auth.currentUser?.id;
@@ -104,8 +97,7 @@ class SupabasePantryRepository implements PantryRepository {
           return items;
         })
         .handleError((Object error) {
-          // Token-Probleme behandeln wir selbst; alles andere muss beim
-          // Stream-Konsumenten ankommen (sonst zeigt das UI nie einen Fehler).
+          // Token-Probleme selbst behandeln, alle anderen Fehler durchreichen.
           if (error.toString().toLowerCase().contains('jwt')) {
             _recoverSession();
           } else {
@@ -163,8 +155,7 @@ class SupabasePantryRepository implements PantryRepository {
     return PantryItem.fromJson(inserted);
   }
 
-  /// Mehrere Items auf einmal hinzufügen (z.B. nach dem Foto-Scan eines
-  /// ganzen Einkaufs). Ein einziger Insert-Round-Trip.
+  /// Mehrere Items in einem Insert-Round-Trip (z.B. nach dem Foto-Scan).
   @override
   Future<void> addAll(List<PantryDraft> drafts) async {
     if (drafts.isEmpty) return;
@@ -205,11 +196,8 @@ class SupabasePantryRepository implements PantryRepository {
     }).eq('id', id);
   }
 
-  /// Aktive Items, die innerhalb der nächsten [withinDays] Tage ablaufen
-  /// (inkl. heute) — frisch aus der DB. Liefert nur tatsächlich vorhandene
-  /// Items (kein abgelaufener/verwerteter/weggeworfener Bestand), damit z.B.
-  /// die Test-Benachrichtigung nie über Lebensmittel informiert, die es nicht
-  /// mehr gibt.
+  /// Aktive Items, die in den nächsten [withinDays] Tagen ablaufen —
+  /// frisch aus der DB, ohne archivierten Bestand.
   @override
   Future<List<PantryItem>> fetchExpiringSoon({int withinDays = 2}) async {
     final userId = _client.auth.currentUser?.id;
@@ -255,10 +243,8 @@ class SupabasePantryRepository implements PantryRepository {
     }).eq('id', id);
   }
 
-  /// Teil-Verbrauch: erst die Archivzeile für den gegessenen Anteil
-  /// anlegen, dann das aktive Item verkleinern. Schlägt der zweite
-  /// Schritt fehl, ist schlimmstenfalls etwas zu viel verbucht —
-  /// niemals geht Bestand verloren.
+  /// Erst Archivzeile, dann Item verkleinern — schlägt Schritt 2 fehl,
+  /// ist höchstens zu viel verbucht, nie Bestand verloren.
   @override
   Future<void> consumePartial({
     required PantryItem item,
@@ -288,8 +274,7 @@ class SupabasePantryRepository implements PantryRepository {
     );
   }
 
-  /// Backwards-kompatibler Alias — wird vom Dismissible-Wisch aufgerufen.
-  /// Default-Grund: 'discarded'.
+  /// Alias mit Default-Grund 'discarded' (Dismissible-Wisch).
   @override
   Future<void> delete(String id) => archive(id, status: 'discarded');
 
@@ -302,8 +287,7 @@ class SupabasePantryRepository implements PantryRepository {
     }).eq('id', id);
   }
 
-  /// Lädt die rohen Stats-Daten und überlässt die Aggregation dem
-  /// [UserStatsCalculator].
+  /// Lädt Rohdaten, Aggregation macht der [UserStatsCalculator].
   @override
   Future<UserStats> fetchStats() async {
     final userId = _client.auth.currentUser?.id;

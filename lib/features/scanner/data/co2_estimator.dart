@@ -1,10 +1,5 @@
-/// Schätzt den CO₂-Fußabdruck eines Lebensmittels.
-///
-/// Strategie:
-/// 1. Wenn Open Food Facts einen Wert liefert (kg CO₂ pro kg Produkt),
-///    multiplizieren wir mit dem geschätzten Gewicht.
-/// 2. Sonst Fallback über eine Kategorie-Map (Werte grob aus
-///    Poore & Nemecek 2018, kg CO₂e pro kg Lebensmittel).
+/// Schätzt den CO₂-Fußabdruck: Open-Food-Facts-Wert × Gewicht, sonst
+/// Kategorie-Fallback (Werte grob nach Poore & Nemecek 2018).
 class Co2Estimator {
   Co2Estimator._();
 
@@ -57,9 +52,7 @@ class Co2Estimator {
   /// Default-Gewicht in kg, wenn die Menge nicht geparst werden kann.
   static const _defaultWeightKg = 0.5;
 
-  /// Versucht, aus einem Mengen-String das Gewicht in kg zu lesen.
-  /// Erkennt: "500 g", "0,5 l", "1 kg", "250ml", "1.5 L", "6 Stück" (→ default).
-  /// Liefert null, wenn nichts Brauchbares erkennbar.
+  /// Gewicht in kg aus einem Mengen-String („500 g", „0,5 l"), sonst null.
   static double? parseWeightKg(String? quantity) {
     if (quantity == null || quantity.trim().isEmpty) return null;
     final q = quantity.toLowerCase().replaceAll(',', '.');
@@ -91,11 +84,8 @@ class Co2Estimator {
     return null;
   }
 
-  /// Berechnet den CO₂-Wert (kg) für ein Item.
-  ///
-  /// [offCo2PerKg]: Wert aus Open Food Facts (kg CO₂ pro kg), oder null.
-  /// [category]: App-Kategorie für den Fallback-Faktor.
-  /// [quantity]: Mengen-String fürs Gewicht.
+  /// CO₂-Wert (kg): [offCo2PerKg] aus Open Food Facts, sonst
+  /// Kategorie-Faktor × geschätztem Gewicht aus [quantity].
   static double estimateCo2Kg({
     double? offCo2PerKg,
     required String category,

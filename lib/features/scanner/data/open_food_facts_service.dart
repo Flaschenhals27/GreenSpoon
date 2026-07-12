@@ -4,10 +4,7 @@ import 'package:http/http.dart' as http;
 import '../domain/scanned_product.dart';
 import 'product_emoji.dart';
 
-/// Wrapper um die kostenlose Open Food Facts API.
-///
-/// Endpoint: https://world.openfoodfacts.org/api/v2/product/<barcode>.json
-/// Kein API-Key, kein Auth nötig.
+/// Wrapper um die kostenlose Open Food Facts API (kein Key/Auth nötig).
 class OpenFoodFactsService {
   OpenFoodFactsService({http.Client? client})
       : _client = client ?? http.Client();
@@ -16,10 +13,7 @@ class OpenFoodFactsService {
 
   static const _base = 'https://world.openfoodfacts.org/api/v2/product';
 
-  /// Sucht ein Produkt anhand des Barcodes.
-  ///
-  /// Liefert `null`, wenn das Produkt unbekannt ist (sehr häufig bei
-  /// regionalen/Bio-Produkten — dann fallback auf manuelle Eingabe).
+  /// Produkt per Barcode; `null` bei unbekanntem Produkt → manuelle Eingabe.
   Future<ScannedProduct?> lookup(String barcode) async {
     final uri = Uri.parse('$_base/$barcode.json'
         '?fields=product_name,product_name_de,brands,quantity,'

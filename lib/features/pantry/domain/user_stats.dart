@@ -1,8 +1,5 @@
-/// Aggregierte Nutzer-Statistiken für Profil- und Impact-Seite.
-///
-/// Reines Wertobjekt ohne Datenbank- oder Berechnungslogik — befüllt wird es
-/// vom [UserStatsCalculator]. So bleibt die Aggregation testbar und vom
-/// Repository entkoppelt (SRP).
+/// Aggregierte Nutzer-Statistiken — reines Wertobjekt, befüllt vom
+/// [UserStatsCalculator] (SRP).
 class UserStats {
   const UserStats({
     this.inPantry = 0,

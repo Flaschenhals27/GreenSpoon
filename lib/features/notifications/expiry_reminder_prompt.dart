@@ -6,16 +6,8 @@ import 'notification_scheduler.dart';
 import 'notification_service.dart';
 import 'notification_settings.dart';
 
-/// Entscheidet, ob und wann der User einmalig gefragt wird, ob er
-/// Ablauf-Erinnerungen möchte — und aktiviert sie auf Wunsch.
-///
-/// Der richtige Moment ist, sobald das erste Item mit MHD im Vorrat
-/// liegt (kontextuell statt versteckt im Profil). Der Prompt erscheint
-/// genau EINMAL (persistentes Flag); wer ablehnt, kann Erinnerungen
-/// jederzeit im Profil aktivieren.
-///
-/// Die UI (Dialog) bleibt im Widget — hier steckt nur die Logik
-/// (Trennung von Business- und UI-Logik).
+/// Logik des einmaligen Erinnerungs-Prompts: fragt, sobald das erste Item
+/// mit MHD im Vorrat liegt (persistentes Flag, der Dialog bleibt im Widget).
 class ExpiryReminderPrompt {
   static const _promptShownKey = 'notif_prompt_shown';
 

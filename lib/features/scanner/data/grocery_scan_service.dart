@@ -19,10 +19,8 @@ abstract interface class GroceryScanService {
   });
 }
 
-/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
-/// `scan-groceries`. Schickt ein Foto und bekommt eine Liste erkannter
-/// Lebensmittel zurück (inkl. Vorrats-Abgleich). Der [SupabaseClient] wird
-/// injiziert.
+/// Supabase-Umsetzung: schickt das Foto an die Edge Function `scan-groceries`
+/// und bekommt erkannte Lebensmittel inkl. Vorrats-Abgleich zurück.
 class SupabaseGroceryScanService implements GroceryScanService {
   SupabaseGroceryScanService(this._client);
 
@@ -100,10 +98,8 @@ class SupabaseGroceryScanService implements GroceryScanService {
     final isNew = (raw['status'] as String?) != 'schon_da';
     final resolvedName = (name == null || name.isEmpty) ? 'Unbekannt' : name;
 
-    // Haltbarkeit: KI-Schätzung zuerst; liefert sie nichts, greift die
-    // lokale ShelfLife-Heuristik. So bekommt Frischware auch dann ein
-    // Datum (→ Erinnerung + Impact-Statistik), wenn das Modell das Feld
-    // mal weglässt. null = lange haltbar, bewusst kein Tracking.
+    // Haltbarkeit: KI-Schätzung, sonst lokale ShelfLife-Heuristik
+    // (null = lange haltbar, kein Tracking).
     final days = (raw['expiry_days'] as num?)?.toInt();
     final expiresAt = days != null
         ? today.add(Duration(days: days))

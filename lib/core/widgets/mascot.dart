@@ -40,11 +40,7 @@ class Mascot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Die Assets sind 1024×1024, angezeigt werden 52–150 px. cacheWidth
-    // lässt Flutter direkt in Zielgröße dekodieren — statt beim ersten
-    // Auftauchen (Feier-Dialog, Lade-States) eine 4-MB-Textur zu
-    // dekodieren und dann runterzuskalieren. Spart Decode-Zeit & RAM,
-    // vermeidet den Mikroruckler genau im Auftritts-Moment.
+    // cacheWidth: 1024er-Assets direkt in Zielgröße dekodieren (RAM + Ruckler).
     final dpr = MediaQuery.of(context).devicePixelRatio;
     return Image.asset(
       pose.asset,

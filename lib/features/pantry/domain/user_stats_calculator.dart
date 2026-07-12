@@ -30,35 +30,18 @@ class WastedItem {
   final DateTime? removedAt;
 }
 
-/// Berechnet die [UserStats] aus den rohen Vorrats-Daten.
+/// Berechnet die [UserStats] — reine Aggregation ohne DB-Zugriffe,
+/// dadurch ohne Supabase unit-testbar (SRP).
 ///
-/// Bewusst frei von Datenbank-Zugriffen: das Repository lädt und mappt die
-/// Zeilen, dieser Calculator macht ausschließlich die Aggregation. Dadurch
-/// ist die Logik (CO₂-/€-Summen, Wochen-Zählung, „Buzzer"-Rettungen,
-/// Wegwerf-Bilanz pro Monat) ohne Supabase unit-testbar (SRP).
-///
-/// ## Methodik der „Ersparnis"-Werte (CO₂ & €)
-///
-/// „Vermieden/gespart" ist eine *kontrafaktische* Aussage: sie braucht ein
-/// glaubwürdiges „was wäre sonst passiert?". Normal gegessene Lebensmittel
-/// vermeiden nichts — ihr CO₂ ist bei der Produktion so oder so entstanden.
-/// Deshalb zählen in [UserStats.co2SavedKg] und [UserStats.eurSaved] **nur
-/// Rettungen**: Items, die ≤ [buzzerThresholdDays] Tage vor dem MHD (oder
-/// danach) verwertet wurden. Kontrafaktik: ohne die Rettung wäre das Item
-/// mit hoher Wahrscheinlichkeit im Müll gelandet — sein Produktions-CO₂
-/// wäre „für nichts" ausgestoßen und ein Ersatzkauf (≈ gleicher Preis,
-/// ≈ gleiches CO₂) nötig geworden. Dieselbe Kohorte speist auch den
-/// [UserStats.buzzerSaves]-Zähler — eine Metrik, drei Sichten.
-///
-/// Konservativ dabei: Items ohne MHD oder ohne Entnahme-Datum können nie
-/// als Rettung zählen — lieber unter- als überschätzen.
+/// Methodik: Als CO₂-/€-„Ersparnis" zählen nur Rettungen (verwertet ≤
+/// [buzzerThresholdDays] Tage vor dem MHD oder danach) — normal gegessene
+/// Lebensmittel vermeiden nichts. Items ohne MHD/Entnahme-Datum zählen
+/// konservativ nie als Rettung.
 class UserStatsCalculator {
   const UserStatsCalculator();
 
-  /// Schwelle (Tage Restlaufzeit), bis zu der ein verwertetes Item als
-  /// „auf den letzten Drücker gerettet" zählt. Negative Restlaufzeit
-  /// (nach MHD verwertet) zählt ebenfalls — MHD ist kein Verfallsdatum,
-  /// und gerade das ist eine Rettung vor der Tonne.
+  /// Restlaufzeit-Schwelle für „auf den letzten Drücker gerettet";
+  /// nach MHD verwertet zählt ebenfalls.
   static const buzzerThresholdDays = 3;
 
   UserStats compute({
@@ -80,9 +63,7 @@ class UserStatsCalculator {
       final removedAt = item.removedAt;
       if (removedAt != null && removedAt.isAfter(weekAgo)) cookedThisWeek++;
 
-      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD
-      // (oder danach). NUR diese Rettungen zählen als CO₂-/€-Ersparnis —
-      // normal verbrauchte Lebensmittel vermeiden nichts (s. Klassen-Doku).
+      // Nur Rettungen zählen als CO₂-/€-Ersparnis (s. Klassen-Doku).
       final expiresAt = item.expiresAt;
       if (expiresAt != null && removedAt != null) {
         final daysLeft =

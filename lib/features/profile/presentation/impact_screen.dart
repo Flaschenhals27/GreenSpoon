@@ -109,9 +109,7 @@ class ImpactScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
       children: [
-        // ── 1. Die Wegwerf-Bilanz zuerst: das ist die ehrliche, nicht
-        // „gamebare" Kennzahl (misst das Outcome direkt, keine
-        // Kontrafaktik). CO₂ folgt bewusst erst danach als Schätzung.
+        // Wegwerf-Bilanz zuerst (ehrliche Kennzahl), CO₂ danach als Schätzung.
         Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
         const SizedBox(height: 12),
         _BalanceCard(stats: s, avgWeek: _avgWastePerWeekKg),

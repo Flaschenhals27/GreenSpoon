@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/gs_colors.dart';
 import '../theme/gs_typography.dart';
 
-/// Grüner Banner mit "Dein Impact"-Anzeige.
-///
-/// Zeigt bewusst NUR die Verwertungs-Quote — die ehrliche, nicht
-/// „gamebare" Kennzahl. Das geschätzte CO₂ lebt auf der Impact-Seite
-/// (als klar gerahmte Schätzung), nicht als täglicher Punktestand.
+/// Grüner „Dein Impact"-Banner — zeigt bewusst nur die Verwertungs-Quote,
+/// das geschätzte CO₂ lebt auf der Impact-Seite.
 class ImpactRibbon extends StatelessWidget {
   const ImpactRibbon({
     super.key,

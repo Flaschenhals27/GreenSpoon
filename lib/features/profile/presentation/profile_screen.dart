@@ -141,10 +141,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Theme(
-        // Material-Ripple im Profil deaktivieren: sonst „leuchten" beim
-        // Antippen die Ecken der abgerundeten Karten auf, weil der rechteckige
-        // Ink-Splash auf dem darunterliegenden Material gemalt und nicht auf
-        // die Kartenform geclippt wird.
+        // Ripple deaktivieren — der rechteckige Ink-Splash würde sonst
+        // über die runden Kartenecken hinausleuchten.
         data: Theme.of(context).copyWith(
           splashFactory: NoSplash.splashFactory,
           splashColor: Colors.transparent,

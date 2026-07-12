@@ -42,12 +42,32 @@ class PantryItem {
     return expDate.difference(todayDate).inDays;
   }
 
-  /// True, wenn das Item in den nächsten [expiringSoonThresholdDays] Tagen
-  /// abläuft (oder schon abgelaufen ist). Zentrale Definition für
-  /// Ablauf-Alert, Filter und Rezept-Hinweise.
+  /// True, wenn das Item in ≤ [expiringSoonThresholdDays] Tagen abläuft
+  /// (oder schon abgelaufen ist) — zentrale Definition für Alert & Filter.
   bool get isExpiringSoon {
     final d = daysUntilExpiry;
     return d != null && d <= expiringSoonThresholdDays;
+  }
+
+  /// Kopie mit geänderten Feldern (null = Wert behalten).
+  PantryItem copyWith({
+    String? quantity,
+    DateTime? expiresAt,
+    double? co2Kg,
+  }) {
+    return PantryItem(
+      id: id,
+      userId: userId,
+      name: name,
+      category: category,
+      emoji: emoji,
+      brand: brand,
+      quantity: quantity ?? this.quantity,
+      barcode: barcode,
+      expiresAt: expiresAt ?? this.expiresAt,
+      createdAt: createdAt,
+      co2Kg: co2Kg ?? this.co2Kg,
+    );
   }
 
   factory PantryItem.fromJson(Map<String, dynamic> json) {

@@ -45,11 +45,8 @@ class ProfileAvatar extends ConsumerWidget {
                 size: size * 0.44,
                 weight: FontWeight.w500,
               ).copyWith(
-                // headline() ist auf Fließtext ausgelegt (height 1.02,
-                // negatives letterSpacing). Bei einer Einzel-Initiale
-                // schiebt das den Glyph über die optische Mitte des
-                // Kreises. height 1 + gleichmäßig verteiltes Leading
-                // zentrieren den Großbuchstaben exakt.
+                // headline() ist für Fließtext — diese Overrides zentrieren
+                // die Einzel-Initiale exakt im Kreis.
                 height: 1.0,
                 letterSpacing: 0,
                 leadingDistribution: TextLeadingDistribution.even,

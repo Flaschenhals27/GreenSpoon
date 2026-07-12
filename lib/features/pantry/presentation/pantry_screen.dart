@@ -35,13 +35,11 @@ class PantryScreen extends ConsumerStatefulWidget {
 class _PantryScreenState extends ConsumerState<PantryScreen> {
   String _filter = kPantryFilterAll;
 
-  // Suche: Feld erscheint erst auf Tap (Lupe im Header) — hält den
-  // Screen aufgeräumt, solange man nicht sucht.
+  // Suchfeld erscheint erst per Tap auf die Lupe.
   bool _searching = false;
   final _searchCtrl = TextEditingController();
 
-  // Zum Erkennen, ob ein Tap INS Suchfeld bzw. auf die Lupe ging —
-  // nur Taps daneben sollen die Suche schließen.
+  // Nur Taps NEBEN Suchfeld/Lupe sollen die Suche schließen.
   final _searchFieldKey = GlobalKey();
   final _searchIconKey = GlobalKey();
 
@@ -66,11 +64,8 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
     return (box.localToGlobal(Offset.zero) & box.size).contains(globalPos);
   }
 
-  /// Tap irgendwo außerhalb des Suchfelds:
-  ///  - leeres Feld → Suche komplett schließen (Feld war offenbar
-  ///    versehentlich offen / wird nicht mehr gebraucht),
-  ///  - mit Suchbegriff → nur die Tastatur einklappen; Filter bleibt,
-  ///    sonst würde die Ergebnisliste unterm Finger wegspringen.
+  /// Tap außerhalb: leeres Feld → Suche schließen; mit Begriff → nur
+  /// Tastatur einklappen (sonst springt die Ergebnisliste weg).
   void _handlePointerDown(PointerDownEvent event) {
     if (!_searching) return;
     if (_hitInside(_searchFieldKey, event.position) ||
@@ -91,9 +86,7 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
 
     final email = user?.email ?? '';
     final initial = email.isNotEmpty ? email[0].toUpperCase() : '?';
-    // Anzeigename: selbst gesetzter Name (Profil) → sonst intelligent aus
-    // der E-Mail abgeleitet („fabian.zell@…" → „Fabian") → sonst neutral.
-    // Nie das rohe E-Mail-Präfix — „Hallo fabianzell1502" grüßt niemand.
+    // Anzeigename: selbst gesetzt → aus der E-Mail abgeleitet → neutral.
     final rawName = user?.userMetadata?['display_name'];
     final customName = rawName is String ? rawName.trim() : '';
     final displayName = customName.isNotEmpty
@@ -105,8 +98,7 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: asyncItems.when(
-          // Skeleton statt Spinner: die Platzhalter haben dieselbe Höhe wie
-          // echte Rows — beim Eintreffen der Daten springt nichts.
+          // Skeleton statt Spinner — kein Layout-Sprung beim Laden.
           loading: () => const PantrySkeleton(),
           error: (e, _) => _LoadError(error: e),
           data: (items) => _buildContent(items, initial, greeting),
@@ -122,32 +114,24 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
   ) {
     final tone = GSTone.of(context);
 
-    // Bald ablaufende Items für den Alert
     final expiringSoon = allItems.where((p) => p.isExpiringSoon).toList();
 
-    // Nur Filter anbieten, die auch Treffer hätten: "Alle" immer,
-    // "Läuft bald ab" nur bei Bedarf, Kategorien nur wenn belegt.
-    // Ein typischer Vorrat nutzt 5-6 der 18 Kategorien — tote Pills
-    // wären nur Scroll-Ballast.
+    // Nur Filter anbieten, die auch Treffer hätten — tote Pills wären Ballast.
     final usedCategories = allItems.map((p) => p.category).toSet();
     final categories = [
       kPantryFilterAll,
       if (expiringSoon.isNotEmpty) kPantryFilterExpiringSoon,
       ...kPantryCategories.where(usedCategories.contains),
     ];
-    // Verschwindet der aktive Filter (letztes Item der Kategorie ist weg),
-    // fällt die Anzeige auf "Alle" zurück statt leer zu laufen.
+    // Verschwundener Filter (Kategorie leer) fällt auf „Alle" zurück.
     final filter =
         categories.contains(_filter) ? _filter : kPantryFilterAll;
 
-    // Filter + Suche anwenden
     final query = _searchCtrl.text.trim().toLowerCase();
     final filtered = filterPantryItems(allItems, filter: filter, query: query);
 
     return Listener(
-      // Roher Pointer-Hook statt GestureDetector: verliert nie die
-      // Gesten-Arena gegen Row-Taps und fängt auch Taps auf leere
-      // Flächen (translucent).
+      // Listener statt GestureDetector: verliert nie die Gesten-Arena gegen Row-Taps.
       behavior: HitTestBehavior.translucent,
       onPointerDown: _handlePointerDown,
       child: RefreshIndicator(
@@ -155,13 +139,11 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
         backgroundColor: tone.surface,
         onRefresh: () async {
           ref.invalidate(pantryStreamProvider);
-          // Auf das erste Event des frischen Streams warten, damit der
-          // Indikator so lange dreht, wie wirklich geladen wird.
+          // Aufs erste Event warten, damit der Indikator solange dreht wie geladen wird.
           await ref.read(pantryStreamProvider.future);
         },
         child: CustomScrollView(
-          // Auch bei kurzem Inhalt ziehbar — sonst gibt's kein Pull-to-Refresh,
-          // wenn nur zwei Items im Vorrat sind.
+          // Auch bei kurzem Inhalt ziehbar (Pull-to-Refresh).
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
@@ -225,9 +207,7 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
                 hasScrollBody: false,
                 child: PantryEmptyState(
                   searching: query.isNotEmpty,
-                  // CTA nur, wenn der Vorrat WIRKLICH leer ist (nicht bloß
-                  // der Filter) — dann ist Scannen der offensichtliche
-                  // nächste Schritt (Onboarding-Anschluss).
+                  // Scan-CTA nur bei wirklich leerem Vorrat (nicht bloß leerem Filter).
                   showScanCta: allItems.isEmpty && query.isEmpty,
                 ),
               )
@@ -341,9 +321,7 @@ class _Header extends StatelessWidget {
   final String initial;
   final bool searching;
 
-  /// Markiert den Lupen-Button für den „Tap daneben schließt die
-  /// Suche"-Handler — ein Tap auf die Lupe selbst darf nicht erst
-  /// schließen und dann gleich wieder öffnen.
+  /// Key für den „Tap daneben schließt"-Handler — die Lupe selbst zählt nicht als daneben.
   final GlobalKey searchIconKey;
   final VoidCallback onSearchTap;
   final VoidCallback onAvatarTap;

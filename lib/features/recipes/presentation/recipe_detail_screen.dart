@@ -228,9 +228,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                   ),
                 ),
             ],
-            // „Gekocht!" — schließt den Loop: die verwendeten Zutaten
-            // werden als verbraucht verbucht, statt dass man jedes Item
-            // einzeln im Vorrat suchen und wegwischen muss.
+            // „Gekocht!" verbucht die verwendeten Zutaten in einem Schritt.
             if (recipe.uses.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 24, 22, 0),
@@ -281,9 +279,8 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _match());
   }
 
-  /// Matcht die Rezept-Zutaten gegen die Vorrats-Items: exakter Name
-  /// zuerst, sonst enthält-Beziehung in beide Richtungen („Tomaten" ↔
-  /// „Cherry-Tomaten"). Jedes Vorrats-Item höchstens einmal.
+  /// Matcht Zutaten gegen den Vorrat: exakt vor beidseitigem contains,
+  /// jedes Item höchstens einmal.
   void _match() {
     final pantry = ref.read(pantryStreamProvider).valueOrNull ?? const [];
     final usedIds = <String>{};

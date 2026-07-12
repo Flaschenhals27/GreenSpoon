@@ -1,10 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Vertrag für das Auth-Backend.
-///
-/// UI- und Provider-Code hängen ausschließlich an dieser Abstraktion (DIP) —
-/// sie kennen Supabase nicht direkt. Das macht Tests und einen späteren
-/// Wechsel des Auth-Backends einfach.
+/// Vertrag für das Auth-Backend — UI/Provider hängen nur an dieser
+/// Abstraktion (DIP), nicht an Supabase.
 abstract interface class AuthRepository {
   /// Aktueller User oder null, wenn nicht eingeloggt.
   User? get currentUser;
@@ -44,10 +41,7 @@ abstract interface class AuthRepository {
   Future<void> signOut();
 }
 
-/// Supabase-gestützte Umsetzung von [AuthRepository].
-///
-/// Alle Auth-Calls laufen ausschließlich hierüber. Der [SupabaseClient] wird
-/// injiziert, statt auf das globale Singleton zuzugreifen.
+/// Supabase-Umsetzung von [AuthRepository]; der Client wird injiziert.
 class SupabaseAuthRepository implements AuthRepository {
   SupabaseAuthRepository(this._client);
 
@@ -83,11 +77,8 @@ class SupabaseAuthRepository implements AuthRepository {
     );
   }
 
-  /// Schritt 1 des Passwort-Resets: schickt dem User eine Email mit einem
-  /// 6-stelligen Code (kein Deep-Link nötig — siehe Setup-Hinweis).
-  ///
-  /// Damit die Mail den Code enthält, muss die Supabase-Vorlage
-  /// „Reset Password" `{{ .Token }}` ausgeben.
+  /// Reset-Schritt 1: Code-Mail senden — die Supabase-Vorlage „Reset
+  /// Password" muss dafür `{{ .Token }}` ausgeben.
   @override
   Future<void> sendPasswordResetCode(String email) {
     return _client.auth.resetPasswordForEmail(email.trim());

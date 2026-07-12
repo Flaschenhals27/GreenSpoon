@@ -1,10 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Wrapper um die Supabase-Initialisierung.
-///
-/// Wird einmalig in `main()` aufgerufen, bevor `runApp()` läuft.
-/// Liest `SUPABASE_URL` und `SUPABASE_ANON_KEY` aus der `.env`-Datei.
+/// Supabase-Initialisierung (einmalig in `main()`); liest die
+/// Credentials aus der `.env`-Datei.
 class SupabaseService {
   SupabaseService._();
 

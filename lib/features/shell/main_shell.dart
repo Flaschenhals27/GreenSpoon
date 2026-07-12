@@ -80,9 +80,7 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
-  /// Zeigt den einmaligen Erinnerungs-Prompt, wenn der richtige Moment
-  /// gekommen ist. Ob und wann entscheidet [ExpiryReminderPrompt] —
-  /// hier lebt nur der Dialog.
+  /// Einmaliger Erinnerungs-Prompt — ob/wann entscheidet [ExpiryReminderPrompt].
   Future<void> _maybeShowNotifPrompt() async {
     final items = ref.read(pantryStreamProvider).valueOrNull;
     if (items == null) return;
@@ -136,9 +134,7 @@ class _MainShellState extends ConsumerState<MainShell>
     final tone = GSTone.of(context);
     final tab = ref.watch(shellTabProvider);
 
-    // Hält die geplanten Ablauf-Erinnerungen aktuell: bei jeder Vorrats-
-    // Änderung (Hinzufügen, Verwerten, MHD-Edit) und beim Resume neu planen.
-    // [reschedule] ist selbst ein No-op, falls Benachrichtigungen aus sind.
+    // Erinnerungen bei jeder Vorrats-Änderung neu planen (No-op wenn deaktiviert).
     ref.listen(pantryStreamProvider, (_, next) {
       final items = next.valueOrNull;
       if (items != null) {
@@ -370,9 +366,7 @@ class _ScanButton extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────
 
-/// Auswahl beim Tippen auf den Scan-Button: einzeln scannen (Barcode/MHD),
-/// den ganzen Einkauf abfotografieren (KI-Erkennung) oder manuell eintragen
-/// (auch als Shortcut per Long-Press auf den Scan-Button erreichbar).
+/// Scan-Auswahl: einzeln scannen, Einkauf fotografieren oder manuell eintragen.
 class _ScanOptionsSheet extends StatelessWidget {
   const _ScanOptionsSheet({
     required this.onSingle,

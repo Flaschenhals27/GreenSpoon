@@ -1,8 +1,5 @@
-/// Die festen Vorrats-Kategorien der App. Eine einzige Quelle der Wahrheit,
-/// damit Scan-Review, Foto-Erkennung und Edge Function dieselben Werte nutzen.
-///
-/// ⚠️ Wird im Prompt der Edge Function `scan-groceries` gespiegelt — bei
-/// Änderungen dort mitziehen.
+/// Die festen Vorrats-Kategorien (Single Source of Truth).
+/// ⚠️ Im Prompt der Edge Function `scan-groceries` gespiegelt — dort mitziehen.
 const List<String> kPantryCategories = [
   'Milchprodukte',
   'Obst',

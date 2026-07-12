@@ -5,11 +5,8 @@ import 'package:home_widget/home_widget.dart';
 
 import '../pantry/domain/pantry_item.dart';
 
-/// Versorgt das Android-Homescreen-Widget („Läuft bald ab") mit Daten.
-///
-/// Wird bei jeder Vorrats-Änderung aus der MainShell aufgerufen — gleiche
-/// Stelle wie der NotificationScheduler. iOS braucht eine WidgetKit-
-/// Extension (Xcode); bis dahin ist der Updater dort ein No-op.
+/// Versorgt das Android-Homescreen-Widget mit Daten (bei jeder
+/// Vorrats-Änderung); auf iOS bis zur WidgetKit-Extension ein No-op.
 class PantryWidgetUpdater {
   PantryWidgetUpdater._();
 

@@ -8,19 +8,12 @@ import '../domain/recipe.dart';
 /// Vertrag für die Rezept-Generierung. Konsumenten hängen nur an dieser
 /// Abstraktion (DIP).
 abstract interface class RecipeRepository {
-  /// Generiert Rezepte.
-  ///
-  /// Ohne [meal] → der Standardmodus (3 Rezepte: Frühstück/Mittag/Abend).
-  /// Mit [meal] → [count] Alternativen für genau diese Mahlzeit (für das
-  /// Einzel-Refresh per Long-Press).
-  ///
-  /// Wirft [RecipeException] mit kategorisiertem Fehlertyp bei Problemen.
+  /// Generiert Rezepte: ohne [meal] je eines pro Mahlzeit, mit [meal]
+  /// [count] Alternativen dafür. Wirft [RecipeException] bei Problemen.
   Future<List<Recipe>> generate({Meal? meal, int count});
 }
 
-/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
-/// `generate-recipes`. Der Supabase-Client hängt den User-JWT automatisch an
-/// und wird injiziert.
+/// Supabase-Umsetzung über die Edge Function `generate-recipes`.
 class SupabaseRecipeRepository implements RecipeRepository {
   SupabaseRecipeRepository(this._client);
 

@@ -1,9 +1,4 @@
-/// Smart-Emoji-Picker basierend auf Produktnamen und Kategorie.
-///
-/// Logik:
-/// 1. Versuche, einen Treffer aus dem Produktnamen zu finden (z.B. "Spezi" → 🥤)
-/// 2. Falls keiner: nimm das Kategorie-Default-Emoji
-/// 3. Falls auch keine Kategorie matched: 📦
+/// Emoji-Picker: Namens-Treffer („Spezi" → 🥤) vor Kategorie-Default vor 📦.
 class ProductEmojiResolver {
   ProductEmojiResolver._();
 
@@ -263,10 +258,7 @@ class ProductEmojiResolver {
     'Sonstiges': '📦',
   };
 
-  /// Liefert das passendste Emoji.
-  ///
-  /// [name] kann leer sein → dann reicht die Kategorie.
-  /// [category] kann unbekannt sein → 📦.
+  /// Passendstes Emoji zu [name]/[category]; Fallback 📦.
   static String resolve({String? name, String? category}) {
     final lower = (name ?? '').toLowerCase();
     if (lower.isNotEmpty) {

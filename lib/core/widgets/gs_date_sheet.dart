@@ -6,12 +6,8 @@ import '../theme/gs_colors.dart';
 import '../theme/gs_tone.dart';
 import '../theme/gs_typography.dart';
 
-/// Zeigt ein Bottom-Sheet mit drei scrollbaren Wheels (Tag, Monat, Jahr).
-/// Liefert das gewählte Datum oder `null`, wenn abgebrochen wurde.
-///
-/// `initial`: Vollständiges Start-Datum (default: heute + 7 Tage).
-/// `initialDay`/`initialMonth`/`initialYear`: einzeln vorbelegen, falls
-/// nur Teile bekannt sind (z.B. aus partieller OCR-Erkennung).
+/// Bottom-Sheet mit Tag/Monat/Jahr-Wheels; liefert das Datum oder `null`.
+/// Einzelteile lassen sich vorbelegen (z.B. aus partieller OCR-Erkennung).
 Future<DateTime?> showGSDateSheet(
   BuildContext context, {
   DateTime? initial,

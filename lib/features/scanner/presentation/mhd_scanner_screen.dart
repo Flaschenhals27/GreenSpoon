@@ -35,9 +35,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
   bool _permissionDenied = false;
   DateTime? _lastProcessAt;
 
-  /// Wie lange dasselbe Datum dominieren muss, bis es automatisch
-  /// übernommen wird. Durch das Häufigkeits-Voting reicht das locker —
-  /// und beim Serien-Scan zählt jede Sekunde.
+  /// So lange muss dasselbe Datum dominieren, bis es automatisch übernommen wird.
   static const _autoAcceptMs = 2500;
 
   // Sticky match — dominiert dasselbe Datum [_autoAcceptMs], wird's gewählt.
@@ -147,9 +145,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
   Future<void> _onFrame(CameraImage image) async {
     if (_isProcessing || _leaving || !mounted) return;
 
-    // Drossel: höchstens ~alle 500 ms OCR laufen lassen. Ohne das läuft
-    // die Texterkennung auf JEDEM Frame und blockiert den Main-Thread
-    // (ständige GC-Pausen → UI wirkt eingefroren).
+    // OCR auf ~alle 500 ms drosseln — auf jedem Frame friert die UI ein.
     final now = DateTime.now();
     if (_lastProcessAt != null &&
         now.difference(_lastProcessAt!).inMilliseconds < 500) {
@@ -395,10 +391,8 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                 ),
               ),
             ),
-            // Manueller Übernehmen-Button (sobald ein Datum erkannt wurde) —
-            // garantierter Ausweg, kein Warten auf die 4s-Auto-Bestätigung.
-            // Darunter immer ein „MHD überspringen", falls kein Datum
-            // aufgedruckt ist oder man es später manuell setzen will.
+            // Übernehmen-Button als Ausweg vor der Auto-Bestätigung,
+            // darunter immer „MHD überspringen".
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
               child: Column(

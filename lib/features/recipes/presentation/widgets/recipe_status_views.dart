@@ -46,12 +46,9 @@ class RecipesLoadingView extends StatelessWidget {
   }
 }
 
-/// Gemeinsamer Status-Screen für alle Nicht-Daten-Zustände der Rezeptliste
-/// (Fehler, leerer Vorrat, keine Vorschläge): Löffeli-Pose, Titel, Text,
-/// eine Aktion und optional aufklappbare technische Details.
-///
-/// [cooldownGated] koppelt den Button an den Reload-Cooldown (Retry-Fälle);
-/// bei Navigations-Aktionen („Zum Vorrat") bleibt er immer aktiv.
+/// Gemeinsamer Status-Screen (Fehler/leer/keine Vorschläge): Pose, Texte,
+/// eine Aktion, optionale Details. [cooldownGated] koppelt den Button an
+/// den Reload-Cooldown.
 class RecipeStatusView extends StatefulWidget {
   const RecipeStatusView({
     super.key,

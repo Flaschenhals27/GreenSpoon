@@ -12,10 +12,8 @@ import '../data/co2_estimator.dart';
 import '../domain/scanned_product.dart';
 import 'mhd_scanner_screen.dart';
 
-/// Review vor dem Speichern eines gescannten Produkts.
-///
-/// Poppt bei Erfolg den **gespeicherten Namen** (für die „hinzugefügt"-
-/// Bestätigung im Serien-Scan), bei Abbruch `null`.
+/// Review vor dem Speichern eines gescannten Produkts — poppt bei Erfolg
+/// den gespeicherten Namen, bei Abbruch `null`.
 class ScanReviewSheet extends ConsumerStatefulWidget {
   const ScanReviewSheet({
     super.key,

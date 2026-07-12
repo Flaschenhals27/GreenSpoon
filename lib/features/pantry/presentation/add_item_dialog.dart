@@ -22,9 +22,8 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   final _brandCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
 
-  /// Einheiten fürs Mengen-Dropdown. Die Menge selbst ist ein reines
-  /// Zahlenfeld (Zahlentastatur!) — zusammen ergibt das „500 g" und der
-  /// CO₂-/Kilo-Parser bekommt garantiert ein lesbares Format.
+  /// Einheiten fürs Mengen-Dropdown — Zahl + Einheit ergibt immer
+  /// ein parsebares Format („500 g").
   static const _units = ['g', 'kg', 'ml', 'l', 'Stück'];
   String _qtyUnit = 'g';
   String _category = 'Sonstiges';
@@ -37,9 +36,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     return v.isEmpty ? null : '$v $_qtyUnit';
   }
 
-  /// Geschätzte Haltbarkeit für die aktuelle Eingabe (Name + Kategorie),
-  /// oder null bei lange haltbaren Sachen. Greift nur, wenn der User
-  /// selbst kein MHD wählt.
+  /// Geschätzte Haltbarkeit (Fallback, wenn der User kein MHD wählt).
   int? get _estimatedDays => ShelfLife.estimateDays(
         name: _nameCtrl.text,
         category: _category,

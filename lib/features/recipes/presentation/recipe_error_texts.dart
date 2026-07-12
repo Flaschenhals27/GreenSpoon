@@ -1,10 +1,7 @@
 import '../data/recipe_repository.dart';
 
-/// Nutzerfreundliche Anzeige-Texte je Fehlerkategorie.
-///
-/// Lebt in der Präsentationsschicht (die Domain kennt keine UI-Texte).
-/// Die erschöpfenden switch-Ausdrücke erzwingen, dass ein neuer
-/// [RecipeErrorType] hier behandelt werden muss.
+/// Anzeige-Texte je Fehlerkategorie — Präsentationsschicht; die
+/// erschöpfenden switches erzwingen die Behandlung neuer Typen.
 extension RecipeErrorTexts on RecipeErrorType {
   String get emoji => switch (this) {
         RecipeErrorType.offline => '📡',

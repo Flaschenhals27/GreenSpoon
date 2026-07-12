@@ -30,10 +30,8 @@ class GreenSpoonApp extends ConsumerWidget {
       ],
       supportedLocales: const [Locale('de'), Locale('en')],
       builder: (context, child) {
-        // Die System-Textgröße wird respektiert, aber auf einen Bereich
-        // geklemmt, den alle Layouts sicher tragen (Headlines bis 52pt,
-        // enge Karten-Zeilen). So bleibt große Schrift nutzbar, ohne dass
-        // Texte clippen oder Buttons aus dem Screen wachsen.
+        // System-Textgröße respektieren, aber auf einen Bereich klemmen,
+        // den alle Layouts sicher tragen.
         final mq = MediaQuery.of(context);
         final clampedScaler = mq.textScaler.clamp(
           minScaleFactor: 0.9,

@@ -42,9 +42,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final goingToAuth = loc == '/login' || loc == '/signup';
 
-      // Der Passwort-Reset bleibt immer erreichbar — auch während der
-      // Recovery-Session (sonst würde der User vor dem Setzen des neuen
-      // Passworts auf den Home-Screen umgeleitet).
+      // Passwort-Reset bleibt auch während der Recovery-Session erreichbar.
       if (loc == '/reset-password') return null;
 
       if (!isLoggedIn && !goingToAuth) return '/login';

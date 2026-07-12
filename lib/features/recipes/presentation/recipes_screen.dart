@@ -26,10 +26,8 @@ class RecipesScreen extends ConsumerStatefulWidget {
 }
 
 class _RecipesScreenState extends ConsumerState<RecipesScreen> {
-  // Erhöht sich, sobald der Rezepte-Tab sichtbar wird. Dadurch bekommen die
-  // Karten neue Keys → der gestaffelte Auftritt spielt bei jedem Besuch neu.
-  // (Nötig, weil der IndexedStack alle Tabs schon beim Start aufbaut und die
-  // Animation sonst unsichtbar im Hintergrund abläuft.)
+  // Zählt Tab-Besuche → neue Card-Keys → Eintritts-Animation spielt jedes
+  // Mal neu (der IndexedStack baut sonst alles unsichtbar vor).
   int _gen = 0;
 
   @override

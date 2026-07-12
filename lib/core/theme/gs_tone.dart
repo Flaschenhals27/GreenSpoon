@@ -2,17 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'gs_colors.dart';
 
-/// Helligkeitsabhängige Farbrollen für Green Spoon.
-///
-/// Bündelt alle Farben, die sich zwischen Light- und Dark-Mode
-/// unterscheiden, an einer Stelle (Single Source of Truth). Widgets
-/// holen sich das passende Set per [GSTone.of] statt überall
-/// `isDark ? GSColors.xDark : GSColors.x` zu wiederholen:
-///
-/// ```dart
-/// final tone = GSTone.of(context);
-/// Text('…', style: GSTypography.body(color: tone.inkMute));
-/// ```
+/// Helligkeitsabhängige Farbrollen (Single Source of Truth) — Widgets
+/// holen sich per [GSTone.of] das passende Set statt eigener isDark-Ternaries.
 class GSTone {
   const GSTone._({
     required this.isDark,

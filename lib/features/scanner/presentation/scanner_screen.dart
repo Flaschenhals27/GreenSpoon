@@ -26,13 +26,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   /// Anzahl der in dieser Session hinzugefügten Produkte (Serien-Scan).
   int _addedCount = 0;
 
-  /// Vorab gescanntes MHD („MHD zuerst"): Wer den Aufdruck gerade in der
-  /// Hand hat, scannt erst das Datum und dann den Barcode — der MHD-Schritt
-  /// nach dem Barcode wird dann übersprungen.
+  /// Vorab gescanntes MHD („MHD zuerst") — der MHD-Schritt nach dem Barcode entfällt dann.
   DateTime? _pendingExpiry;
 
-  /// Debounce für den Serien-Scan: Nach dem Review liegt derselbe Barcode
-  /// oft noch im Bild — ohne Sperre würde er sich sofort erneut auslösen.
+  /// Debounce: nach dem Review liegt derselbe Barcode oft noch im Bild.
   String? _lastCode;
   DateTime? _lastCodeAt;
 
@@ -51,8 +48,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   Future<void> _handleBarcode(String code) async {
     if (_processing || _isDuplicateScan(code)) return;
-    // „Getroffen!" — der Moment, in dem der Barcode erkannt wurde,
-    // ist sonst nur am Statustext ablesbar.
+    // Haptik: Barcode-Treffer spürbar machen.
     HapticFeedback.mediumImpact();
     setState(() => _processing = true);
     await _controller.stop();
@@ -61,11 +57,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     try {
       product = await ref.read(openFoodFactsProvider).lookup(code);
     } catch (_) {
-      // Network error or timeout — proceed with empty product
+      // Netzwerkfehler/Timeout — mit leerem Produkt weiter.
     }
 
-    // Unmounted ⇒ dispose() hat den Controller schon freigegeben —
-    // ein start() darauf würde werfen.
+    // Nach dispose() würde start() auf dem Controller werfen.
     if (!mounted) return;
 
     final scanned = product ??
@@ -78,10 +73,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           emoji: '📦',
         );
 
-    // MHD: Wurde es schon vorab gescannt („MHD zuerst"), den Schritt
-    // überspringen. Sonst direkt im Anschluss scannen — ohne Extra-Tap im
-    // Review-Sheet. Gibt null zurück, wenn der User abbricht/überspringt;
-    // das Datum lässt sich im Review-Sheet weiterhin manuell setzen.
+    // MHD direkt anschließend scannen — außer es wurde vorab erfasst (null = übersprungen).
     DateTime? expiry = _pendingExpiry;
     if (expiry == null) {
       try {
@@ -106,21 +98,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ScanReviewSheet(product: scanned, prefilledExpiry: expiry),
       );
     } catch (_) {
-      // Sheet closed unexpectedly
+      // Sheet unerwartet geschlossen.
     }
 
     if (!mounted) return;
 
-    // Sperr-Fenster ab JETZT (Sheet zu): der eben behandelte Barcode
-    // liegt vermutlich noch im Bild. Ein zweites identisches Produkt
-    // lässt sich nach 3 Sekunden ganz normal scannen.
+    // Sperr-Fenster ab Sheet-Schluss: derselbe Barcode liegt vermutlich noch im Bild.
     _lastCode = code;
     _lastCodeAt = DateTime.now();
 
-    // Serien-Scan: Nach dem Speichern bleibt der Scanner offen — beim
-    // Wocheneinkauf entfällt so der komplette Neueinstieg pro Produkt
-    // (Scan-Button → Sheet → „Einzeln scannen" → …). Raus geht's über
-    // den Zurück-Button, der Zähler unten zeigt den Fortschritt.
+    // Serien-Scan: Scanner bleibt nach dem Speichern offen (Ausstieg: Zurück-Button).
     if (savedName != null) {
       _addedCount++;
       // Das vorab gescannte MHD gehörte zu genau diesem Produkt.
@@ -138,9 +125,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     await _controller.start();
   }
 
-  /// „MHD zuerst": öffnet den MHD-Scanner vorab. Das erkannte Datum wird
-  /// gemerkt und beim nächsten Barcode direkt übernommen — praktisch, wenn
-  /// man den Aufdruck gerade vor der Linse hat und nicht erst umdrehen will.
+  /// „MHD zuerst": Datum vorab scannen, der nächste Barcode übernimmt es.
   Future<void> _scanMhdFirst() async {
     if (_processing) return;
     setState(() => _processing = true);
@@ -321,9 +306,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         .copyWith(fontSize: 14),
                   ),
                   const SizedBox(height: 4),
-                  // Flexible Reihenfolge: Wer das MHD gerade vor der Linse
-                  // hat, scannt es zuerst — der Chip zeigt das gemerkte
-                  // Datum, das X verwirft es wieder.
+                  // Chip zeigt das gemerkte MHD, X verwirft es.
                   if (_pendingExpiry == null)
                     TextButton.icon(
                       onPressed: _processing ? null : _scanMhdFirst,
@@ -388,9 +371,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         ],
                       ),
                     ),
-                  // Sobald etwas hinzugefügt wurde, gibt es einen klaren
-                  // „Fertig"-Ausstieg mit Zähler — der Zurück-Pfeil bleibt
-                  // als Alternative.
+                  // „Fertig"-Ausstieg mit Zähler, sobald etwas hinzugefügt wurde.
                   if (_addedCount > 0) ...[
                     const SizedBox(height: 12),
                     FilledButton(
@@ -438,8 +419,7 @@ class _CircleButton extends StatelessWidget {
   final Color inkColor;
   final Color lineColor;
 
-  /// Long-Press-Tooltip; dient gleichzeitig als Screenreader-Label
-  /// für den ansonsten stummen Icon-Button.
+  /// Tooltip = zugleich Screenreader-Label des Icon-Buttons.
   final String? tooltip;
 
   @override

@@ -7,9 +7,7 @@ double? leadingQuantityValue(String quantity) {
   return (value == null || value <= 0) ? null : value;
 }
 
-/// Stück-Synonyme (normalisiert: kleingeschrieben, ohne Punkte).
-/// Open Food Facts liefert englische Einheiten („10pcs", „6 pieces"),
-/// User tippen deutsche Kürzel („6 stk").
+/// Stück-Synonyme (OFF liefert englische, User tippen deutsche Einheiten).
 const _pieceUnits = {
   'stück',
   'stueck',
@@ -30,10 +28,8 @@ String? quantityUnit(String quantity) {
   return (unit == null || unit.isEmpty) ? null : unit;
 }
 
-/// Stückzählbar: ganzzahlige Menge ohne Einheit oder mit Stück-Einheit
-/// (inkl. englischer OFF-Varianten wie „pcs"). Für solche Mengen ist
-/// „1 verbrauchen" das richtige Modell — Bruchteile („¾ übrig") ergeben
-/// bei 2 Mandarinen keinen Sinn.
+/// Stückzählbar: ganzzahlig ohne Einheit oder mit Stück-Einheit —
+/// dann ist „1 verbrauchen" das richtige Modell statt Bruchteilen.
 bool isCountableQuantity(String quantity) {
   final value = leadingQuantityValue(quantity);
   if (value == null || value != value.roundToDouble()) return false;
@@ -42,13 +38,8 @@ bool isCountableQuantity(String quantity) {
   return _pieceUnits.contains(unit.toLowerCase().replaceAll('.', ''));
 }
 
-/// Normalisiert Mengen-Strings für Anzeige & Logik:
-/// „10pcs" → „10 Stück", „6 stk." → „6 Stück", „250ml" → „250 ml".
-/// Unparsebares („eine Packung") bleibt unangetastet.
-///
-/// Wird beim LESEN angewendet ([PantryItem.fromJson]) — so erscheinen
-/// auch Alt-Bestände aus Open Food Facts überall in sauberem Deutsch,
-/// ohne dass die Datenbank migriert werden muss.
+/// Normalisiert Mengen-Strings („10pcs" → „10 Stück"); Unparsebares bleibt.
+/// Greift beim Lesen ([PantryItem.fromJson]) — deckt so auch Alt-Bestände ab.
 String normalizeQuantity(String quantity) {
   final trimmed = quantity.trim();
   final match = RegExp(r'^([\d.,]+)\s*(.*)$').firstMatch(trimmed);
@@ -63,11 +54,8 @@ String normalizeQuantity(String quantity) {
   return '$number $unit';
 }
 
-/// Skaliert einen Mengen-String um einen Faktor:
-/// „500 g" × 0,5 → „250 g" · „1 kg" × 0,5 → „0,5 kg" · „6 Stück" × 0,75 → „4,5 Stück".
-///
-/// Liefert `null`, wenn keine führende Zahl erkennbar ist („eine Packung") —
-/// dann bieten wir die Anpassung im UI gar nicht erst an.
+/// Skaliert einen Mengen-String („500 g" × 0,5 → „250 g");
+/// `null` ohne führende Zahl — dann bietet das UI die Anpassung nicht an.
 String? scaleQuantity(String quantity, double factor) {
   final match = RegExp(r'^([\d.,]+)\s*(.*)$').firstMatch(quantity.trim());
   if (match == null) return null;

@@ -4,15 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
-/// Kapselt alles rund um lokale Notifications.
-///
-/// Zwei Wege führen zu einer Notification:
-///  * [showExpiryNotification] / [showInfoNotification] — *sofort*, z.B. für den
-///    Test-Button im Profil.
-///  * [scheduleExpiryReminder] — eine *exakte* Erinnerung zu einem künftigen
-///    Zeitpunkt. Das nutzt der [NotificationScheduler], um zuverlässige tägliche
-///    Erinnerungen über Androids AlarmManager zu planen (statt des früheren,
-///    unzuverlässigen WorkManager-Periodic-Tasks).
+/// Kapselt lokale Notifications: Sofort-Anzeigen (Test-Button) und exakte
+/// geplante Erinnerungen über Androids AlarmManager.
 class NotificationService {
   NotificationService._();
   static final instance = NotificationService._();
@@ -20,9 +13,8 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
-  /// Wird beim Tippen auf eine Ablauf-Notification aufgerufen (öffnet in der
-  /// App den Rezepte-Tab). Als Callback injiziert, damit dieser Service die
-  /// UI-Schicht nicht kennen muss (Dependency Inversion).
+  /// Tap-Handler (öffnet den Rezepte-Tab) — injiziert, damit der Service
+  /// die UI-Schicht nicht kennt (Dependency Inversion).
   VoidCallback? _onOpenRecipes;
 
   static const _channelId = 'green_spoon_expiry';
@@ -33,13 +25,11 @@ class NotificationService {
   /// ID der Sofort-Notification (Test-Button).
   static const _immediateId = 0;
 
-  /// Geplante Erinnerungen belegen IDs ab [_scheduledIdBase]. Pro Tag im
-  /// Planungshorizont ein Slot, damit wir sie einzeln (re-)setzen und löschen
-  /// können, ohne eine evtl. schon sichtbare Sofort-Notification zu treffen.
+  /// Geplante Erinnerungen: ein ID-Slot pro Tag ab [_scheduledIdBase],
+  /// getrennt von der Sofort-Notification.
   static const _scheduledIdBase = 1000;
 
-  /// Wie viele Tagesslots maximal vergeben werden — dient zum sauberen
-  /// Aufräumen in [cancelScheduled].
+  /// Maximale Tagesslots — Aufräum-Grenze für [cancelScheduled].
   static const maxScheduledSlots = 31;
 
   static int scheduledIdForSlot(int slot) => _scheduledIdBase + slot;
@@ -81,9 +71,7 @@ class NotificationService {
     if (androidImpl == null) return true;
 
     final granted = await androidImpl.requestNotificationsPermission();
-    // Für punktgenaue tägliche Erinnerungen brauchen wir zusätzlich die
-    // Exact-Alarm-Berechtigung (Android 12+). Best effort — schlägt das fehl,
-    // fallen wir beim Planen automatisch auf ungenaue Alarme zurück.
+    // Exact-Alarm-Berechtigung (Android 12+) best effort — sonst ungenaue Alarme.
     await androidImpl.requestExactAlarmsPermission();
     return granted ?? true;
   }
@@ -135,9 +123,8 @@ class NotificationService {
     await _plugin.show(_immediateId, title, body, _details);
   }
 
-  /// Plant eine **exakte** Ablauf-Erinnerung für [when] in den Slot [slot].
-  /// Nutzt Androids AlarmManager (überlebt App-Schließen & Doze) und fällt auf
-  /// ungenaue Alarme zurück, falls Exact-Alarms nicht erlaubt sind.
+  /// Plant eine exakte Ablauf-Erinnerung für [when] in Slot [slot]
+  /// (Fallback: ungenauer Alarm).
   Future<void> scheduleExpiryReminder({
     required int slot,
     required DateTime when,
@@ -145,9 +132,7 @@ class NotificationService {
   }) async {
     if (itemNames.isEmpty) return;
     final c = _expiryContent(itemNames);
-    // tz.local kann (ohne gesetzte Location) UTC sein — `TZDateTime.from`
-    // bewahrt aber den absoluten Zeitpunkt von [when], daher feuert der Alarm
-    // zur korrekten Wanduhrzeit.
+    // TZDateTime.from bewahrt den absoluten Zeitpunkt, auch wenn tz.local UTC ist.
     final scheduled = tz.TZDateTime.from(when, tz.local);
     final id = scheduledIdForSlot(slot);
 
@@ -173,11 +158,8 @@ class NotificationService {
     }
   }
 
-  /// Bittet den User einmalig, die App von der Akkuoptimierung auszunehmen.
-  /// Auf aggressiven OEM-ROMs (Xiaomi/MIUI, Samsung, Huawei …) werden sonst
-  /// Apps „force-gestoppt", die länger nicht geöffnet wurden — inklusive der
-  /// geplanten Alarme. Best effort: zeigt den System-Dialog nur, wenn die
-  /// Ausnahme noch nicht erteilt ist, und blockiert nie den Ablauf.
+  /// Bittet einmalig um Ausnahme von der Akkuoptimierung — aggressive
+  /// OEM-ROMs stoppen sonst auch die geplanten Alarme (best effort).
   Future<void> requestBatteryOptimizationExemption() async {
     try {
       if (await Permission.ignoreBatteryOptimizations.isGranted) return;

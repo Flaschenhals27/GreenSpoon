@@ -1,15 +1,5 @@
-/// Leitet einen präsentablen Anzeigenamen aus einer E-Mail-Adresse ab.
-///
-/// Heuristik: lokaler Teil vor dem @, an üblichen Trennzeichen (`.`, `_`,
-/// `-`, `+`) gesplittet — der erste Teil ist meist der Vorname. Ziffern
-/// fliegen raus, der Rest wird kapitalisiert.
-///
-///  - `fabian.zell@web.de`     → `Fabian`
-///  - `fabianzell1502@gmx.de`  → `Fabianzell`
-///  - `f_meier@firma.de`       → `F` → zu kurz → `null`
-///
-/// Liefert `null`, wenn nichts Brauchbares übrig bleibt — dann lieber
-/// neutral grüßen als kryptisch.
+/// Anzeigename aus einer E-Mail („fabian.zell@web.de" → „Fabian");
+/// `null`, wenn nichts Brauchbares übrig bleibt.
 String? deriveDisplayNameFromEmail(String email) {
   final local = email.split('@').first.trim();
   if (local.isEmpty) return null;
