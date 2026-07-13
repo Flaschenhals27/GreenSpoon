@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
@@ -9,6 +10,7 @@ import '../../shell/shell_providers.dart';
 import '../data/recipe_repository.dart';
 import '../domain/meal.dart';
 import '../domain/recipe.dart';
+import '../providers/recipe_cooldown_provider.dart';
 import '../providers/recipe_providers.dart';
 import 'recipe_error_texts.dart';
 import 'widgets/entrance.dart';
@@ -30,60 +32,86 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   // Mal neu (der IndexedStack baut sonst alles unsichtbar vor).
   int _gen = 0;
 
+  /// Pull-to-Refresh: löst einen erlaubten Reload aus. Läuft noch ein Cooldown,
+  /// bleibt die Liste stehen und der User bekommt kurz Bescheid, statt ins Leere
+  /// zu ziehen.
+  Future<void> _handleRefresh() async {
+    if (refreshRecipesIfAllowed(ref)) {
+      HapticFeedback.mediumImpact();
+      return;
+    }
+    final remaining = ref.read(recipeCooldownProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Gerade erst geladen — neue Ideen in ${remaining}s.'),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(shellTabProvider, (_, next) {
       if (next == ShellTab.recipes) setState(() => _gen++);
     });
 
+    final tone = GSTone.of(context);
     final asyncRecipes = ref.watch(recipesProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            const SliverToBoxAdapter(child: _Header()),
-            // Beim (Re-)Laden immer den Ladezustand zeigen, auch wenn noch
-            // alte Daten im Provider stecken (invalidate behält sie sonst).
-            if (asyncRecipes.isLoading)
-              const SliverToBoxAdapter(child: RecipesLoadingView())
-            else
-              asyncRecipes.when(
-                loading: () =>
-                    const SliverToBoxAdapter(child: RecipesLoadingView()),
-                error: (e, _) => SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _errorOrEmptyView(e),
-                ),
-                data: (recipes) {
-                  if (recipes.isEmpty) {
-                    return SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: RecipeStatusView(
-                        pose: MascotPose.searching,
-                        title: 'Keine Vorschläge gerade',
-                        message:
-                            'Löffeli hat aus deinem aktuellen Vorrat nichts\ngezaubert. Versuch\'s gleich nochmal.',
-                        actionLabel: 'Erneut versuchen',
-                        cooldownGated: true,
-                        onAction: () => refreshRecipesIfAllowed(ref),
-                      ),
+        child: RefreshIndicator(
+          color: GSColors.primary,
+          backgroundColor: tone.surface,
+          onRefresh: _handleRefresh,
+          child: CustomScrollView(
+            // Auch bei kurzem Inhalt/Ladezustand ziehbar (Pull-to-Refresh).
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              const SliverToBoxAdapter(child: _Header()),
+              // Beim (Re-)Laden immer den Ladezustand zeigen, auch wenn noch
+              // alte Daten im Provider stecken (invalidate behält sie sonst).
+              if (asyncRecipes.isLoading)
+                const SliverToBoxAdapter(child: RecipesLoadingView())
+              else
+                asyncRecipes.when(
+                  loading: () =>
+                      const SliverToBoxAdapter(child: RecipesLoadingView()),
+                  error: (e, _) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _errorOrEmptyView(e),
+                  ),
+                  data: (recipes) {
+                    if (recipes.isEmpty) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: RecipeStatusView(
+                          pose: MascotPose.searching,
+                          title: 'Keine Vorschläge gerade',
+                          message:
+                              'Löffeli hat aus deinem aktuellen Vorrat nichts\ngezaubert. Versuch\'s gleich nochmal.',
+                          actionLabel: 'Erneut versuchen',
+                          cooldownGated: true,
+                          onAction: () => refreshRecipesIfAllowed(ref),
+                        ),
+                      );
+                    }
+                    // Vom User per Long-Press gewählte Ersatz-Rezepte überlagern.
+                    final overrides = ref.watch(recipeOverridesProvider);
+                    final shown =
+                        recipes.map((r) => overrides[r.meal] ?? r).toList();
+                    final children = _buildSections(shown, _gen);
+                    children.add(const RefreshFooter());
+                    return SliverList(
+                      delegate: SliverChildListDelegate(children),
                     );
-                  }
-                  // Vom User per Long-Press gewählte Ersatz-Rezepte überlagern.
-                  final overrides = ref.watch(recipeOverridesProvider);
-                  final shown =
-                      recipes.map((r) => overrides[r.meal] ?? r).toList();
-                  final children = _buildSections(shown, _gen);
-                  children.add(const RefreshFooter());
-                  return SliverList(
-                    delegate: SliverChildListDelegate(children),
-                  );
-                },
-              ),
-            const SliverToBoxAdapter(child: SizedBox(height: 80)),
-          ],
+                  },
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
         ),
       ),
     );

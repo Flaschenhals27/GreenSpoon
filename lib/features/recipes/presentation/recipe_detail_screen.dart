@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/gs_colors.dart';
 import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
-import '../../../core/widgets/gs_snackbar.dart';
 import '../../../core/widgets/mascot.dart';
+import '../../pantry/data/pantry_repository.dart';
+import '../../pantry/domain/consume_plan.dart';
 import '../../pantry/domain/pantry_item.dart';
+import '../../pantry/domain/quantity_utils.dart';
 import '../../pantry/providers/pantry_providers.dart';
 import '../domain/recipe.dart';
 import 'save_recipe_button.dart';
@@ -44,7 +46,6 @@ class RecipeDetailScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 40),
           children: [
-            // Top-Bar mit Back
             // Top-Bar mit Back + Speichern
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
@@ -151,8 +152,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                         child: Text(
                           t,
                           style: TextStyle(
-                            color:
-                                tone.primary,
+                            color: tone.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -166,6 +166,7 @@ class RecipeDetailScreen extends ConsumerWidget {
               _IngredientBlock(
                 title: 'Aus deinem Vorrat',
                 items: recipe.uses,
+                amounts: recipe.amounts,
                 bullet: '✓',
                 bulletColor: GSColors.primary,
               ),
@@ -174,6 +175,7 @@ class RecipeDetailScreen extends ConsumerWidget {
               _IngredientBlock(
                 title: 'Du brauchst noch',
                 items: recipe.missing,
+                amounts: recipe.amounts,
                 bullet: '+',
                 bulletColor: GSColors.accent,
               ),
@@ -203,8 +205,7 @@ class RecipeDetailScreen extends ConsumerWidget {
                         child: Text(
                           '${i + 1}',
                           style: TextStyle(
-                            color:
-                                tone.primary,
+                            color: tone.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -236,7 +237,9 @@ class RecipeDetailScreen extends ConsumerWidget {
                   onPressed: () => _openCookedSheet(context),
                   icon: const Icon(Icons.restaurant, size: 18),
                   label: const Text('Gekocht! Zutaten verbuchen'),
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
                 ),
               ),
           ],
@@ -249,11 +252,35 @@ class RecipeDetailScreen extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────
 
 /// Zeile im „Gekocht"-Sheet: ein Vorrats-Item, das zu einer Rezept-Zutat
-/// passt, mit An-/Abwählbarkeit.
+/// passt. Stückzählbare Items ([countable]) verbuchen eine wählbare Menge;
+/// wiegbare mit passender Rezept-Menge ([consumeAmount]) ziehen genau diesen
+/// Betrag ab; alle anderen das ganze Item per An-/Abwahl.
 class _CookedRow {
-  _CookedRow({required this.item});
+  _CookedRow({
+    required this.item,
+    required this.countable,
+    required this.available,
+    this.consumeAmount,
+    int initialPieces = 1,
+  })  : pieces = countable ? initialPieces : 0,
+        selected = !countable;
+
   final PantryItem item;
-  bool selected = true;
+  final bool countable;
+  final int available;
+
+  /// Wiegbarer Teil-Abzug: die abzuziehende Rezept-Menge („200 g"), sonst null
+  /// (ganzes Item).
+  final String? consumeAmount;
+
+  /// Stückzählbar: 0..[available].
+  int pieces;
+
+  /// Nicht stückzählbar: ganzes Item verbrauchen?
+  bool selected;
+
+  /// Wird beim Verbuchen berücksichtigt.
+  bool get active => countable ? pieces > 0 : selected;
 }
 
 /// Bottom-Sheet nach „Gekocht!": matcht [Recipe.uses] gegen den Vorrat,
@@ -305,7 +332,7 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
       final match = findFor(use);
       if (match != null) {
         usedIds.add(match.id);
-        rows.add(_CookedRow(item: match));
+        rows.add(_rowFor(match, amount: widget.recipe.amounts[use]));
       } else {
         unmatched.add(use);
       }
@@ -317,21 +344,54 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
     });
   }
 
+  /// Baut eine Zeile aus Item und (optionaler) Rezept-Menge [amount] („3",
+  /// „200 g"): stückzählbar (ab 2 Stück) → Stepper (vorbefüllt); wiegbar mit
+  /// passender Einheit → Teil-Abzug; sonst ganzes Item.
+  _CookedRow _rowFor(PantryItem item, {String? amount}) {
+    final qty = item.quantity;
+
+    final pieceCount = qty != null && isCountableQuantity(qty)
+        ? (leadingQuantityValue(qty)?.round() ?? 0)
+        : 0;
+    if (pieceCount >= 2) {
+      final needed = amount != null && isCountableQuantity(amount)
+          ? leadingQuantityValue(amount)?.round()
+          : null;
+      return _CookedRow(
+        item: item,
+        countable: true,
+        available: pieceCount,
+        initialPieces: (needed ?? 1).clamp(1, pieceCount),
+      );
+    }
+
+    String? consumeAmount;
+    if (qty != null && amount != null) {
+      final plan = planAmountConsumption(quantity: qty, needed: amount);
+      if (plan != null && !plan.consumesWhole) consumeAmount = amount;
+    }
+    return _CookedRow(
+      item: item,
+      countable: false,
+      available: 1,
+      consumeAmount: consumeAmount,
+    );
+  }
+
   Future<void> _consume() async {
     final rows = _rows;
     if (_saving || rows == null) return;
-    final selected = rows.where((r) => r.selected).toList();
-    if (selected.isEmpty) return;
+    final active = rows.where((r) => r.active).toList();
+    if (active.isEmpty) return;
     setState(() => _saving = true);
 
-    // Repo + Messenger vor dem Pop sichern (Undo überlebt das Sheet).
+    // Messenger vor dem Pop sichern (die SnackBar überlebt das Sheet).
     final repo = ref.read(pantryRepositoryProvider);
     final messenger = ScaffoldMessenger.of(context);
-    final ids = selected.map((r) => r.item.id).toList();
 
     try {
-      for (final id in ids) {
-        await repo.archive(id, status: 'consumed');
+      for (final row in active) {
+        await _bookRow(repo, row);
       }
     } catch (_) {
       if (mounted) {
@@ -345,18 +405,59 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
       return;
     }
 
-    if (mounted) Navigator.of(context).pop(ids.length);
-    showGsUndoSnack(
-      messenger,
-      message: ids.length == 1
-          ? '1 Zutat verbucht. Guten Appetit!'
-          : '${ids.length} Zutaten verbucht. Guten Appetit!',
-      onUndo: () {
-        for (final id in ids) {
-          repo.restore(id);
-        }
-      },
-    );
+    final count = active.length;
+    if (mounted) Navigator.of(context).pop(count);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            count == 1
+                ? '1 Zutat verbucht. Guten Appetit!'
+                : '$count Zutaten verbucht. Guten Appetit!',
+          ),
+        ),
+      );
+  }
+
+  /// Verbucht eine Zeile: Teil-Verbrauch bei passender Teilmenge, sonst das
+  /// ganze Item als verbraucht archivieren.
+  Future<void> _bookRow(PantryRepository repo, _CookedRow row) async {
+    final plan = _planFor(row);
+    if (plan != null && !plan.consumesWhole) {
+      await repo.consumePartial(
+        item: row.item,
+        remainingQuantity: plan.remainingQuantity!,
+        consumedQuantity: plan.consumedQuantity!,
+        remainingCo2: plan.remainingCo2,
+        consumedCo2: plan.consumedCo2,
+      );
+      return;
+    }
+    await repo.archive(row.item.id, status: 'consumed');
+  }
+
+  /// Teil-Verbrauchsplan der Zeile — stückweise oder wiegbar; null → es bleibt
+  /// beim Ganz-Verbrauch.
+  ConsumptionPlan? _planFor(_CookedRow row) {
+    final qty = row.item.quantity;
+    if (qty == null) return null;
+    if (row.countable) {
+      return planPieceConsumption(
+        quantity: qty,
+        pieces: row.pieces,
+        totalCo2: row.item.co2Kg,
+      );
+    }
+    final amount = row.consumeAmount;
+    if (amount != null) {
+      return planAmountConsumption(
+        quantity: qty,
+        needed: amount,
+        totalCo2: row.item.co2Kg,
+      );
+    }
+    return null;
   }
 
   @override
@@ -365,11 +466,9 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
     final inkColor = tone.ink;
     final muteColor = tone.inkMute;
     final bgColor = tone.bg;
-    final surfaceColor = tone.surface;
-    final lineColor = tone.line;
 
     final rows = _rows;
-    final selectedCount = rows?.where((r) => r.selected).length ?? 0;
+    final activeCount = rows?.where((r) => r.active).length ?? 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -427,57 +526,16 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
                 )
               else ...[
                 for (final row in rows)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Material(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () =>
-                            setState(() => row.selected = !row.selected),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: lineColor),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            children: [
-                              ExcludeSemantics(
-                                child: Text(
-                                  row.item.emoji,
-                                  style: const TextStyle(fontSize: 22),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  row.item.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GSTypography.body(
-                                    color: inkColor,
-                                    size: 14.5,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Checkbox(
-                                value: row.selected,
-                                activeColor: GSColors.primary,
-                                onChanged: (v) => setState(
-                                  () => row.selected = v ?? false,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  _CookedRowTile(
+                    row: row,
+                    onToggle: () =>
+                        setState(() => row.selected = !row.selected),
+                    onIncrement: () => setState(() {
+                      if (row.pieces < row.available) row.pieces++;
+                    }),
+                    onDecrement: () => setState(() {
+                      if (row.pieces > 0) row.pieces--;
+                    }),
                   ),
                 if (_unmatched.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -492,8 +550,10 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
                 ],
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: (_saving || selectedCount == 0) ? null : _consume,
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  onPressed: (_saving || activeCount == 0) ? null : _consume,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
                   child: _saving
                       ? const SizedBox(
                           width: 18,
@@ -504,9 +564,9 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
                           ),
                         )
                       : Text(
-                          selectedCount == 1
+                          activeCount == 1
                               ? '1 Zutat verbuchen'
-                              : '$selectedCount Zutaten verbuchen',
+                              : '$activeCount Zutaten verbuchen',
                         ),
                 ),
               ],
@@ -517,6 +577,201 @@ class _CookedSheetState extends ConsumerState<_CookedSheet> {
     );
   }
 }
+
+/// Eine Zeile im „Gekocht"-Sheet: stückzählbare Items zeigen einen Mengen-
+/// Stepper, alle anderen eine An-/Abwahl.
+class _CookedRowTile extends StatelessWidget {
+  const _CookedRowTile({
+    required this.row,
+    required this.onToggle,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  final _CookedRow row;
+  final VoidCallback onToggle;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
+
+    final tile = Container(
+      decoration: BoxDecoration(
+        color: tone.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tone.line),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          ExcludeSemantics(
+            child: Text(row.item.emoji, style: const TextStyle(fontSize: 22)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GSTypography.body(
+                    color: tone.ink,
+                    size: 14.5,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                if (row.countable) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'von ${row.available}${_unitSuffix(row.item.quantity)}',
+                    style: GSTypography.body(color: tone.inkMute, size: 12),
+                  ),
+                ] else if (row.consumeAmount != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '− ${row.consumeAmount}',
+                    style: GSTypography.body(color: tone.inkMute, size: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (row.countable)
+            _Stepper(
+              value: row.pieces,
+              max: row.available,
+              onDecrement: onDecrement,
+              onIncrement: onIncrement,
+            )
+          else
+            Checkbox(
+              value: row.selected,
+              activeColor: GSColors.primary,
+              onChanged: (_) => onToggle(),
+            ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        // Nur ganze Items sind per Tap umschaltbar; beim Stepper übernehmen
+        // die −/+ Knöpfe die Interaktion.
+        child: row.countable
+            ? tile
+            : InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: onToggle,
+                child: tile,
+              ),
+      ),
+    );
+  }
+}
+
+/// Einheit hinter der Stückzahl für den „von X"-Hinweis, leer wenn keine da ist.
+String _unitSuffix(String? quantity) {
+  final unit = quantity == null ? null : quantityUnit(quantity);
+  return unit == null ? '' : ' $unit';
+}
+
+/// Kompakter −/+ Stepper für die verbrauchte Stückzahl (0..[max]).
+class _Stepper extends StatelessWidget {
+  const _Stepper({
+    required this.value,
+    required this.max,
+    required this.onDecrement,
+    required this.onIncrement,
+  });
+
+  final int value;
+  final int max;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _StepButton(
+          icon: Icons.remove,
+          label: 'Eins weniger',
+          onTap: value > 0 ? onDecrement : null,
+        ),
+        SizedBox(
+          width: 34,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.center,
+            style: GSTypography.body(
+              color: tone.ink,
+              size: 16,
+              weight: FontWeight.w700,
+            ),
+          ),
+        ),
+        _StepButton(
+          icon: Icons.add,
+          label: 'Eins mehr',
+          onTap: value < max ? onIncrement : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  const _StepButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: Material(
+        color: enabled
+            ? GSColors.primary.withValues(alpha: 0.12)
+            : tone.inkMute.withValues(alpha: 0.08),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(
+              icon,
+              size: 18,
+              color: enabled ? GSColors.primary : tone.inkMute,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
 
 class _Meta extends StatelessWidget {
   const _Meta({
@@ -554,12 +809,14 @@ class _IngredientBlock extends StatelessWidget {
   const _IngredientBlock({
     required this.title,
     required this.items,
+    required this.amounts,
     required this.bullet,
     required this.bulletColor,
   });
 
   final String title;
   final List<String> items;
+  final Map<String, String> amounts;
   final String bullet;
   final Color bulletColor;
 
@@ -614,6 +871,17 @@ class _IngredientBlock extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (amounts[i] != null) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        amounts[i]!,
+                        style: GSTypography.body(
+                          color: muteColor,
+                          size: 13,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

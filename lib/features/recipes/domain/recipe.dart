@@ -15,6 +15,7 @@ class Recipe {
     required this.missing,
     required this.blurb,
     required this.steps,
+    this.amounts = const {},
   });
 
   final String title;
@@ -27,6 +28,10 @@ class Recipe {
   final List<String> missing; // Zutaten, die fehlen
   final String blurb;
   final List<String> steps;
+
+  /// Benötigte Menge je Zutat („Eier" → „3", „Mehl" → „200 g"). Leer, wenn die
+  /// KI (noch) keine Mengen liefert — dann greifen die Defaults im UI.
+  final Map<String, String> amounts;
 
   /// Wie gut nutzt das Rezept den Vorrat (0..100).
   /// Wir zeigen das im UI als „Match"-Badge.
@@ -42,6 +47,16 @@ class Recipe {
       return const [];
     }
 
+    Map<String, String> stringMap(dynamic v) {
+      if (v is Map) {
+        return {
+          for (final entry in v.entries)
+            entry.key.toString(): entry.value.toString(),
+        };
+      }
+      return const {};
+    }
+
     return Recipe(
       title: json['title'] as String? ?? 'Ohne Titel',
       meal: Meal.fromLabel(json['meal'] as String?),
@@ -53,6 +68,7 @@ class Recipe {
       missing: stringList(json['missing']),
       blurb: json['blurb'] as String? ?? '',
       steps: stringList(json['steps']),
+      amounts: stringMap(json['amounts']),
     );
   }
 
@@ -69,6 +85,7 @@ class Recipe {
       'missing': missing,
       'blurb': blurb,
       'steps': steps,
+      'amounts': amounts,
     };
   }
 }

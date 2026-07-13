@@ -7,6 +7,7 @@ import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/gs_date_sheet.dart';
 import '../../../core/widgets/gs_snackbar.dart';
+import '../domain/consume_plan.dart';
 import '../domain/pantry_item.dart';
 import '../domain/quantity_utils.dart';
 import '../providers/pantry_providers.dart';
@@ -141,23 +142,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Future<void> _consumeOnePiece() async {
     final qty = _item.quantity;
     if (qty == null) return;
-    final value = leadingQuantityValue(qty);
-    if (value == null) return;
-    final count = value.round();
-    if (count <= 1) {
+    final plan = planPieceConsumption(
+      quantity: qty,
+      pieces: 1,
+      totalCo2: _item.co2Kg,
+    );
+    if (plan == null) return;
+    if (plan.consumesWhole) {
       await _markConsumed();
       return;
     }
-
-    final unit = quantityUnit(qty);
-    String fmt(int n) => unit == null ? '$n' : '$n $unit';
-    final totalCo2 = _item.co2Kg;
-    final perPiece = totalCo2 == null ? null : totalCo2 / count;
     await _consumePartial(
-      remaining: fmt(count - 1),
-      consumed: fmt(1),
-      remainingCo2: perPiece == null ? null : perPiece * (count - 1),
-      consumedCo2: perPiece,
+      remaining: plan.remainingQuantity!,
+      consumed: plan.consumedQuantity!,
+      remainingCo2: plan.remainingCo2,
+      consumedCo2: plan.consumedCo2,
     );
   }
 
@@ -299,7 +298,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _busy ? null : _markConsumed,
-                      icon: const Icon(Icons.check, size: 18),
+                      icon: const Icon(Icons.restaurant, size: 18),
                       label: const Text('Verbraucht'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: tone.primary,

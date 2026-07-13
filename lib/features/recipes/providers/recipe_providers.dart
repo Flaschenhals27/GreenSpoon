@@ -55,11 +55,15 @@ Future<void> refreshRecipes(WidgetRef ref) async {
   ref.invalidate(recipesProvider);
 }
 
-/// [refreshRecipes], sofern der Cooldown es erlaubt (alle Retry-Buttons).
-void refreshRecipesIfAllowed(WidgetRef ref) {
-  if (ref.read(recipeCooldownProvider.notifier).trigger()) {
-    refreshRecipes(ref);
+/// [refreshRecipes], sofern der Cooldown es erlaubt (Retry-Buttons, Footer,
+/// Pull-to-Refresh). Liefert false, wenn der Cooldown noch läuft — der Aufrufer
+/// kann dann einen Hinweis zeigen.
+bool refreshRecipesIfAllowed(WidgetRef ref) {
+  if (!ref.read(recipeCooldownProvider.notifier).trigger()) {
+    return false;
   }
+  refreshRecipes(ref);
+  return true;
 }
 
 /// [count] Alternativen für eine [Meal] (Long-Press auf einer Karte).

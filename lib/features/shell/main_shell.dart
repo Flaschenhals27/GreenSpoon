@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/gs_colors.dart';
 import '../../core/theme/gs_tone.dart';
 import '../../core/theme/gs_typography.dart';
+import '../coachmarks/domain/coachmark.dart';
+import '../coachmarks/presentation/pantry_swipe_coach.dart';
+import '../coachmarks/presentation/recipe_match_coach.dart';
+import '../coachmarks/providers/coachmark_providers.dart';
 import '../notifications/expiry_reminder_prompt.dart';
 import '../notifications/notification_scheduler.dart';
 import '../pantry/presentation/add_item_dialog.dart';
@@ -12,6 +16,7 @@ import '../pantry/presentation/pantry_screen.dart';
 import '../pantry/providers/pantry_providers.dart';
 import '../profile/presentation/profile_screen.dart';
 import '../recipes/presentation/recipes_screen.dart';
+import '../recipes/providers/recipe_providers.dart';
 import '../scanner/presentation/grocery_photo_screen.dart';
 import '../scanner/presentation/scanner_screen.dart';
 import '../widget/pantry_widget_updater.dart';
@@ -129,6 +134,34 @@ class _MainShellState extends ConsumerState<MainShell>
     );
   }
 
+  /// Wählt den Coachmark zum aktuellen Tab — aber erst, wenn der Screen auch
+  /// etwas zu erklären hat (Vorrat gefüllt bzw. Rezepte vorhanden).
+  Widget? _coachmarkOverlay(ShellTab tab) {
+    final coach = ref.watch(coachmarkControllerProvider);
+    final controller = ref.read(coachmarkControllerProvider.notifier);
+
+    switch (tab) {
+      case ShellTab.pantry:
+        if (!coach.shouldShow(Coachmark.pantrySwipe)) return null;
+        final hasItems =
+            ref.watch(pantryStreamProvider).valueOrNull?.isNotEmpty ?? false;
+        if (!hasItems) return null;
+        return PantrySwipeCoach(
+          onDismiss: () => controller.markSeen(Coachmark.pantrySwipe),
+        );
+      case ShellTab.recipes:
+        if (!coach.shouldShow(Coachmark.recipeMatch)) return null;
+        final hasRecipes =
+            ref.watch(recipesProvider).valueOrNull?.isNotEmpty ?? false;
+        if (!hasRecipes) return null;
+        return RecipeMatchCoach(
+          onDismiss: () => controller.markSeen(Coachmark.recipeMatch),
+        );
+      case ShellTab.profile:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = GSTone.of(context);
@@ -148,6 +181,8 @@ class _MainShellState extends ConsumerState<MainShell>
     // Scan-Anfragen anderer Screens (z.B. CTA im leeren Vorrat).
     ref.listen(scanRequestProvider, (_, __) => _openScanOptions());
 
+    final coachmark = _coachmarkOverlay(tab);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
@@ -164,21 +199,26 @@ class _MainShellState extends ConsumerState<MainShell>
                 ],
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: IndexedStack(
-          index: tab.index,
-          children: _screens,
-        ),
-        bottomNavigationBar: _CustomNavBar(
-          currentTab: tab,
-          onTabChanged: (t) {
-            if (t != tab) HapticFeedback.selectionClick();
-            ref.read(shellTabProvider.notifier).open(t);
-          },
-          onScanTap: _openScanOptions,
-          onScanLongPress: _openAddDialog,
-        ),
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            body: IndexedStack(
+              index: tab.index,
+              children: _screens,
+            ),
+            bottomNavigationBar: _CustomNavBar(
+              currentTab: tab,
+              onTabChanged: (t) {
+                if (t != tab) HapticFeedback.selectionClick();
+                ref.read(shellTabProvider.notifier).open(t);
+              },
+              onScanTap: _openScanOptions,
+              onScanLongPress: _openAddDialog,
+            ),
+          ),
+          if (coachmark != null) Positioned.fill(child: coachmark),
+        ],
       ),
     );
   }
