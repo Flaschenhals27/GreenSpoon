@@ -2,25 +2,19 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/supabase/edge_function_status.dart';
 import '../domain/meal.dart';
 import '../domain/recipe.dart';
 
 /// Vertrag für die Rezept-Generierung. Konsumenten hängen nur an dieser
 /// Abstraktion (DIP).
 abstract interface class RecipeRepository {
-  /// Generiert Rezepte.
-  ///
-  /// Ohne [meal] → der Standardmodus (3 Rezepte: Frühstück/Mittag/Abend).
-  /// Mit [meal] → [count] Alternativen für genau diese Mahlzeit (für das
-  /// Einzel-Refresh per Long-Press).
-  ///
-  /// Wirft [RecipeException] mit kategorisiertem Fehlertyp bei Problemen.
+  /// Generiert Rezepte: ohne [meal] je eines pro Mahlzeit, mit [meal]
+  /// [count] Alternativen dafür. Wirft [RecipeException] bei Problemen.
   Future<List<Recipe>> generate({Meal? meal, int count});
 }
 
-/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
-/// `generate-recipes`. Der Supabase-Client hängt den User-JWT automatisch an
-/// und wird injiziert.
+/// Supabase-Umsetzung über die Edge Function `generate-recipes`.
 class SupabaseRecipeRepository implements RecipeRepository {
   SupabaseRecipeRepository(this._client);
 
@@ -37,9 +31,7 @@ class SupabaseRecipeRepository implements RecipeRepository {
 
       // Server-Fehler unterscheiden
       if (response.status != 200) {
-        if (response.status == 503 ||
-            response.status == 504 ||
-            response.status == 500) {
+        if (isEdgeFunctionDown(response.status)) {
           throw const RecipeException(
             type: RecipeErrorType.geminiDown,
             details: 'Edge Function returned status 5xx',
@@ -77,7 +69,7 @@ class SupabaseRecipeRepository implements RecipeRepository {
       );
     } on FunctionException catch (e) {
       // FunctionException kann verschiedene Statuscodes haben
-      if (e.status == 503 || e.status == 504 || e.status == 500) {
+      if (isEdgeFunctionDown(e.status)) {
         throw RecipeException(
           type: RecipeErrorType.geminiDown,
           details: e.details?.toString() ?? e.reasonPhrase,

@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../theme/gs_colors.dart';
+import '../theme/gs_tone.dart';
 import '../theme/gs_typography.dart';
 
-/// Zeigt ein Bottom-Sheet mit drei scrollbaren Wheels (Tag, Monat, Jahr).
-/// Liefert das gewählte Datum oder `null`, wenn abgebrochen wurde.
-///
-/// `initial`: Vollständiges Start-Datum (default: heute + 7 Tage).
-/// `initialDay`/`initialMonth`/`initialYear`: einzeln vorbelegen, falls
-/// nur Teile bekannt sind (z.B. aus partieller OCR-Erkennung).
+/// Bottom-Sheet mit Tag/Monat/Jahr-Wheels; liefert das Datum oder `null`.
+/// Einzelteile lassen sich vorbelegen (z.B. aus partieller OCR-Erkennung).
 Future<DateTime?> showGSDateSheet(
   BuildContext context, {
   DateTime? initial,
@@ -85,9 +82,11 @@ class _GSDateSheetState extends State<_GSDateSheet> {
     // Jahr-Range: aktuelles Jahr bis +6 (typisches MHD-Fenster)
     _years = List.generate(7, (i) => nowYear + i);
 
-    _day = widget.initialDay.clamp(1, 31);
     _month = widget.initialMonth.clamp(1, 12);
     _year = _years.contains(widget.initialYear) ? widget.initialYear : nowYear;
+    // Erst nach Monat/Jahr clampen — sonst könnte z.B. Tag 31 im Februar
+    // stehen bleiben und DateTime würde still in den Folgemonat überrollen.
+    _day = widget.initialDay.clamp(1, _daysInMonth);
 
     _dayCtrl = FixedExtentScrollController(initialItem: _day - 1);
     _monthCtrl = FixedExtentScrollController(initialItem: _month - 1);
@@ -121,17 +120,16 @@ class _GSDateSheetState extends State<_GSDateSheet> {
   }
 
   void _confirm() {
-    Navigator.of(context).pop(DateTime(_year, _month, _day));
+    Navigator.of(context)
+        .pop(DateTime(_year, _month, _day.clamp(1, _daysInMonth)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? GSColors.cardDark : GSColors.cardLight;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final tone = GSTone.of(context);
+    final bg = tone.surface;
+    final textColor = tone.ink;
+    final subtleColor = tone.ink.withValues(alpha: 0.55);
 
     final fmt = DateFormat('EEEE, d. MMMM y', 'de_DE');
     final preview =

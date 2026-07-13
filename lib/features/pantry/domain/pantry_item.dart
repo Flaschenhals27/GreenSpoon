@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/utils/iso_date.dart';
+import 'pantry_categories.dart';
+import 'quantity_utils.dart';
+
 @immutable
 class PantryItem {
   const PantryItem({
@@ -28,6 +32,9 @@ class PantryItem {
   final DateTime createdAt;
   final double? co2Kg;
 
+  /// Ab wie vielen Tagen bis Ablauf ein Item als „läuft bald ab" gilt.
+  static const int expiringSoonThresholdDays = 3;
+
   /// Tage bis Ablauf (negative Werte = bereits abgelaufen, null = kein MHD).
   int? get daysUntilExpiry {
     if (expiresAt == null) return null;
@@ -37,14 +44,45 @@ class PantryItem {
     return expDate.difference(todayDate).inDays;
   }
 
+  /// True, wenn das Item in ≤ [expiringSoonThresholdDays] Tagen abläuft
+  /// (oder schon abgelaufen ist) — zentrale Definition für Alert & Filter.
+  bool get isExpiringSoon {
+    final d = daysUntilExpiry;
+    return d != null && d <= expiringSoonThresholdDays;
+  }
+
+  /// Kopie mit geänderten Feldern (null = Wert behalten).
+  PantryItem copyWith({
+    String? quantity,
+    DateTime? expiresAt,
+    double? co2Kg,
+  }) {
+    return PantryItem(
+      id: id,
+      userId: userId,
+      name: name,
+      category: category,
+      emoji: emoji,
+      brand: brand,
+      quantity: quantity ?? this.quantity,
+      barcode: barcode,
+      expiresAt: expiresAt ?? this.expiresAt,
+      createdAt: createdAt,
+      co2Kg: co2Kg ?? this.co2Kg,
+    );
+  }
+
   factory PantryItem.fromJson(Map<String, dynamic> json) {
+    final rawQuantity = json['quantity'] as String?;
     return PantryItem(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       name: json['name'] as String,
       brand: json['brand'] as String?,
-      quantity: json['quantity'] as String?,
-      category: json['category'] as String? ?? 'Sonstiges',
+      // Beim Lesen normalisieren („10pcs" → „10 Stück"): deckt auch
+      // Alt-Bestände ab, ohne die DB anfassen zu müssen.
+      quantity: rawQuantity == null ? null : normalizeQuantity(rawQuantity),
+      category: json['category'] as String? ?? kFallbackCategory,
       barcode: json['barcode'] as String?,
       emoji: json['emoji'] as String? ?? '📦',
       expiresAt: json['expires_at'] != null
@@ -65,7 +103,7 @@ class PantryItem {
       'category': category,
       'barcode': barcode,
       'emoji': emoji,
-      'expires_at': expiresAt?.toIso8601String().split('T').first,
+      'expires_at': expiresAt?.toIsoDateString(),
       'co2_kg': co2Kg,
     };
   }

@@ -4,10 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Lokale Persistenz des Profilbilds.
-///
-/// Das Bild liegt dauerhaft im App-Dokumente-Ordner, der Pfad in
-/// SharedPreferences. Kein Backend — das Bild bleibt auf diesem Gerät.
+/// Lokale Persistenz des Profilbilds (App-Ordner + SharedPreferences,
+/// kein Backend).
 class AvatarStore {
   AvatarStore._();
   static const _kKey = 'profile_avatar_path';
@@ -24,10 +22,8 @@ class AvatarStore {
     return null;
   }
 
-  /// Öffnet die gewählte Quelle (Galerie/Kamera), kopiert das Bild dauerhaft
-  /// in den App-Ordner und speichert den Pfad.
-  ///
-  /// Gibt die neue Datei zurück oder `null`, wenn der User abgebrochen hat.
+  /// Bild aus Galerie/Kamera holen und dauerhaft speichern;
+  /// `null` bei Abbruch.
   static Future<File?> pickAndSave({required ImageSource source}) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(

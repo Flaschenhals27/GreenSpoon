@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/widgets/mascot.dart';
 import '../../core/theme/gs_colors.dart';
+import '../../core/theme/gs_tone.dart';
 import '../../core/theme/gs_typography.dart';
 
 /// Drei-Seiten-Onboarding beim ersten App-Start.
@@ -73,10 +74,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
     final isLast = _page == _pages.length - 1;
 
     return Scaffold(
@@ -99,7 +100,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         flex: 5,
                         child: Padding(
                           padding: const EdgeInsets.all(24),
-                          child: _OnbArtwork(type: p.art, isDark: isDark),
+                          child: _OnbArtwork(type: p.art, isDark: tone.isDark),
                         ),
                       ),
                       // Text unten
@@ -110,8 +111,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(p.eyebrow,
-                                  style: GSTypography.label(color: muteColor),),
+                              Text(
+                                p.eyebrow,
+                                style: GSTypography.label(color: muteColor),
+                              ),
                               const SizedBox(height: 14),
                               RichText(
                                 text: TextSpan(
@@ -119,14 +122,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     TextSpan(
                                       text: p.titleNormal,
                                       style: GSTypography.headline(
-                                          color: inkColor, size: 38,),
+                                        color: inkColor,
+                                        size: 38,
+                                      ),
                                     ),
                                     TextSpan(
                                       text: p.titleItalic,
                                       style: GSTypography.headline(
-                                        color: isDark
-                                            ? GSColors.primaryMid
-                                            : GSColors.primary,
+                                        color: tone.primary,
                                         size: 38,
                                       ).copyWith(fontStyle: FontStyle.italic),
                                     ),
@@ -164,7 +167,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 8,
                     decoration: BoxDecoration(
                       color: i == _page
-                          ? (isDark ? GSColors.primaryMid : GSColors.primary)
+                          ? (tone.primary)
                           : muteColor.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(999),
                     ),
@@ -181,19 +184,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   if (!isLast)
                     TextButton(
                       onPressed: _finish,
-                      child: Text('Überspringen',
-                          style: TextStyle(color: muteColor),),
+                      child: Text(
+                        'Überspringen',
+                        style: TextStyle(color: muteColor),
+                      ),
                     ),
                   const Spacer(),
                   FilledButton(
                     onPressed: _next,
                     style: FilledButton.styleFrom(
-                      backgroundColor: GSColors.primary,
-                      foregroundColor: GSColors.cream,
                       minimumSize: Size(isLast ? 280 : 180, 54),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -376,7 +376,7 @@ class _PlateArt extends StatelessWidget {
             width: 130,
             height: 130,
             decoration: const BoxDecoration(
-              color: Color(0xFFC9824E),
+              color: GSColors.caramel,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -395,15 +395,20 @@ class _PlateArt extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.auto_awesome,
-                      color: GSColors.cream, size: 13,),
+                  const Icon(
+                    Icons.auto_awesome,
+                    color: GSColors.cream,
+                    size: 13,
+                  ),
                   const SizedBox(width: 5),
-                  Text('100%',
-                      style: GSTypography.body(
-                        color: GSColors.cream,
-                        size: 12,
-                        weight: FontWeight.w700,
-                      ),),
+                  Text(
+                    '100%',
+                    style: GSTypography.body(
+                      color: GSColors.cream,
+                      size: 12,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),

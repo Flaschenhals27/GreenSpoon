@@ -6,20 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../pantry/domain/pantry_item.dart';
 import '../domain/recipe.dart';
 
-/// Persistenter Cache für die generierten Rezepte.
-///
-/// Vermeidet, dass bei jedem App-Start erneut die (langsame, kostenpflichtige)
-/// Edge Function aufgerufen wird. Die Rezepte werden zusammen mit einer
-/// „Signatur" abgelegt. Stimmt die Signatur beim nächsten Laden überein,
-/// werden die gecachten Rezepte direkt zurückgegeben — ohne API-Call.
-///
-/// Die Signatur ändert sich, wenn:
-///  - ein neuer Tag begonnen hat (Rezepte sind „für HEUTE"),
-///  - sich der Vorrat geändert hat (Item hinzugefügt/entfernt),
-///  - ein anderer User eingeloggt ist.
-///
-/// Der [SupabaseClient] wird injiziert (nur für die User-ID in der Signatur),
-/// statt auf das globale Singleton zuzugreifen.
+/// Persistenter Rezept-Cache mit Signatur (Tag + Vorrat + User) — nur bei
+/// geänderter Signatur wird die teure Edge Function erneut aufgerufen.
 class RecipeCache {
   RecipeCache(this._client);
 

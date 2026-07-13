@@ -6,6 +6,7 @@ import '../data/recipe_cache.dart';
 import '../data/recipe_repository.dart';
 import '../domain/meal.dart';
 import '../domain/recipe.dart';
+import 'recipe_cooldown_provider.dart';
 
 final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
   return SupabaseRecipeRepository(ref.watch(supabaseClientProvider));
@@ -15,19 +16,16 @@ final recipeCacheProvider = Provider<RecipeCache>((ref) {
   return RecipeCache(ref.watch(supabaseClientProvider));
 });
 
-/// Liefert die Rezepte für den aktuellen Vorrat.
-///
-/// Greift zuerst auf den persistenten [RecipeCache] zu, damit nicht bei jedem
-/// App-Start erneut die Edge Function aufgerufen wird. Nur wenn sich Tag,
-/// Vorrat oder User geändert haben (= andere Signatur) wird frisch generiert.
-/// Ein manueller Reload läuft über [refreshRecipes].
-///
-/// Wirft [PantryEmptyException] (statt einer normalen Exception), wenn
-/// der Vorrat des Users leer ist — dann lohnt sich der API-Call nicht
-/// und das UI zeigt einen passenden Empty-State.
+/// Rezepte für den aktuellen Vorrat — aus dem [RecipeCache], solange sich
+/// Tag/Vorrat/User nicht geändert haben; bei leerem Vorrat fliegt
+/// [PantryEmptyException] (UI zeigt dann einen Empty-State).
 final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
-  // Erst checken, ob der User überhaupt Vorrat hat.
-  // Wir hören auf den Stream, lesen aber nur den aktuellen Wert.
+  // Nur das Leer-Flag beobachten — normale Vorrats-Änderungen sollen keinen
+  // teuren Generierungs-Lauf anstoßen.
+  ref.watch(
+    pantryStreamProvider.select((async) => async.valueOrNull?.isEmpty),
+  );
+
   final pantry = await ref.read(pantryStreamProvider.future);
   if (pantry.isEmpty) {
     throw const PantryEmptyException();
@@ -50,20 +48,26 @@ final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
   return recipes;
 });
 
-/// Erzwingt eine frische Rezept-Generierung: leert den Cache und lädt neu.
-/// Wird von den Refresh-/Retry-Aktionen im UI genutzt.
+/// Erzwingt eine frische Generierung: Cache leeren, neu laden.
 Future<void> refreshRecipes(WidgetRef ref) async {
   await ref.read(recipeCacheProvider).clear();
   ref.read(recipeOverridesProvider.notifier).clear();
   ref.invalidate(recipesProvider);
 }
 
-/// Generiert [count] alternative Rezepte für genau eine [Meal]. Wird vom
-/// Long-Press auf einer Rezeptkarte genutzt, um diese Mahlzeit einzeln neu
-/// vorschlagen zu lassen.
-///
-/// autoDispose: Jedes Öffnen des Auswahl-Sheets generiert frisch; beim
-/// Schließen wird der Provider verworfen.
+/// [refreshRecipes], sofern der Cooldown es erlaubt (Retry-Buttons, Footer,
+/// Pull-to-Refresh). Liefert false, wenn der Cooldown noch läuft — der Aufrufer
+/// kann dann einen Hinweis zeigen.
+bool refreshRecipesIfAllowed(WidgetRef ref) {
+  if (!ref.read(recipeCooldownProvider.notifier).trigger()) {
+    return false;
+  }
+  refreshRecipes(ref);
+  return true;
+}
+
+/// [count] Alternativen für eine [Meal] (Long-Press auf einer Karte).
+/// autoDispose: jedes Öffnen des Sheets generiert frisch.
 final mealAlternativesProvider =
     FutureProvider.autoDispose.family<List<Recipe>, Meal>((ref, meal) async {
   final repo = ref.watch(recipeRepositoryProvider);
@@ -73,9 +77,8 @@ final mealAlternativesProvider =
   return filtered.isNotEmpty ? filtered : recipes;
 });
 
-/// Hält die vom User über das Auswahl-Sheet gewählten Ersatz-Rezepte,
-/// je Mahlzeit eines. Die Rezept-Liste im UI wird damit überlagert, ohne
-/// den Cache anzufassen. Ein „Alle neu" leert diese Auswahl wieder.
+/// Vom User gewählte Ersatz-Rezepte (eines je Mahlzeit) — überlagern die
+/// Liste, ohne den Cache anzufassen; „Alle neu" leert sie.
 class RecipeOverrides extends Notifier<Map<Meal, Recipe>> {
   @override
   Map<Meal, Recipe> build() => const {};
@@ -94,8 +97,7 @@ final recipeOverridesProvider =
   RecipeOverrides.new,
 );
 
-/// Wird vom recipesProvider geworfen, wenn der Vorrat leer ist.
-/// Das UI behandelt das nicht als Fehler, sondern als Empty-State.
+/// „Vorrat leer" — vom UI als Empty-State behandelt, nicht als Fehler.
 class PantryEmptyException implements Exception {
   const PantryEmptyException();
   @override

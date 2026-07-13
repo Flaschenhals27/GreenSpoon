@@ -36,6 +36,8 @@ interface Recipe {
   tags: string[];
   uses: string[];
   missing: string[];
+  // Benötigte Menge je Zutat (Name → Menge), skaliert auf `servings`.
+  amounts: Record<string, string>;
   blurb: string;
   steps: string[];
 }
@@ -177,11 +179,17 @@ ohne Markdown, ohne Code-Fence, ohne Kommentare:
       "tags": ["Vegetarisch", "Schnell"],
       "uses": ["Zutat aus dem Vorrat", "..."],
       "missing": ["Zutat, die fehlt", "..."],
+      "amounts": { "Zutat aus dem Vorrat": "3", "Zutat, die fehlt": "200 g" },
       "blurb": "Ein-Satz-Beschreibung, einladend, max. 80 Zeichen.",
       "steps": ["Schritt 1.", "Schritt 2.", "..."]
     }
   ]
 }
+
+Für "amounts": Gib zu JEDER Zutat aus "uses" UND "missing" die benötigte Menge an,
+passend zu "servings". Der Schlüssel MUSS exakt dem Zutatennamen aus "uses"/"missing"
+entsprechen. Für zählbare Dinge (Eier, Zwiebeln, Paprika, Knoblauchzehen …) nur die
+nackte Stückzahl als Zahl-String ("3"); sonst mit Einheit ("200 g", "100 ml", "1 EL").
 
 Sprache: Deutsch, Du-Form. Realistisch, einfach umsetzbar.`;
 

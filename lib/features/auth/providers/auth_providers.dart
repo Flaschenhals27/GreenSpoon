@@ -9,10 +9,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return SupabaseAuthRepository(ref.watch(supabaseClientProvider));
 });
 
-/// Stream des aktuellen Auth-Status.
-///
-/// Liefert `AuthState` (mit `event` und `session`). Konsumenten interessieren
-/// sich meist nur für `session?.user` — siehe [currentUserProvider].
+/// Stream der Auth-Status-Änderungen (für den User siehe [currentUserProvider]).
 final authStateChangesProvider = StreamProvider<AuthState>((ref) {
   final repo = ref.watch(authRepositoryProvider);
   return repo.authStateChanges();

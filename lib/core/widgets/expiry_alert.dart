@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/gs_colors.dart';
+import '../theme/gs_tone.dart';
 import '../theme/gs_typography.dart';
 
 /// Terracotta-Warn-Card oben auf dem Vorrats-Screen,
@@ -19,12 +20,12 @@ class ExpiryAlert extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tone = GSTone.of(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
       child: Material(
-        color: isDark
+        color: tone.isDark
             ? GSColors.accent.withValues(alpha: 0.18)
             : GSColors.accentSoft,
         borderRadius: BorderRadius.circular(18),

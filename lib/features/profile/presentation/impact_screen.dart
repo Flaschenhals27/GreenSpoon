@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/mascot.dart';
 import '../../pantry/domain/user_stats.dart';
@@ -19,12 +20,12 @@ class ImpactScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final async = ref.watch(userStatsProvider);
 
@@ -36,20 +37,24 @@ class ImpactScreen extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Material(
-                color: surfaceColor,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: lineColor),
+              child: Tooltip(
+                message: 'Zurück',
+                child: Material(
+                  color: surfaceColor,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: lineColor),
+                      ),
+                      child:
+                          Icon(Icons.chevron_left, color: inkColor, size: 22),
                     ),
-                    child: Icon(Icons.chevron_left, color: inkColor, size: 22),
                   ),
                 ),
               ),
@@ -59,8 +64,10 @@ class ImpactScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('DEIN IMPACT',
-                      style: GSTypography.label(color: muteColor),),
+                  Text(
+                    'DEIN IMPACT',
+                    style: GSTypography.label(color: muteColor),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Was du bewirkst',
@@ -83,7 +90,7 @@ class ImpactScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                data: (s) => _body(context, s, isDark),
+                data: (s) => _body(context, s),
               ),
             ),
           ],
@@ -92,61 +99,84 @@ class ImpactScreen extends ConsumerWidget {
     );
   }
 
-  Widget _body(BuildContext context, UserStats s, bool isDark) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
+  Widget _body(BuildContext context, UserStats s) {
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
     final equivalents = Co2Equivalents.forKg(s.co2SavedKg);
     final flightShare = Co2Equivalents.flightShare(s.co2SavedKg);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 40),
       children: [
-        // CO₂-Hero
+        // Wegwerf-Bilanz zuerst (ehrliche Kennzahl), CO₂ danach als Schätzung.
+        Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
+        const SizedBox(height: 12),
+        _BalanceCard(stats: s, avgWeek: _avgWastePerWeekKg),
+
+        const SizedBox(height: 16),
+
+        // Buzzer-Saves
+        _BuzzerCard(saves: s.buzzerSaves),
+
+        const SizedBox(height: 26),
+
+        // ── 2. CO₂ — kompakter als früher und klar als Schätzung
+        // gerahmt, damit die Zahl nicht zum Highscore wird.
+        Text(
+          'CO₂ VERMIEDEN · SCHÄTZUNG',
+          style: GSTypography.label(color: muteColor),
+        ),
+        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             color: GSColors.primary,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(20),
           ),
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('CO₂ VERMIEDEN',
-                  style: GSTypography.label(
-                      color: GSColors.cream.withValues(alpha: 0.6),),),
-              const SizedBox(height: 8),
               Text(
                 '${_fmtKg(s.co2SavedKg)} kg',
                 style: GSTypography.headline(
                   color: GSColors.cream,
-                  size: 52,
+                  size: 34,
                   weight: FontWeight.w500,
                 ),
               ),
-              Text(
-                'in Lebensmitteln, die du verwertet\nstatt weggeworfen hast',
-                style: GSTypography.body(
-                  color: GSColors.cream.withValues(alpha: 0.85),
-                  size: 13.5,
-                  height: 1.4,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'in Lebensmitteln, die du kurz vor der Tonne noch gerettet hast',
+                    style: GSTypography.body(
+                      color: GSColors.cream.withValues(alpha: 0.85),
+                      size: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
         // Äquivalente
-        Text('DAS ENTSPRICHT UNGEFÄHR',
-            style: GSTypography.label(color: muteColor),),
+        Text(
+          'DAS ENTSPRICHT UNGEFÄHR',
+          style: GSTypography.label(color: muteColor),
+        ),
         const SizedBox(height: 12),
         if (equivalents.isEmpty)
           Text(
-            'Sobald du etwas verwertest, rechnen wir es hier in Alltags-Dinge um.',
+            'Sobald du etwas kurz vor dem MHD rettest, rechnen wir es hier in Alltags-Dinge um.',
             style: GSTypography.body(color: muteColor, size: 13.5, height: 1.4),
           )
         else ...[
-          ...equivalents.map((e) => _EquivalentRow(e: e, isDark: isDark)),
+          ...equivalents.map((e) => _EquivalentRow(e: e)),
           const SizedBox(height: 6),
           Text(
             flightShare >= 0.01
@@ -164,15 +194,10 @@ class ImpactScreen extends ConsumerWidget {
 
         const SizedBox(height: 26),
 
-        // Wegwerf-Bilanz
-        Text('DEINE BILANZ', style: GSTypography.label(color: muteColor)),
+        // ── 3. Methodik — macht die Zahlen erklärbar und angreifbar-sicher.
+        Text('SO RECHNEN WIR', style: GSTypography.label(color: muteColor)),
         const SizedBox(height: 12),
-        _BalanceCard(stats: s, isDark: isDark, avgWeek: _avgWastePerWeekKg),
-
-        const SizedBox(height: 16),
-
-        // Buzzer-Saves
-        _BuzzerCard(saves: s.buzzerSaves, isDark: isDark),
+        const _MethodologyCard(),
 
         const SizedBox(height: 16),
 
@@ -192,17 +217,88 @@ class ImpactScreen extends ConsumerWidget {
   }
 }
 
-class _EquivalentRow extends StatelessWidget {
-  const _EquivalentRow({required this.e, required this.isDark});
-  final Co2Equivalent e;
-  final bool isDark;
+/// Erklärt die Kontrafaktik hinter „CO₂ vermieden" in drei Schritten —
+/// bewusst transparent, damit die Zahl nicht nach Greenwashing aussieht.
+class _MethodologyCard extends StatelessWidget {
+  const _MethodologyCard();
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
+
+    const steps = [
+      (
+        emoji: '⏳',
+        text:
+            'Nur Rettungen zählen: Lebensmittel, die du in den letzten 3 Tagen vor dem MHD (oder danach) noch verwertet hast.',
+      ),
+      (
+        emoji: '🗑️',
+        text:
+            'Ohne dich wären sie wahrscheinlich im Müll gelandet — ihr Produktions-CO₂ wäre umsonst gewesen und du hättest Ersatz gekauft.',
+      ),
+      (
+        emoji: '🧮',
+        text:
+            'Das CO₂ kommt aus Produktdaten oder einer Kategorie-Schätzung. Normal gegessene Lebensmittel zählen bewusst nicht — die vermeiden nichts.',
+      ),
+      (
+        emoji: '🍽️',
+        text:
+            'Und: Extra warten lohnt sich nicht. Frisch gegessen ist genauso gerettet — nur sicherer. Die Zahl ist ein Anhaltspunkt, kein Highscore.',
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: lineColor),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          for (final (i, step) in steps.indexed) ...[
+            if (i > 0) const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(step.emoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    step.text,
+                    style: GSTypography.body(
+                      color: i == 0 ? inkColor : muteColor,
+                      size: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EquivalentRow extends StatelessWidget {
+  const _EquivalentRow({required this.e});
+  final Co2Equivalent e;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -220,13 +316,19 @@ class _EquivalentRow extends StatelessWidget {
             child: Text(
               e.label,
               style: GSTypography.body(
-                  color: inkColor, size: 14.5, weight: FontWeight.w500,),
+                color: inkColor,
+                size: 14.5,
+                weight: FontWeight.w500,
+              ),
             ),
           ),
           Text(
             e.value,
             style: GSTypography.body(
-                color: muteColor, size: 14, weight: FontWeight.w700,),
+              color: muteColor,
+              size: 14,
+              weight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -237,19 +339,18 @@ class _EquivalentRow extends StatelessWidget {
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.stats,
-    required this.isDark,
     required this.avgWeek,
   });
   final UserStats stats;
-  final bool isDark;
   final double avgWeek;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final ratePct = (stats.useRate * 100).round();
     final thisM = stats.wastedKgThisMonth;
@@ -274,9 +375,10 @@ class _BalanceCard extends StatelessWidget {
                 Text(
                   '$ratePct %',
                   style: GSTypography.headline(
-                      color: GSColors.primary,
-                      size: 40,
-                      weight: FontWeight.w600,),
+                    color: GSColors.primary,
+                    size: 40,
+                    weight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Padding(
@@ -284,7 +386,10 @@ class _BalanceCard extends StatelessWidget {
                   child: Text(
                     'verwertet statt\nweggeworfen',
                     style: GSTypography.body(
-                        color: muteColor, size: 13, height: 1.3,),
+                      color: muteColor,
+                      size: 13,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
@@ -333,7 +438,10 @@ class _BalanceCard extends StatelessWidget {
                     'Diesen Monat ${_fmt(thisM)} kg weggeworfen '
                     '(${_fmt(lastM)} kg im Vormonat).',
                     style: GSTypography.body(
-                        color: inkColor, size: 13.5, height: 1.35,),
+                      color: inkColor,
+                      size: 13.5,
+                      height: 1.35,
+                    ),
                   ),
                 ),
               ],
@@ -355,16 +463,16 @@ class _BalanceCard extends StatelessWidget {
 }
 
 class _BuzzerCard extends StatelessWidget {
-  const _BuzzerCard({required this.saves, required this.isDark});
+  const _BuzzerCard({required this.saves});
   final int saves;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Container(
       decoration: BoxDecoration(
@@ -384,13 +492,19 @@ class _BuzzerCard extends StatelessWidget {
                 Text(
                   '$saves× auf den letzten Drücker gerettet',
                   style: GSTypography.body(
-                      color: inkColor, size: 15.5, weight: FontWeight.w700,),
+                    color: inkColor,
+                    size: 15.5,
+                    weight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'So oft hast du etwas noch in den letzten 3 Tagen vor dem MHD verwertet — sonst wär\'s wohl in der Tonne gelandet.',
                   style: GSTypography.body(
-                      color: muteColor, size: 12.5, height: 1.4,),
+                    color: muteColor,
+                    size: 12.5,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),

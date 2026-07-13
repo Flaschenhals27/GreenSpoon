@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../domain/recipe.dart';
 import '../providers/saved_recipe_providers.dart';
 
@@ -48,9 +49,11 @@ class _SaveRecipeButtonState extends ConsumerState<SaveRecipeButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_saved == true
-                ? 'Rezept gespeichert'
-                : 'Aus Gespeicherten entfernt',),
+            content: Text(
+              _saved == true
+                  ? 'Rezept gespeichert'
+                  : 'Aus Gespeicherten entfernt',
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -68,10 +71,10 @@ class _SaveRecipeButtonState extends ConsumerState<SaveRecipeButton> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final isSaved = _saved == true;
 

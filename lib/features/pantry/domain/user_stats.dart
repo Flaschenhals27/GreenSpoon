@@ -1,8 +1,5 @@
-/// Aggregierte Nutzer-Statistiken für Profil- und Impact-Seite.
-///
-/// Reines Wertobjekt ohne Datenbank- oder Berechnungslogik — befüllt wird es
-/// vom [UserStatsCalculator]. So bleibt die Aggregation testbar und vom
-/// Repository entkoppelt (SRP).
+/// Aggregierte Nutzer-Statistiken — reines Wertobjekt, befüllt vom
+/// [UserStatsCalculator] (SRP).
 class UserStats {
   const UserStats({
     this.inPantry = 0,
@@ -25,10 +22,16 @@ class UserStats {
   /// Insgesamt weggeworfene Items.
   final int wastedTotal;
 
-  /// Verwertet ≤ [UserStatsCalculator.buzzerThresholdDays] Tage vor MHD.
+  /// Verwertet ≤ `UserStatsCalculator.buzzerThresholdDays` Tage vor MHD
+  /// (oder danach) — also plausibel vor der Tonne gerettet.
   final int buzzerSaves;
 
+  /// CO₂e (kg) der *geretteten* Items ([buzzerSaves]-Kohorte) — nicht des
+  /// gesamten Konsums. Kontrafaktik siehe `UserStatsCalculator`-Doku.
   final double co2SavedKg;
+
+  /// Geschätzter Warenwert (€) der geretteten Items — der vermiedene
+  /// Ersatzkauf. Gleiche Kohorte wie [co2SavedKg].
   final double eurSaved;
   final double wastedKgThisMonth;
   final double wastedKgLastMonth;

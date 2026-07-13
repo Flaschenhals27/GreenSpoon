@@ -4,19 +4,9 @@ import '../pantry/domain/pantry_item.dart';
 import 'notification_service.dart';
 import 'notification_settings.dart';
 
-/// Plant die täglichen Ablauf-Erinnerungen.
-///
-/// Statt eines WorkManager-Periodic-Tasks (der von Android unzuverlässig und
-/// nie zur gewünschten Uhrzeit ausgeführt wurde) planen wir jetzt für die
-/// nächsten [horizonDays] Tage je *eine exakte* Notification über den
-/// AlarmManager ein. Der Inhalt jedes Tages wird aus dem aktuellen Vorrat
-/// berechnet — das geht, weil das Ablaufdatum deterministisch ist: für einen
-/// künftigen Stichtag stehen die „bald ablaufenden" Items bereits fest.
-///
-/// [reschedule] wird aufgerufen, wann immer sich der Vorrat ändert, die App
-/// startet oder die Einstellungen angepasst werden. So bleiben die geplanten
-/// Erinnerungen aktuell, ohne dass im Hintergrund Daten nachgeladen werden
-/// müssten (das frühere, fragile Supabase-Refetch im Hintergrund-Isolat).
+/// Plant die täglichen Ablauf-Erinnerungen: je eine exakte Notification pro
+/// Tag im [horizonDays]-Fenster, Inhalt deterministisch aus dem Vorrat.
+/// [reschedule] läuft bei jeder Vorrats-/Einstellungs-Änderung.
 class NotificationScheduler {
   NotificationScheduler._();
 
@@ -28,10 +18,8 @@ class NotificationScheduler {
   /// von 0–[_lookaheadDays] Tagen ab diesem Stichtag abläuft.
   static const _lookaheadDays = 2;
 
-  /// Reine, testbare Planungslogik: liefert für jeden Tag mit bald ablaufenden
-  /// Items eine Erinnerung (Slot, Auslösezeitpunkt, Item-Namen). Tage ohne
-  /// ablaufende Items und die bereits vergangene heutige Uhrzeit werden
-  /// ausgelassen.
+  /// Reine, testbare Planungslogik: eine Erinnerung je Tag mit bald
+  /// ablaufenden Items (vergangene heutige Uhrzeit wird ausgelassen).
   @visibleForTesting
   static List<ScheduledReminder> plan({
     required DateTime now,
@@ -60,7 +48,8 @@ class NotificationScheduler {
           .toList();
 
       if (names.isEmpty) continue;
-      reminders.add(ScheduledReminder(slot: slot, fireAt: fireAt, names: names));
+      reminders
+          .add(ScheduledReminder(slot: slot, fireAt: fireAt, names: names));
     }
 
     return reminders;

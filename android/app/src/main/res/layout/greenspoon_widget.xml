@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Homescreen-Widget „Läuft bald ab": Eyebrow-Titel + bis zu drei
+     Item-Zeilen. Farben = App-Palette (Waldgrün / Cream). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/greenspoon_widget_bg"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:letterSpacing="0.1"
+        android:maxLines="1"
+        android:text="LÄUFT BALD AB"
+        android:textColor="#A8FAF3E3"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:lineSpacingExtra="3dp"
+        android:maxLines="4"
+        android:ellipsize="end"
+        android:text="Alles frisch 🌿"
+        android:textColor="#FAF3E3"
+        android:textSize="14sp" />
+</LinearLayout>

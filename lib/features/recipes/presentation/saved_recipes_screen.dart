@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../../../core/widgets/mascot.dart';
 import '../domain/meal.dart';
@@ -16,16 +17,16 @@ class SavedRecipesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final async = ref.watch(savedRecipesProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? GSColors.bgAppDark : GSColors.bgApp,
+      backgroundColor: tone.bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,8 +57,10 @@ class SavedRecipesScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MEINE REZEPTE',
-                      style: GSTypography.label(color: muteColor),),
+                  Text(
+                    'MEINE REZEPTE',
+                    style: GSTypography.label(color: muteColor),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Gespeichert',
@@ -109,7 +112,6 @@ class SavedRecipesScreen extends ConsumerWidget {
                       final r = recipes[i];
                       return _SavedCard(
                         recipe: r,
-                        isDark: isDark,
                         onOpen: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => RecipeDetailScreen(recipe: r),
@@ -155,22 +157,21 @@ class SavedRecipesScreen extends ConsumerWidget {
 class _SavedCard extends StatelessWidget {
   const _SavedCard({
     required this.recipe,
-    required this.isDark,
     required this.onOpen,
     required this.onRemove,
   });
 
   final Recipe recipe;
-  final bool isDark;
   final VoidCallback onOpen;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -352,14 +353,7 @@ class _Message extends StatelessWidget {
           const SizedBox(height: 24),
           FilledButton(
             onPressed: onRetry,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(180, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              backgroundColor: GSColors.primary,
-              foregroundColor: GSColors.cream,
-            ),
+            style: FilledButton.styleFrom(minimumSize: const Size(180, 48)),
             child: const Text('Erneut versuchen'),
           ),
         ],

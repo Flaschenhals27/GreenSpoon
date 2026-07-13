@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../pantry/domain/pantry_categories.dart';
+
 @immutable
 class ScannedProduct {
   const ScannedProduct({
@@ -26,7 +28,7 @@ class ScannedProduct {
   factory ScannedProduct.unknown(String barcode) => ScannedProduct(
         barcode: barcode,
         name: '',
-        category: 'Sonstiges',
+        category: kFallbackCategory,
         emoji: '📦',
       );
 }

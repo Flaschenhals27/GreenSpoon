@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../providers/dietary_prefs_providers.dart';
 
@@ -58,12 +59,10 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
 
     return Container(
       decoration: BoxDecoration(
@@ -106,10 +105,6 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
                 _Chip(
                   label: opt,
                   selected: _selected.contains(opt),
-                  isDark: isDark,
-                  surfaceColor: surfaceColor,
-                  lineColor: lineColor,
-                  inkColor: inkColor,
                   onTap: () {
                     setState(() {
                       if (_selected.contains(opt)) {
@@ -125,14 +120,6 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              backgroundColor: GSColors.primary,
-              foregroundColor: GSColors.cream,
-            ),
             child: _saving
                 ? const SizedBox(
                     width: 18,
@@ -142,14 +129,7 @@ class _DietaryPrefsSheetState extends ConsumerState<DietaryPrefsSheet> {
                       strokeWidth: 2,
                     ),
                   )
-                : Text(
-                    'Speichern',
-                    style: GSTypography.body(
-                      color: GSColors.cream,
-                      size: 15,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
+                : const Text('Speichern'),
           ),
         ],
       ),
@@ -161,31 +141,24 @@ class _Chip extends StatelessWidget {
   const _Chip({
     required this.label,
     required this.selected,
-    required this.isDark,
-    required this.surfaceColor,
-    required this.lineColor,
-    required this.inkColor,
     required this.onTap,
   });
   final String label;
   final bool selected;
-  final bool isDark;
-  final Color surfaceColor;
-  final Color lineColor;
-  final Color inkColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final tone = GSTone.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? GSColors.primary : surfaceColor,
+          color: selected ? GSColors.primary : tone.surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? GSColors.primary : lineColor,
+            color: selected ? GSColors.primary : tone.line,
           ),
         ),
         child: Row(
@@ -198,7 +171,7 @@ class _Chip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: selected ? GSColors.cream : inkColor,
+                color: selected ? GSColors.cream : tone.ink,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
               ),

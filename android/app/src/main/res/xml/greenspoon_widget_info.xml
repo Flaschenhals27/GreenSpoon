@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Metadaten des Homescreen-Widgets. updatePeriodMillis ist nur das
+     Sicherheitsnetz — die App pusht bei jeder Vorrats-Änderung frische
+     Daten über das home_widget-Plugin. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/greenspoon_widget"
+    android:minWidth="180dp"
+    android:minHeight="80dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

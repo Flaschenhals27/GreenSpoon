@@ -1,8 +1,9 @@
-/// Die festen Vorrats-Kategorien der App. Eine einzige Quelle der Wahrheit,
-/// damit Scan-Review, Foto-Erkennung und Edge Function dieselben Werte nutzen.
-///
-/// ⚠️ Wird im Prompt der Edge Function `scan-groceries` gespiegelt — bei
-/// Änderungen dort mitziehen.
+/// Fallback-Kategorie für alles Unbekannte — überall diese Konstante
+/// verwenden statt verstreuter String-Literale.
+const String kFallbackCategory = 'Sonstiges';
+
+/// Die festen Vorrats-Kategorien (Single Source of Truth).
+/// ⚠️ Im Prompt der Edge Function `scan-groceries` gespiegelt — dort mitziehen.
 const List<String> kPantryCategories = [
   'Milchprodukte',
   'Obst',
@@ -21,5 +22,5 @@ const List<String> kPantryCategories = [
   'Konserven',
   'Tiefkühl',
   'Getränke',
-  'Sonstiges',
+  kFallbackCategory,
 ];

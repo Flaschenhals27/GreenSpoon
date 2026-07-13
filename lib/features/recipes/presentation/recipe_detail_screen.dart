@@ -1,29 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../domain/recipe.dart';
 import 'save_recipe_button.dart';
+import 'widgets/cooked_sheet.dart';
 
-class RecipeDetailScreen extends StatelessWidget {
+class RecipeDetailScreen extends ConsumerWidget {
   const RecipeDetailScreen({super.key, required this.recipe});
   final Recipe recipe;
 
+  /// Öffnet das „Gekocht"-Sheet: matcht die Rezept-Zutaten gegen den
+  /// Vorrat und verbucht die Auswahl als verbraucht.
+  Future<void> _openCookedSheet(BuildContext context) async {
+    final consumedCount = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CookedSheet(recipe: recipe),
+    );
+    if (consumedCount != null && consumedCount > 0 && context.mounted) {
+      HapticFeedback.mediumImpact();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Scaffold(
-      backgroundColor: isDark ? GSColors.bgAppDark : GSColors.bgApp,
+      backgroundColor: tone.bg,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.only(bottom: 40),
           children: [
-            // Top-Bar mit Back
             // Top-Bar mit Back + Speichern
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
@@ -120,7 +137,9 @@ class RecipeDetailScreen extends StatelessWidget {
                     for (final t in recipe.tags)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6,),
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: GSColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
@@ -128,8 +147,7 @@ class RecipeDetailScreen extends StatelessWidget {
                         child: Text(
                           t,
                           style: TextStyle(
-                            color:
-                                isDark ? GSColors.primaryMid : GSColors.primary,
+                            color: tone.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -143,6 +161,7 @@ class RecipeDetailScreen extends StatelessWidget {
               _IngredientBlock(
                 title: 'Aus deinem Vorrat',
                 items: recipe.uses,
+                amounts: recipe.amounts,
                 bullet: '✓',
                 bulletColor: GSColors.primary,
               ),
@@ -151,6 +170,7 @@ class RecipeDetailScreen extends StatelessWidget {
               _IngredientBlock(
                 title: 'Du brauchst noch',
                 items: recipe.missing,
+                amounts: recipe.amounts,
                 bullet: '+',
                 bulletColor: GSColors.accent,
               ),
@@ -180,8 +200,7 @@ class RecipeDetailScreen extends StatelessWidget {
                         child: Text(
                           '${i + 1}',
                           style: TextStyle(
-                            color:
-                                isDark ? GSColors.primaryMid : GSColors.primary,
+                            color: tone.primary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -205,12 +224,27 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
                 ),
             ],
+            // „Gekocht!" verbucht die verwendeten Zutaten in einem Schritt.
+            if (recipe.uses.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 0),
+                child: FilledButton.icon(
+                  onPressed: () => _openCookedSheet(context),
+                  icon: const Icon(Icons.restaurant, size: 18),
+                  label: const Text('Gekocht! Zutaten verbuchen'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────
 
 class _Meta extends StatelessWidget {
   const _Meta({
@@ -231,12 +265,14 @@ class _Meta extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: sub),
         const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
@@ -246,22 +282,24 @@ class _IngredientBlock extends StatelessWidget {
   const _IngredientBlock({
     required this.title,
     required this.items,
+    required this.amounts,
     required this.bullet,
     required this.bulletColor,
   });
 
   final String title;
   final List<String> items;
+  final Map<String, String> amounts;
   final String bullet;
   final Color bulletColor;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
@@ -275,8 +313,10 @@ class _IngredientBlock extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title.toUpperCase(),
-                style: GSTypography.label(color: muteColor),),
+            Text(
+              title.toUpperCase(),
+              style: GSTypography.label(color: muteColor),
+            ),
             const SizedBox(height: 12),
             for (final i in items)
               Padding(
@@ -304,6 +344,17 @@ class _IngredientBlock extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (amounts[i] != null) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        amounts[i]!,
+                        style: GSTypography.body(
+                          color: muteColor,
+                          size: 13,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

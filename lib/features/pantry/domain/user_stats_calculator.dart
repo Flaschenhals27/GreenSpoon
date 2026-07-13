@@ -30,17 +30,18 @@ class WastedItem {
   final DateTime? removedAt;
 }
 
-/// Berechnet die [UserStats] aus den rohen Vorrats-Daten.
+/// Berechnet die [UserStats] — reine Aggregation ohne DB-Zugriffe,
+/// dadurch ohne Supabase unit-testbar (SRP).
 ///
-/// Bewusst frei von Datenbank-Zugriffen: das Repository lädt und mappt die
-/// Zeilen, dieser Calculator macht ausschließlich die Aggregation. Dadurch
-/// ist die Logik (CO₂-/€-Summen, Wochen-Zählung, „Buzzer"-Rettungen,
-/// Wegwerf-Bilanz pro Monat) ohne Supabase unit-testbar (SRP).
+/// Methodik: Als CO₂-/€-„Ersparnis" zählen nur Rettungen (verwertet ≤
+/// [buzzerThresholdDays] Tage vor dem MHD oder danach) — normal gegessene
+/// Lebensmittel vermeiden nichts. Items ohne MHD/Entnahme-Datum zählen
+/// konservativ nie als Rettung.
 class UserStatsCalculator {
   const UserStatsCalculator();
 
-  /// Schwelle (Tage Restlaufzeit), bis zu der ein verwertetes Item als
-  /// „auf den letzten Drücker gerettet" zählt.
+  /// Restlaufzeit-Schwelle für „auf den letzten Drücker gerettet";
+  /// nach MHD verwertet zählt ebenfalls.
   static const buzzerThresholdDays = 3;
 
   UserStats compute({
@@ -59,28 +60,30 @@ class UserStatsCalculator {
     double co2Total = 0;
     double eurTotal = 0;
     for (final item in consumed) {
-      co2Total += item.co2Kg ??
-          Co2Estimator.estimateCo2Kg(
-            category: item.category,
-            quantity: item.quantity,
-          );
-      eurTotal += Co2Estimator.estimatePriceEur(
-        category: item.category,
-        quantity: item.quantity,
-      );
-
       final removedAt = item.removedAt;
       if (removedAt != null && removedAt.isAfter(weekAgo)) cookedThisWeek++;
 
-      // „Auf den letzten Drücker gerettet": verwertet ≤ N Tage vor MHD.
+      // Nur Rettungen zählen als CO₂-/€-Ersparnis (s. Klassen-Doku).
       final expiresAt = item.expiresAt;
       if (expiresAt != null && removedAt != null) {
-        final daysLeft = DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
-            .difference(
-              DateTime(removedAt.year, removedAt.month, removedAt.day),
-            )
-            .inDays;
-        if (daysLeft <= buzzerThresholdDays) buzzerSaves++;
+        final daysLeft =
+            DateTime(expiresAt.year, expiresAt.month, expiresAt.day)
+                .difference(
+                  DateTime(removedAt.year, removedAt.month, removedAt.day),
+                )
+                .inDays;
+        if (daysLeft <= buzzerThresholdDays) {
+          buzzerSaves++;
+          co2Total += item.co2Kg ??
+              Co2Estimator.estimateCo2Kg(
+                category: item.category,
+                quantity: item.quantity,
+              );
+          eurTotal += Co2Estimator.estimatePriceEur(
+            category: item.category,
+            quantity: item.quantity,
+          );
+        }
       }
     }
 

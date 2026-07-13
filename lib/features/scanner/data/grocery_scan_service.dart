@@ -4,6 +4,9 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/supabase/edge_function_status.dart';
+import '../../pantry/domain/pantry_categories.dart';
+import '../../pantry/domain/shelf_life.dart';
 import '../domain/recognized_grocery.dart';
 import 'product_emoji.dart';
 
@@ -18,10 +21,8 @@ abstract interface class GroceryScanService {
   });
 }
 
-/// Supabase-gestützte Umsetzung: spricht mit der Edge Function
-/// `scan-groceries`. Schickt ein Foto und bekommt eine Liste erkannter
-/// Lebensmittel zurück (inkl. Vorrats-Abgleich). Der [SupabaseClient] wird
-/// injiziert.
+/// Supabase-Umsetzung: schickt das Foto an die Edge Function `scan-groceries`
+/// und bekommt erkannte Lebensmittel inkl. Vorrats-Abgleich zurück.
 class SupabaseGroceryScanService implements GroceryScanService {
   SupabaseGroceryScanService(this._client);
 
@@ -43,10 +44,7 @@ class SupabaseGroceryScanService implements GroceryScanService {
       );
 
       if (response.status != 200) {
-        if (response.status == 502 ||
-            response.status == 503 ||
-            response.status == 504 ||
-            response.status == 500) {
+        if (isEdgeFunctionDown(response.status)) {
           throw const GroceryScanException(GroceryScanError.aiDown);
         }
         throw GroceryScanException(
@@ -73,10 +71,7 @@ class SupabaseGroceryScanService implements GroceryScanService {
     } on SocketException catch (e) {
       throw GroceryScanException(GroceryScanError.offline, details: e.message);
     } on FunctionException catch (e) {
-      if (e.status == 502 ||
-          e.status == 503 ||
-          e.status == 504 ||
-          e.status == 500) {
+      if (isEdgeFunctionDown(e.status)) {
         throw const GroceryScanException(GroceryScanError.aiDown);
       }
       throw GroceryScanException(
@@ -86,25 +81,38 @@ class SupabaseGroceryScanService implements GroceryScanService {
     } on GroceryScanException {
       rethrow;
     } catch (e) {
-      throw GroceryScanException(GroceryScanError.unknown,
-          details: e.toString(),);
+      throw GroceryScanException(
+        GroceryScanError.unknown,
+        details: e.toString(),
+      );
     }
   }
 
   RecognizedGrocery _fromJson(Map raw, DateTime today) {
     final name = (raw['name'] as String?)?.trim();
-    final category = raw['category'] as String? ?? 'Sonstiges';
-    final days = (raw['expiry_days'] as num?)?.toInt();
+    final category = raw['category'] as String? ?? kFallbackCategory;
     final isNew = (raw['status'] as String?) != 'schon_da';
+    final resolvedName = (name == null || name.isEmpty) ? 'Unbekannt' : name;
+
+    // Haltbarkeit: KI-Schätzung, sonst lokale ShelfLife-Heuristik
+    // (null = lange haltbar, kein Tracking).
+    final days = (raw['expiry_days'] as num?)?.toInt();
+    final expiresAt = days != null
+        ? today.add(Duration(days: days))
+        : ShelfLife.estimateExpiry(
+            name: resolvedName,
+            category: category,
+            from: today,
+          );
 
     return RecognizedGrocery(
-      name: (name == null || name.isEmpty) ? 'Unbekannt' : name,
+      name: resolvedName,
       category: category,
       emoji: ProductEmojiResolver.resolve(name: name, category: category),
       quantity: (raw['quantity'] as String?)?.trim().isEmpty ?? true
           ? null
           : (raw['quantity'] as String).trim(),
-      expiresAt: days == null ? null : today.add(Duration(days: days)),
+      expiresAt: expiresAt,
       isNew: isNew,
       matchedName: raw['matched_name'] as String?,
     );

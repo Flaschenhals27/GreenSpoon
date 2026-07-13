@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:permission_handler/permission_handler.dart'
+    show openAppSettings;
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../data/mhd_parser.dart';
 
@@ -25,9 +28,17 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
   bool _torchOn = false;
   bool _streaming = false;
   bool _leaving = false;
+  bool _initializing = true;
+
+  /// Kamera-Berechtigung verweigert — eigener Zustand mit Weg in die
+  /// Einstellungen statt eines Endlos-Spinners.
+  bool _permissionDenied = false;
   DateTime? _lastProcessAt;
 
-  // Sticky match — wenn dasselbe Datum 4 Sekunden lang dominiert, wird's gewählt.
+  /// So lange muss dasselbe Datum dominieren, bis es automatisch übernommen wird.
+  static const _autoAcceptMs = 2500;
+
+  // Sticky match — dominiert dasselbe Datum [_autoAcceptMs], wird's gewählt.
   DateTime? _stickyDate;
   DateTime? _stickySince;
   String _statusText = 'Halte den Aufdruck ins Bild …';
@@ -70,45 +81,71 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
-      _streaming = false;
-      c.dispose();
+      final c = _controller;
+      if (c != null && c.value.isInitialized) {
+        _streaming = false;
+        c.dispose();
+        _controller = null;
+      }
     } else if (state == AppLifecycleState.resumed && !_leaving) {
+      // Auch nach verweigerter Berechtigung neu versuchen — der User
+      // kommt eventuell gerade aus den System-Einstellungen zurück.
       _initCamera();
     }
   }
 
   Future<void> _initCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) return;
-    final back = cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.back,
-      orElse: () => cameras.first,
-    );
-    final controller = CameraController(
-      back,
-      // medium reicht für Text-OCR locker und entlastet Main-Thread/GC
-      // deutlich gegenüber high (sonst Frame-Drops / gefühltes Einfrieren).
-      ResolutionPreset.medium,
-      enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.nv21,
-    );
-    _controller = controller;
-    await controller.initialize();
-    if (!mounted || _leaving) return;
-    setState(() {});
-    await controller.startImageStream(_onFrame);
-    _streaming = true;
+    if (mounted) {
+      setState(() {
+        _initializing = true;
+        _permissionDenied = false;
+      });
+    }
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        if (mounted) setState(() => _initializing = false);
+        return;
+      }
+      final back = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      final controller = CameraController(
+        back,
+        // medium reicht für Text-OCR locker und entlastet Main-Thread/GC
+        // deutlich gegenüber high (sonst Frame-Drops / gefühltes Einfrieren).
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.nv21,
+      );
+      _controller = controller;
+      await controller.initialize();
+      if (!mounted || _leaving) return;
+      setState(() => _initializing = false);
+      await controller.startImageStream(_onFrame);
+      _streaming = true;
+    } on CameraException catch (e) {
+      // 'CameraAccessDenied' & Co. → Berechtigungs-Problem, kein Defekt.
+      final denied = e.code.startsWith('CameraAccess');
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _permissionDenied = denied;
+        });
+      }
+    } catch (_) {
+      // Sonstiger Kamera-Fehler: kein Endlos-Spinner, der „MHD
+      // überspringen"-Ausweg unten bleibt immer erreichbar.
+      if (mounted) setState(() => _initializing = false);
+    }
   }
 
   Future<void> _onFrame(CameraImage image) async {
     if (_isProcessing || _leaving || !mounted) return;
 
-    // Drossel: höchstens ~alle 500 ms OCR laufen lassen. Ohne das läuft
-    // die Texterkennung auf JEDEM Frame und blockiert den Main-Thread
-    // (ständige GC-Pausen → UI wirkt eingefroren).
+    // OCR auf ~alle 500 ms drosseln — auf jedem Frame friert die UI ein.
     final now = DateTime.now();
     if (_lastProcessAt != null &&
         now.difference(_lastProcessAt!).inMilliseconds < 500) {
@@ -146,15 +183,18 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
         final stableFor =
             DateTime.now().difference(_stickySince!).inMilliseconds;
-        if (stableFor >= 4000) {
+        if (stableFor >= _autoAcceptMs) {
           await _finish(_stickyDate);
           return;
         }
 
         if (mounted) {
+          final secondsLeft = ((_autoAcceptMs - stableFor) / 1000)
+              .clamp(0, _autoAcceptMs / 1000)
+              .ceil();
           setState(() {
             _statusText =
-                'Erkannt: ${_format(_stickyDate!)}  ·  übernimm es oder warte ${(4 - (stableFor / 1000)).clamp(0, 4).toStringAsFixed(0)}s';
+                'Erkannt: ${_format(_stickyDate!)}  ·  übernimm es oder warte ${secondsLeft}s';
           });
         }
       } else if (mounted) {
@@ -207,12 +247,12 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     final c = _controller;
 
@@ -229,6 +269,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                 children: [
                   _CircleButton(
                     icon: Icons.chevron_left,
+                    tooltip: 'Zurück',
                     onTap: () => _finish(null),
                     surfaceColor: surfaceColor,
                     inkColor: inkColor,
@@ -236,11 +277,14 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                   ),
                   _CircleButton(
                     icon: _torchOn ? Icons.flash_on : Icons.flash_off,
+                    tooltip:
+                        _torchOn ? 'Blitz ausschalten' : 'Blitz einschalten',
                     onTap: () async {
                       if (c == null) return;
                       final newValue = !_torchOn;
                       await c.setFlashMode(
-                          newValue ? FlashMode.torch : FlashMode.off,);
+                        newValue ? FlashMode.torch : FlashMode.off,
+                      );
                       setState(() => _torchOn = newValue);
                     },
                     surfaceColor: surfaceColor,
@@ -285,9 +329,23 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                             Container(
                               color: Colors.black,
                               alignment: Alignment.center,
-                              child: const CircularProgressIndicator(
-                                color: GSColors.primaryMid,
-                              ),
+                              child: _initializing
+                                  ? const CircularProgressIndicator(
+                                      color: GSColors.primaryMid,
+                                    )
+                                  : _permissionDenied
+                                      ? const _CameraProblemInfo(
+                                          icon: Icons.no_photography_outlined,
+                                          message:
+                                              'Kamera-Zugriff ist deaktiviert. Erlaube ihn in den Einstellungen — oder überspringe das MHD unten.',
+                                          buttonLabel: 'Einstellungen öffnen',
+                                          onButton: openAppSettings,
+                                        )
+                                      : const _CameraProblemInfo(
+                                          icon: Icons.videocam_off_outlined,
+                                          message:
+                                              'Die Kamera ist gerade nicht verfügbar. Du kannst das MHD unten überspringen und später manuell setzen.',
+                                        ),
                             ),
                           IgnorePointer(
                             child: Container(
@@ -307,7 +365,9 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                                 padding: const EdgeInsets.only(bottom: 16),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 8,),
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.55),
                                     borderRadius: BorderRadius.circular(999),
@@ -331,10 +391,8 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                 ),
               ),
             ),
-            // Manueller Übernehmen-Button (sobald ein Datum erkannt wurde) —
-            // garantierter Ausweg, kein Warten auf die 4s-Auto-Bestätigung.
-            // Darunter immer ein „MHD überspringen", falls kein Datum
-            // aufgedruckt ist oder man es später manuell setzen will.
+            // Übernehmen-Button als Ausweg vor der Auto-Bestätigung,
+            // darunter immer „MHD überspringen".
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
               child: Column(
@@ -345,14 +403,7 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () => _finish(_stickyDate),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          backgroundColor: GSColors.primary,
-                          foregroundColor: GSColors.cream,
-                        ),
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                         child: Text(
                           'Datum übernehmen · ${_format(_stickyDate!)}',
                           style: GSTypography.body(
@@ -394,6 +445,55 @@ class _MhdScannerScreenState extends State<MhdScannerScreen>
 
 // ─────────────────────────────────────────────────────────────────────
 
+/// Fehler-Anzeige in der Kamera-Box (Berechtigung verweigert / Kamera weg)
+/// mit optionalem Aktions-Button. Liegt auf schwarzem Grund → Cream-Töne.
+class _CameraProblemInfo extends StatelessWidget {
+  const _CameraProblemInfo({
+    required this.icon,
+    required this.message,
+    this.buttonLabel,
+    this.onButton,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? buttonLabel;
+  final VoidCallback? onButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: GSColors.cream.withValues(alpha: 0.8), size: 36),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GSTypography.body(
+              color: GSColors.cream.withValues(alpha: 0.9),
+              size: 13,
+              height: 1.4,
+            ),
+          ),
+          if (buttonLabel != null) ...[
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: onButton,
+              style: FilledButton.styleFrom(minimumSize: const Size(190, 42)),
+              child: Text(buttonLabel!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
 class _CircleButton extends StatelessWidget {
   const _CircleButton({
     required this.icon,
@@ -401,6 +501,7 @@ class _CircleButton extends StatelessWidget {
     required this.surfaceColor,
     required this.inkColor,
     required this.lineColor,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -409,9 +510,12 @@ class _CircleButton extends StatelessWidget {
   final Color inkColor;
   final Color lineColor;
 
+  /// Long-Press-Tooltip; dient gleichzeitig als Screenreader-Label.
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final button = Material(
       color: surfaceColor,
       shape: const CircleBorder(),
       child: InkWell(
@@ -428,5 +532,7 @@ class _CircleButton extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, child: button);
   }
 }

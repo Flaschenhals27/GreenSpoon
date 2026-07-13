@@ -40,10 +40,13 @@ class Mascot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // cacheWidth: 1024er-Assets direkt in Zielgröße dekodieren (RAM + Ruckler).
+    final dpr = MediaQuery.of(context).devicePixelRatio;
     return Image.asset(
       pose.asset,
       width: size,
       height: size,
+      cacheWidth: (size * dpr).round(),
       fit: BoxFit.contain,
       // Falls ein Asset mal fehlt, fällt's nicht hart aus
       errorBuilder: (_, __, ___) => SizedBox(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/gs_colors.dart';
+import '../theme/gs_tone.dart';
 import '../theme/gs_typography.dart';
 
 /// Header im Green-Spoon-Stil: kleines Label oben, große Serifen-Headline,
@@ -21,11 +21,9 @@ class GSAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.5);
+    final tone = GSTone.of(context);
+    final textColor = tone.ink;
+    final subtleColor = tone.ink.withValues(alpha: 0.55);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
@@ -40,8 +38,7 @@ class GSAppBar extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: (isDark ? Colors.white : GSColors.forest)
-                      .withValues(alpha: 0.06),
+                  color: tone.ink.withValues(alpha: 0.06),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.arrow_back, size: 18, color: textColor),
@@ -54,8 +51,10 @@ class GSAppBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (subtitle != null) ...[
-                  Text(subtitle!.toUpperCase(),
-                      style: GSTypography.label(color: subtleColor),),
+                  Text(
+                    subtitle!.toUpperCase(),
+                    style: GSTypography.label(color: subtleColor),
+                  ),
                   const SizedBox(height: 2),
                 ],
                 Text(

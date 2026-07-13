@@ -12,11 +12,8 @@ class Co2Equivalent {
   final String value;
 }
 
-/// Übersetzt eine CO₂e-Menge (kg) in greifbare Alltags-Vergleiche.
-///
-/// ⚠️ Grobe Richtwerte — bewusst illustrativ, nicht exakt: der zugrunde
-/// liegende CO₂-Wert ist selbst schon eine Kategorie-Schätzung, hier kommt
-/// also Schätzung auf Schätzung. Im UI als „ungefähr" rahmen.
+/// Übersetzt CO₂e (kg) in Alltags-Vergleiche — grobe Richtwerte,
+/// im UI als „ungefähr" rahmen.
 class Co2Equivalents {
   Co2Equivalents._();
 
@@ -34,25 +31,30 @@ class Co2Equivalents {
     if (kg <= 0) return const [];
     return [
       Co2Equivalent(
-          emoji: '🚗',
-          label: 'Autofahrt',
-          value: '≈ ${_fmt(kg / _carKgPerKm)} km',),
+        emoji: '🚗',
+        label: 'Autofahrt',
+        value: '≈ ${_fmt(kg / _carKgPerKm)} km',
+      ),
       Co2Equivalent(
-          emoji: '🚌',
-          label: 'Busfahrt',
-          value: '≈ ${_fmt(kg / _busKgPerKm)} km',),
+        emoji: '🚌',
+        label: 'Busfahrt',
+        value: '≈ ${_fmt(kg / _busKgPerKm)} km',
+      ),
       Co2Equivalent(
-          emoji: '📱',
-          label: 'Handy laden',
-          value: '≈ ${_fmt(kg / _phoneChargeKg)}×',),
+        emoji: '📱',
+        label: 'Handy laden',
+        value: '≈ ${_fmt(kg / _phoneChargeKg)}×',
+      ),
       Co2Equivalent(
-          emoji: '🚿',
-          label: 'Warm duschen',
-          value: '≈ ${_fmt(kg / _showerKg)}×',),
+        emoji: '🚿',
+        label: 'Warm duschen',
+        value: '≈ ${_fmt(kg / _showerKg)}×',
+      ),
       Co2Equivalent(
-          emoji: '🌳',
-          label: 'Baum-Arbeit',
-          value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage',),
+        emoji: '🌳',
+        label: 'Baum-Arbeit',
+        value: '≈ ${_fmt(kg / (_treeKgPerYear / 365))} Tage',
+      ),
     ];
   }
 

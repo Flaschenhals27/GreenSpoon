@@ -1,13 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../../pantry/domain/pantry_categories.dart';
 import '../domain/scanned_product.dart';
 import 'product_emoji.dart';
 
-/// Wrapper um die kostenlose Open Food Facts API.
-///
-/// Endpoint: https://world.openfoodfacts.org/api/v2/product/<barcode>.json
-/// Kein API-Key, kein Auth nötig.
+/// Wrapper um die kostenlose Open Food Facts API (kein Key/Auth nötig).
 class OpenFoodFactsService {
   OpenFoodFactsService({http.Client? client})
       : _client = client ?? http.Client();
@@ -16,10 +14,7 @@ class OpenFoodFactsService {
 
   static const _base = 'https://world.openfoodfacts.org/api/v2/product';
 
-  /// Sucht ein Produkt anhand des Barcodes.
-  ///
-  /// Liefert `null`, wenn das Produkt unbekannt ist (sehr häufig bei
-  /// regionalen/Bio-Produkten — dann fallback auf manuelle Eingabe).
+  /// Produkt per Barcode; `null` bei unbekanntem Produkt → manuelle Eingabe.
   Future<ScannedProduct?> lookup(String barcode) async {
     final uri = Uri.parse('$_base/$barcode.json'
         '?fields=product_name,product_name_de,brands,quantity,'
@@ -60,7 +55,7 @@ class OpenFoodFactsService {
 
   /// Mappt Open-Food-Facts-Kategorien auf unsere App-Kategorien.
   String _mapCategory(dynamic tags) {
-    if (tags is! List) return 'Sonstiges';
+    if (tags is! List) return kFallbackCategory;
     final flat = tags.whereType<String>().join(' ').toLowerCase();
 
     if (flat.contains('dairy') ||
@@ -145,7 +140,7 @@ class OpenFoodFactsService {
     if (flat.contains('canned') || flat.contains('preserve')) {
       return 'Konserven';
     }
-    return 'Sonstiges';
+    return kFallbackCategory;
   }
 
   double? _extractCo2(dynamic ecoscoreData) {

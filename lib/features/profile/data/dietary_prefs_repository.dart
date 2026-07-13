@@ -10,11 +10,7 @@ abstract interface class DietaryPrefsRepository {
   Future<void> save(List<String> tags);
 }
 
-/// Liest und schreibt die Diät-Vorlieben des Users in `profiles.dietary_prefs`.
-///
-/// Speicherformat (jsonb): eine Liste von Schlüsseln, z.B.
-/// `{ "tags": ["vegetarisch", "laktosefrei"] }`. Der [SupabaseClient] wird
-/// injiziert.
+/// Diät-Vorlieben in `profiles.dietary_prefs` (jsonb: `{ "tags": [...] }`).
 class SupabaseDietaryPrefsRepository implements DietaryPrefsRepository {
   SupabaseDietaryPrefsRepository(this._client);
 

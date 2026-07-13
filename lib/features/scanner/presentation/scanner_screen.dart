@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
+import '../../pantry/domain/pantry_categories.dart';
 import '../domain/scanned_product.dart';
 import '../providers/scanner_providers.dart';
 import 'mhd_scanner_screen.dart';
@@ -21,6 +24,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   bool _processing = false;
   bool _torchOn = false;
 
+  /// Anzahl der in dieser Session hinzugefügten Produkte (Serien-Scan).
+  int _addedCount = 0;
+
+  /// Vorab gescanntes MHD („MHD zuerst") — der MHD-Schritt nach dem Barcode entfällt dann.
+  DateTime? _pendingExpiry;
+
+  /// Debounce: nach dem Review liegt derselbe Barcode oft noch im Bild.
+  String? _lastCode;
+  DateTime? _lastCodeAt;
+
+  bool _isDuplicateScan(String code) {
+    final at = _lastCodeAt;
+    return code == _lastCode &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(seconds: 3);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -28,7 +48,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _handleBarcode(String code) async {
-    if (_processing) return;
+    if (_processing || _isDuplicateScan(code)) return;
+    // Haptik: Barcode-Treffer spürbar machen.
+    HapticFeedback.mediumImpact();
     setState(() => _processing = true);
     await _controller.stop();
 
@@ -36,13 +58,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     try {
       product = await ref.read(openFoodFactsProvider).lookup(code);
     } catch (_) {
-      // Network error or timeout — proceed with empty product
+      // Netzwerkfehler/Timeout — mit leerem Produkt weiter.
     }
 
-    if (!mounted) {
-      await _controller.start();
-      return;
-    }
+    // Nach dispose() würde start() auf dem Controller werfen.
+    if (!mounted) return;
 
     final scanned = product ??
         ScannedProduct(
@@ -50,27 +70,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           name: '',
           brand: null,
           quantity: null,
-          category: 'Sonstiges',
+          category: kFallbackCategory,
           emoji: '📦',
         );
 
-    // Direkt im Anschluss das MHD scannen — ohne Extra-Tap im Review-Sheet.
-    // Gibt null zurück, wenn der User den MHD-Scan abbricht/überspringt;
-    // das Datum lässt sich im Review-Sheet weiterhin manuell setzen.
-    DateTime? expiry;
-    try {
-      expiry = await Navigator.of(context).push<DateTime>(
-        MaterialPageRoute(builder: (_) => const MhdScannerScreen()),
-      );
-    } catch (_) {
-      // Scanner unerwartet geschlossen — ohne Datum weiter.
+    // MHD direkt anschließend scannen — außer es wurde vorab erfasst (null = übersprungen).
+    DateTime? expiry = _pendingExpiry;
+    if (expiry == null) {
+      try {
+        expiry = await Navigator.of(context).push<DateTime>(
+          MaterialPageRoute(builder: (_) => const MhdScannerScreen()),
+        );
+      } catch (_) {
+        // Scanner unerwartet geschlossen — ohne Datum weiter.
+      }
     }
 
     if (!mounted) return;
 
-    bool? result;
+    // Liefert bei Erfolg den gespeicherten Produktnamen, sonst null.
+    String? savedName;
     try {
-      result = await showModalBottomSheet<bool>(
+      savedName = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
@@ -78,27 +99,68 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ScanReviewSheet(product: scanned, prefilledExpiry: expiry),
       );
     } catch (_) {
-      // Sheet closed unexpectedly
+      // Sheet unerwartet geschlossen.
     }
 
     if (!mounted) return;
 
-    if (result == true) {
-      Navigator.of(context).pop();
-    } else {
-      setState(() => _processing = false);
-      await _controller.start();
+    // Sperr-Fenster ab Sheet-Schluss: derselbe Barcode liegt vermutlich noch im Bild.
+    _lastCode = code;
+    _lastCodeAt = DateTime.now();
+
+    // Serien-Scan: Scanner bleibt nach dem Speichern offen (Ausstieg: Zurück-Button).
+    if (savedName != null) {
+      _addedCount++;
+      // Das vorab gescannte MHD gehörte zu genau diesem Produkt.
+      _pendingExpiry = null;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('„$savedName" hinzugefügt — nächster Barcode?'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
     }
+    setState(() => _processing = false);
+    await _controller.start();
   }
+
+  /// „MHD zuerst": Datum vorab scannen, der nächste Barcode übernimmt es.
+  Future<void> _scanMhdFirst() async {
+    if (_processing) return;
+    setState(() => _processing = true);
+    await _controller.stop();
+    if (!mounted) return;
+
+    DateTime? picked;
+    try {
+      picked = await Navigator.of(context).push<DateTime>(
+        MaterialPageRoute(builder: (_) => const MhdScannerScreen()),
+      );
+    } catch (_) {
+      // Scanner unerwartet geschlossen — ohne Datum weiter.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      if (picked != null) _pendingExpiry = picked;
+      _processing = false;
+    });
+    await _controller.start();
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inkColor = isDark ? GSColors.inkDark : GSColors.ink;
-    final muteColor = isDark ? GSColors.inkMuteDark : GSColors.inkMute;
-    final bgColor = isDark ? GSColors.bgAppDark : GSColors.bgApp;
-    final surfaceColor = isDark ? GSColors.surfaceDark : GSColors.surface;
-    final lineColor = isDark ? GSColors.lineDark : GSColors.line;
+    final tone = GSTone.of(context);
+    final inkColor = tone.ink;
+    final muteColor = tone.inkMute;
+    final bgColor = tone.bg;
+    final surfaceColor = tone.surface;
+    final lineColor = tone.line;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -113,6 +175,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 children: [
                   _CircleButton(
                     icon: Icons.chevron_left,
+                    tooltip: 'Zurück',
                     onTap: () => Navigator.of(context).pop(),
                     surfaceColor: surfaceColor,
                     inkColor: inkColor,
@@ -120,7 +183,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   ),
                   _CircleButton(
                     icon: _torchOn ? Icons.flash_on : Icons.flash_off,
+                    tooltip:
+                        _torchOn ? 'Blitz ausschalten' : 'Blitz einschalten',
                     onTap: () async {
+                      HapticFeedback.selectionClick();
                       await _controller.toggleTorch();
                       setState(() => _torchOn = !_torchOn);
                     },
@@ -187,7 +253,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 8,),
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.55),
                                   borderRadius: BorderRadius.circular(999),
@@ -226,14 +294,105 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 ),
               ),
             ),
-            // Hilfetext
+            // Hilfetext + Serien-Scan-Ausstieg
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
-              child: Text(
-                'Halte den Barcode in den Rahmen.',
-                textAlign: TextAlign.center,
-                style: GSTypography.italicCaption(color: muteColor)
-                    .copyWith(fontSize: 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Halte den Barcode in den Rahmen.',
+                    textAlign: TextAlign.center,
+                    style: GSTypography.italicCaption(color: muteColor)
+                        .copyWith(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  // Chip zeigt das gemerkte MHD, X verwirft es.
+                  if (_pendingExpiry == null)
+                    TextButton.icon(
+                      onPressed: _processing ? null : _scanMhdFirst,
+                      icon: Icon(
+                        Icons.event_outlined,
+                        size: 18,
+                        color: tone.primary,
+                      ),
+                      label: Text(
+                        'MHD zuerst scannen',
+                        style: GSTypography.body(
+                          color:
+                              tone.primary,
+                          size: 14,
+                          weight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                      decoration: BoxDecoration(
+                        color: (tone.primary)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.event_available,
+                            size: 16,
+                            color:
+                                tone.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'MHD gemerkt: ${_formatDate(_pendingExpiry!)}',
+                            style: GSTypography.body(
+                              color: tone.primary,
+                              size: 13,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Tooltip(
+                            message: 'Gemerktes MHD verwerfen',
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () =>
+                                  setState(() => _pendingExpiry = null),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: muteColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // „Fertig"-Ausstieg mit Zähler, sobald etwas hinzugefügt wurde.
+                  if (_addedCount > 0) ...[
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(220, 48),
+                      ),
+                      child: Text(
+                        _addedCount == 1
+                            ? 'Fertig · 1 Produkt'
+                            : 'Fertig · $_addedCount Produkte',
+                        style: GSTypography.body(
+                          color: GSColors.cream,
+                          size: 14.5,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -252,6 +411,7 @@ class _CircleButton extends StatelessWidget {
     required this.surfaceColor,
     required this.inkColor,
     required this.lineColor,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -260,9 +420,12 @@ class _CircleButton extends StatelessWidget {
   final Color inkColor;
   final Color lineColor;
 
+  /// Tooltip = zugleich Screenreader-Label des Icon-Buttons.
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final button = Material(
       color: surfaceColor,
       shape: const CircleBorder(),
       child: InkWell(
@@ -279,5 +442,7 @@ class _CircleButton extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, child: button);
   }
 }

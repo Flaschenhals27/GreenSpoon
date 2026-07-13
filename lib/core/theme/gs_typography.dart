@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typografie für Green Spoon — Redesign v2.
-///
-/// - **Newsreader** (Serife): für Headlines, Display-Texte — feiner und
-///   eleganter als Fraunces, mit variabler Optical-Size-Achse.
-/// - **Manrope** (Sans): für UI-Text, Buttons, Labels — geometrischer
-///   als Inter, modern aber warm.
+/// Typografie: Newsreader (Serife) für Headlines, Manrope (Sans) für UI-Text.
 class GSTypography {
   GSTypography._();
 

@@ -35,6 +35,15 @@ class GSColors {
   /// Helles Honey — für Honey-Backgrounds.
   static const Color honeySoft = Color(0xFFF1E2BB);
 
+  /// Tiefes Honey — für Text auf Honey-Backgrounds (z.B. Ablauf-Pille).
+  static const Color honeyDeep = Color(0xFF8A6A17);
+
+  /// Gedämpftes Graugrün — neutrale Status-Punkte (z.B. „läuft lange").
+  static const Color sage = Color(0xFFA7B1A8);
+
+  /// Warmes Karamell — Illustrationsflächen (z.B. Onboarding).
+  static const Color caramel = Color(0xFFC9824E);
+
   // ─── Hintergründe & Surfaces (Light) ───────────────────────
   /// Haupt-App-Hintergrund: warmes Cream.
   static const Color bgApp = Color(0xFFF5EDE0);
@@ -82,44 +91,4 @@ class GSColors {
 
   /// Gedämpfter Text Dark.
   static const Color inkMuteDark = Color(0xFF7E8B83);
-
-  // ─── Legacy-Aliase (für sanften Übergang) ──────────────────
-  // Diese werden im Code noch referenziert. Nach und nach durch neue
-  // Tokens ersetzen. Verweisen jetzt auf passende neue Werte.
-
-  /// War: tiefes Tannengrün für Headlines hell. Jetzt: ink.
-  static const Color forest = ink;
-
-  /// War: dunkles Waldgrün (App-Hintergrund dark). Jetzt: bgAppDark.
-  static const Color forestDeep = bgAppDark;
-
-  /// War: helles Cream. Jetzt: bgApp.
-  static const Color cream2 = bgApp;
-
-  /// War: Beige für Akzentflächen. Jetzt: surface2.
-  static const Color sand = surface2;
-
-  /// War: Off-White auf dark. Jetzt: inkDark.
-  static const Color paper = inkDark;
-
-  /// War: Card-Weiß hell. Jetzt: surface.
-  static const Color cardLight = surface;
-
-  /// War: Card dunkel. Jetzt: surfaceDark.
-  static const Color cardDark = surfaceDark;
-
-  /// War: Helles Salbeigrün. Jetzt: primaryMid.
-  static const Color primaryLight = primaryMid;
-
-  /// Status: läuft ab — gleicher Wert wie accent.
-  static const Color expiryUrgent = accent;
-
-  /// Status: läuft bald ab — Honey-Gold.
-  static const Color expirySoon = honey;
-
-  /// Status: frisch — primary.
-  static const Color expiryFresh = primary;
-
-  /// Status: frisch (Dark) — primaryMid.
-  static const Color expiryFreshDark = primaryMid;
 }

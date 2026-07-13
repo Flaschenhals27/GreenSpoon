@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/gs_colors.dart';
+import '../../../core/theme/gs_tone.dart';
 import '../../../core/theme/gs_typography.dart';
 import '../providers/auth_providers.dart';
 
@@ -147,11 +148,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? GSColors.paper : GSColors.forest;
-    final subtleColor = isDark
-        ? GSColors.paper.withValues(alpha: 0.55)
-        : GSColors.forest.withValues(alpha: 0.55);
+    final tone = GSTone.of(context);
+    final textColor = tone.ink;
+    final subtleColor = tone.ink.withValues(alpha: 0.55);
 
     return Scaffold(
       body: SafeArea(
@@ -177,7 +176,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: Text(
                           _step == _Step.email ? 'Zum Login' : 'Zurück',
-                          style: GSTypography.body(color: subtleColor, size: 13),
+                          style:
+                              GSTypography.body(color: subtleColor, size: 13),
                         ),
                       ),
                     ),
@@ -193,8 +193,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Icon(Icons.lock_reset,
-                              color: GSColors.cream, size: 32,),
+                          child: Icon(
+                            Icons.lock_reset,
+                            color: GSColors.cream,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -240,7 +243,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         decoration: const InputDecoration(hintText: 'du@example.com'),
         validator: (v) {
           if (v == null || v.trim().isEmpty) return 'Bitte Email eingeben';
-          if (!v.contains('@') || !v.contains('.')) return 'Keine gültige Email';
+          if (!v.contains('@') || !v.contains('.')) {
+            return 'Keine gültige Email';
+          }
           return null;
         },
       ),
